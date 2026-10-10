@@ -4,10 +4,7 @@
 
 ### A minimal, modular, educational agent framework, built step by step.
 
-![Python](https://img.shields.io/badge/python-3.12-3776AB?logo=python&logoColor=white)
-![Status](https://img.shields.io/badge/status-skeleton-orange)
-![Docs](https://img.shields.io/badge/docs-Sphinx%20%2B%20Furo-8CA1AF?logo=sphinx&logoColor=white)
-![Dependencies](https://img.shields.io/badge/runtime%20deps-0-brightgreen)
+![Python](https://img.shields.io/badge/python-3.12-3776AB?logo=python&logoColor=white) ![Status](https://img.shields.io/badge/status-skeleton-orange) ![Docs](https://img.shields.io/badge/docs-Sphinx%20%2B%20Furo-8CA1AF?logo=sphinx&logoColor=white) ![Dependencies](https://img.shields.io/badge/runtime%20deps-0-brightgreen)
 
 </div>
 
@@ -55,7 +52,7 @@ Received: Hello, agent!
 Or from code:
 
 ```python
-from tiny_agent import TinyAgent
+from agent.tiny_agent import TinyAgent
 
 agent = TinyAgent()
 print(agent.run("Hello, agent!"))
@@ -77,7 +74,8 @@ Then open `docs/_build/html/index.html`.
 ```
 tiny-agent-design/
 ├── main.py          # entry point: creates the agent and runs a task
-├── tiny_agent.py    # the TinyAgent harness
+├── agent/
+│   └── tiny_agent.py  # the TinyAgent harness
 └── docs/            # Sphinx documentation
 ```
 
@@ -96,8 +94,6 @@ tiny-agent-design/
 
 Built to learn how agents work, one small piece at a time.
 
-Based on *An Illustrated Guide to AI Agents* by Maarten Grootendorst and Jay Alammar (O'Reilly).
-Companion code: [HandsOnLLM/An-Illustrated-Guide-To-AI-Agents](https://github.com/HandsOnLLM/An-Illustrated-Guide-To-AI-Agents).
-That repository has no license, so all rights remain with the authors. This is a personal learning project, not affiliated with or endorsed by them. If you find the book useful, please cite it.
+Based on *An Illustrated Guide to AI Agents* by Maarten Grootendorst and Jay Alammar (O'Reilly). Companion code: [HandsOnLLM/An-Illustrated-Guide-To-AI-Agents](https://github.com/HandsOnLLM/An-Illustrated-Guide-To-AI-Agents). That repository has no license, so all rights remain with the authors. This is a personal learning project, not affiliated with or endorsed by them. If you find the book useful, please cite it.
 
 </div>

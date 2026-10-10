@@ -1,6 +1,6 @@
-// Ollama accepts localhost origins by default, so serve this app over
-// http://localhost (the Vite dev server does); file:// will not work.
-export const OLLAMA = "http://localhost:11434";
+// Same-origin: nginx (in Docker) and the Vite dev server both forward /v1 to
+// the backend, which forwards it to llama-server.
+export const API_BASE = "";
 export const MAX_ROUNDS = 5;
 export const FOLLOW_SLACK_PX = 48; // how near the bottom still counts as "reading along"
 export const NOTIFY_MS = 33; // batch streamed tokens: ~30 repaints a second

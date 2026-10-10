@@ -1,0 +1,9 @@
+#!/bin/sh
+# Unwrap staged Markdown before it is committed (one paragraph = one line).
+# Enabled with:  git config core.hooksPath .githooks
+files=$(git diff --cached --name-only --diff-filter=ACM -- '*.md')
+[ -z "$files" ] && exit 0
+# shellcheck disable=SC2086
+node tools/unwrap-md.mjs --write $files
+# shellcheck disable=SC2086
+git add $files

@@ -25,13 +25,27 @@ Open `docs/_build/html/index.html`.
 
 ## 3. Chat app (experiment)
 
-Lives in `experimentation/chat-app/`. Full details are in its
-[README](experimentation/chat-app/README.md).
+Lives in `experimentation/chat-app/`. Full details are in its [README](experimentation/chat-app/README.md).
 
-### Frontend
+### Everything in Docker (frontend + backend + llama.cpp)
 
-Needs Node 20+ and [Ollama](https://ollama.com) running on port 11434 with a model pulled
-(for example `gemma4:e4b-it-qat`).
+Needs Docker with NVIDIA GPU support. Models that are not installed yet are downloaded first (set `PULL_MODELS` to change the list).
+
+```powershell
+cd experimentation/chat-app/deploy
+docker compose up -d --build
+docker compose logs -f llama
+```
+
+| Service | URL |
+|---|---|
+| App, API and health (the gateway, the only published port) | <http://localhost:3200> |
+| Backend health | <http://localhost:3200/health> |
+| llama.cpp API (via the backend) | <http://localhost:3200/v1/models> |
+
+### Frontend dev server
+
+Needs Node 20+ and the stack running (the dev server forwards the API to the gateway on port 3200).
 
 ```powershell
 cd experimentation/chat-app/frontend
@@ -39,36 +53,19 @@ npm install
 npm run dev
 ```
 
-Open <http://localhost:5173>. `npm run build` makes a production bundle in `dist/`.
+Open <http://localhost:5173>. `npm run build` makes a bundle in `dist/`.
 
-### Backend CLI
+## Markdown style
 
-Sends one message to Ollama.
-
-```powershell
-python experimentation/chat-app/backend/chat_ollama.py gemma4:e4b-it-qat "Hi! How's life?"
-```
-
-### llama.cpp server (optional, not yet used by the frontend)
-
-Needs Podman or Docker with NVIDIA GPU support.
-
-```powershell
-cd experimentation/chat-app
-docker compose up -d
-docker compose logs -f llama
-```
-
-Models that are not installed yet are downloaded first (set `PULL_MODELS` to
-change the list). The API is served at <http://localhost:8080/v1>.
+Markdown is kept unwrapped (one paragraph per line). Enable the commit hook that enforces it once per clone with `git config core.hooksPath .githooks`, and check everything with `node tools/unwrap-md.mjs --check`.
 
 ## Layout
 
 ```
 tiny-agent-design/
 ├── main.py            # entry point
-├── tiny_agent.py      # the TinyAgent harness
+├── agent/             # the TinyAgent harness (tiny_agent.py)
 ├── docs/              # Sphinx documentation
 └── experimentation/
-    └── chat-app/      # frontend, backend CLI, llama.cpp setup
+    └── chat-app/      # frontend, backend, llama.cpp compose
 ```

@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Btn } from "./ui.jsx";
 
-export default function Composer({ busy, disabled, onSend, onStop }) {
+export default function Composer({ busy, disabled, placeholder = "Message the agent", onSend, onStop }) {
   const [text, setText] = useState("");
   const box = useRef(null);
 
@@ -27,8 +27,9 @@ export default function Composer({ busy, disabled, onSend, onStop }) {
           ref={box}
           rows={1}
           value={text}
-          placeholder="Message the agent"
+          placeholder={placeholder}
           aria-label="Message"
+          disabled={disabled}
           onChange={(e) => setText(e.target.value)}
           onKeyDown={(e) => {
             if (e.key === "Enter" && !e.shiftKey && !e.nativeEvent.isComposing) {
@@ -42,7 +43,7 @@ export default function Composer({ busy, disabled, onSend, onStop }) {
         {busy ? (
           <Btn variant="primary" onClick={onStop}>Stop</Btn>
         ) : (
-          <Btn variant="primary" type="submit" disabled={!text.trim() || disabled}>Send</Btn>
+          <Btn variant="primary" type="submit" data-testid="send-button" disabled={!text.trim() || disabled}>Send</Btn>
         )}
       </div>
     </form>

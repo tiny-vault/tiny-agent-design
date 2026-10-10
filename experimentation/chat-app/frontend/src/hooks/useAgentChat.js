@@ -1,6 +1,6 @@
 import { useCallback, useRef, useState } from "react";
 import { MAX_ROUNDS, SYSTEM_PROMPT, TOOLS } from "../lib/constants.js";
-import { streamChat } from "../lib/ollama.js";
+import { streamChat } from "../lib/llama.js";
 import { runTool } from "../lib/tools.js";
 
 const newTurn = (id, question) => ({
@@ -14,7 +14,7 @@ const freshConvo = () => [{ role: "system", content: SYSTEM_PROMPT }];
    repeat until the model answers without calling a tool (at most MAX_ROUNDS).
    `turns` is what the UI renders; `convo` is the API history and lives in a ref
    because it is never drawn. */
-export function useAgentChat({ model, kb, onDone }) {
+export function useAgentChat({ model, ready, kb, onDone }) {
   const [turns, setTurns] = useState([]);
   const [busy, setBusy] = useState(false);
   const convo = useRef(freshConvo());
@@ -24,7 +24,7 @@ export function useAgentChat({ model, kb, onDone }) {
 
   const send = useCallback(
     async (text) => {
-      if (!text || !model) return;
+      if (!text || !model || !ready) return;
       const id = ++nextId.current;
       const patch = (p) => setTurns((ts) => ts.map((t) => (t.id === id ? { ...t, ...p } : t)));
       const history = convo.current;
@@ -94,10 +94,12 @@ export function useAgentChat({ model, kb, onDone }) {
           if (round === MAX_ROUNDS - 1) patch({ error: "Stopped after too many tool rounds." });
         }
       } catch (e) {
-        // Drop the half-finished exchange from the API history, keep what was said.
+        // Drop the half-finished exchange from the API history. Keep the question
+        // only if some of the answer arrived: a user message with no reply would be
+        // followed by the next user message, and chat templates require roles to
+        // alternate.
         history.length = base;
-        history.push({ role: "user", content: text });
-        if (content) history.push({ role: "assistant", content });
+        if (content) history.push({ role: "user", content: text }, { role: "assistant", content });
         if (e.name === "AbortError") patch({ stopped: true });
         else patch({ error: e.message });
       } finally {
@@ -107,7 +109,7 @@ export function useAgentChat({ model, kb, onDone }) {
         onDone?.();
       }
     },
-    [model, kb, onDone],
+    [model, ready, kb, onDone],
   );
 
   const stop = useCallback(() => controller.current?.abort(), []);

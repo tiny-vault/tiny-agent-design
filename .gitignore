@@ -873,6 +873,9 @@ weights/
 models/*
 !models/.gitkeep
 !models/README.md
+!**/models/README.md
+!**/models/models.ini
+!**/models/pull-models.sh
 !models/*.example
 !models/*.ini.example
 huggingface/

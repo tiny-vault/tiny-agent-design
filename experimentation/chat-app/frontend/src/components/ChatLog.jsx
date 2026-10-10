@@ -6,7 +6,7 @@ import Turn from "./Turn.jsx";
 /* The scrolling conversation. It follows a streaming answer only while the
    reader is within 48px of the bottom, so scrolling up to read is not
    interrupted. Sending a new message always jumps back to the bottom. */
-export default function ChatLog({ turns, model, onAsk }) {
+export default function ChatLog({ turns, model, ready, onAsk }) {
   const log = useRef(null);
   const follow = useRef(true);
 
@@ -24,7 +24,7 @@ export default function ChatLog({ turns, model, onAsk }) {
       onScroll={() => { follow.current = followsBottom(log.current); }}
       className="flex flex-1 flex-col gap-6 overflow-y-auto pt-4 pb-8"
     >
-      {turns.length === 0 && <EmptyState model={model} onAsk={onAsk} />}
+      {turns.length === 0 && <EmptyState model={model} ready={ready} onAsk={onAsk} />}
       {turns.map((t) => (
         <Turn key={t.id} turn={t} />
       ))}

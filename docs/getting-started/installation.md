@@ -1,7 +1,6 @@
 # Installation
 
-TinyAgent currently has no runtime dependencies beyond the Python standard
-library. The project was set up with Python 3.12.
+TinyAgent currently has no runtime dependencies beyond the Python standard library. The project was set up with Python 3.12.
 
 ## Create a virtual environment
 

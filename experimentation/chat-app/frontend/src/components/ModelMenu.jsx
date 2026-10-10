@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { Btn, Dot, Icon } from "./ui.jsx";
 
 /* A themed dropdown of installed models, marking the ones loaded in memory. */
-export default function ModelMenu({ models, loaded, model, loading, disabled, onOpen, onPick, onUnload }) {
+export default function ModelMenu({ models, model, switching, disabled, onOpen, onPick }) {
   const [open, setOpen] = useState(false);
   const root = useRef(null);
 
@@ -18,13 +18,12 @@ export default function ModelMenu({ models, loaded, model, loading, disabled, on
     };
   }, [open]);
 
-  const dotFor = (m) => <Dot tone={loaded.has(m) ? "ok" : undefined} running={loading === m} />;
-
   return (
     <div ref={root} className="relative">
       <Btn
         className="max-w-[220px]"
-        disabled={disabled || !!loading}
+        disabled={disabled || !!switching}
+        data-testid="model-button"
         aria-haspopup="listbox"
         aria-expanded={open}
         onClick={() => {
@@ -32,8 +31,8 @@ export default function ModelMenu({ models, loaded, model, loading, disabled, on
           setOpen(!open);
         }}
       >
-        {model && <Dot tone={loaded.has(model) ? "ok" : undefined} running={!!loading} />}
-        <span className="truncate">{loading ? `Loading ${loading}…` : model || "No model"}</span>
+        {(model || switching) && <Dot tone={models.find((m) => m.id === model)?.status === "loaded" ? "ok" : undefined} running={!!switching} />}
+        <span className="truncate">{switching ? `Loading ${switching}…` : model || "No model"}</span>
         <Icon name="chevron" />
       </Btn>
 
@@ -41,7 +40,7 @@ export default function ModelMenu({ models, loaded, model, loading, disabled, on
         <div role="listbox"
           className="absolute right-0 top-[calc(100%+4px)] z-10 min-w-[220px] rounded-overlay border border-line
             bg-glass-strong p-1 backdrop-blur-xl backdrop-saturate-[.3]">
-          {models.map((m) => (
+          {models.map(({ id: m, status }) => (
             <div key={m} className="flex items-center">
               <button
                 type="button"
@@ -51,27 +50,15 @@ export default function ModelMenu({ models, loaded, model, loading, disabled, on
                 className="flex w-full cursor-pointer items-center gap-3 rounded-cell bg-transparent px-3 py-2 text-left
                   transition-colors duration-[260ms] hover:bg-surface-2 hover:duration-[120ms]"
               >
-                {dotFor(m)}
+                <Dot tone={status === "loaded" ? "ok" : undefined} running={status === "loading"} />
                 <span className={`flex-1 break-words ${m === model ? "font-semibold" : ""}`}>{m}</span>
-                <span className="text-fine text-ink-2">{loading === m ? "Loading…" : loaded.has(m) ? "Loaded" : ""}</span>
+                <span className="text-fine text-ink-2">{status === "loaded" ? "Loaded" : status === "loading" ? "Loading…" : ""}</span>
               </button>
-              {loaded.has(m) && loading !== m && (
-                <button
-                  type="button"
-                  onClick={() => onUnload(m)}
-                  aria-label="Unload model"
-                  title="Unload from memory"
-                  className="flex size-7 flex-none cursor-pointer items-center justify-center rounded-cell bg-transparent
-                    p-0 text-ink-2 transition-colors duration-[260ms] hover:bg-surface-2 hover:duration-[120ms]"
-                >
-                  <Icon name="close" size={14} />
-                </button>
-              )}
             </div>
           ))}
           {!models.length && (
             <p className="m-0 px-3 py-2 text-ink-2">
-              No models installed. Run <code>ollama pull &lt;model&gt;</code>.
+              No models available. Check <code>models.ini</code>.
             </p>
           )}
         </div>
