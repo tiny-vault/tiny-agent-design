@@ -5,5 +5,5 @@ API reference
    :toctree: generated
    :recursive:
 
-   agent.tiny_agent
-   main
+   tiny_agent.shared.tiny_agent
+   tiny_agent.main

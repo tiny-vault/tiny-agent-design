@@ -42,7 +42,7 @@ task ─▶ [memory] ─▶ LLM decides ─▶ action ─▶ tool ─▶ observa
 ```powershell
 python -m venv .venv
 .\.venv\Scripts\Activate.ps1
-python main.py
+python -m tiny_agent.main
 ```
 
 ```text
@@ -52,7 +52,7 @@ Received: Hello, agent!
 Or from code:
 
 ```python
-from agent.tiny_agent import TinyAgent
+from tiny_agent.shared.tiny_agent import TinyAgent
 
 agent = TinyAgent()
 print(agent.run("Hello, agent!"))
@@ -73,9 +73,9 @@ Then open `docs/_build/html/index.html`.
 
 ```
 tiny-agent-design/
-├── main.py          # entry point: creates the agent and runs a task
-├── agent/
-│   └── tiny_agent.py  # the TinyAgent harness
+├── tiny_agent/
+│   ├── main.py      # entry point: creates the agent and runs a task
+│   └── shared/      # the TinyAgent harness, LLM client, model check
 └── docs/            # Sphinx documentation
 ```
 

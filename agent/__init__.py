@@ -1,1 +1,0 @@
-"""The TinyAgent harness package."""

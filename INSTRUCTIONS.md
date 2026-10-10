@@ -9,7 +9,7 @@ No runtime dependencies, Python 3.12.
 ```powershell
 python -m venv .venv
 .\.venv\Scripts\Activate.ps1
-python main.py
+python -m tiny_agent.main
 ```
 
 Expected output: `Received: Hello, agent!`
@@ -63,8 +63,9 @@ Markdown is kept unwrapped (one paragraph per line). Enable the commit hook that
 
 ```
 tiny-agent-design/
-├── main.py            # entry point
-├── agent/             # the TinyAgent harness (tiny_agent.py)
+├── tiny_agent/
+│   ├── main.py        # entry point
+│   └── shared/        # the TinyAgent harness, LLM client, model check
 ├── docs/              # Sphinx documentation
 └── experimentation/
     └── chat-app/      # frontend, backend, llama.cpp compose

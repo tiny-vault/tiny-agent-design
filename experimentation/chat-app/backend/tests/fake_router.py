@@ -53,6 +53,8 @@ class FakeRouter:
                     model = body.get("model")
                     if model not in fake.status:
                         return self._send(404, {"error": {"message": "File Not Found"}})
+                    if fake.busy_until > time.monotonic():
+                        return self._send(500, {"error": {"code": 500, "message": "model limit reached, try again later"}})
                     fake.load_calls.append(model)
                     fake._begin_load(model)
                     self._send(200, {"success": True})
@@ -80,6 +82,7 @@ class FakeRouter:
         self.chat_calls = []
         self.load_calls = []
         self.health_code = 200
+        self.busy_until = 0  # monotonic time until which loads are refused as "model limit reached"
 
     def _begin_load(self, model):
         for other in self.status:

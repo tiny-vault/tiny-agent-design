@@ -47,8 +47,12 @@ test("the real router: switch models from the dropdown and chat with each", asyn
     expect(response.status()).toBe(200);
     expect(response.request().postDataJSON().model).toBe(target);
     await expect(page.getByText(`Round ${round}: reply with the word OK.`)).toBeVisible();
-    // Wait for the turn to finish so the next switch does not interrupt it.
-    await expect(page.getByRole("button", { name: "Stop" })).toBeHidden({ timeout: 240_000 });
+    // Do not wait for the whole answer: these are reasoning models and a full reply takes
+    // minutes. The router accepted the request, which is what this test is about. Stop it
+    // (which also checks that stopping does not block the next switch).
+    await page.getByRole("button", { name: "Stop" }).click();
+    // Each stopped turn shows "Stopped.", so by round 1 there are two: check the newest.
+    await expect(page.getByText("Stopped.").last()).toBeVisible();
 
     current = target;
   }

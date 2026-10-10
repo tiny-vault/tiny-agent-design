@@ -270,3 +270,36 @@ def test_model_list_survives_a_model_without_status(client, router):
     router.status.clear()
     router.status["only"] = "loaded"
     assert statuses(client) == {"only": "loaded"}
+
+
+# ---- a busy router -----------------------------------------------------------
+
+def test_load_retries_while_the_current_model_is_still_busy(client, router):
+    """llama.cpp refuses a switch with 'model limit reached' while the old model is
+    still generating (right after the user pressed Stop). The backend must wait."""
+    router.busy_until = time.monotonic() + 0.4
+    response = client.post("/api/models/load", json={"model": "qwen"})
+    assert response.status_code == 200
+    assert router.load_calls == ["qwen"]  # only the accepted attempt reached the router
+
+
+def test_load_times_out_if_the_router_stays_busy(router):
+    router.busy_until = time.monotonic() + 60
+    with TestClient(create_app(router.url, **{**FAST, "load_timeout": 0.4})) as client:
+        response = client.post("/api/models/load", json={"model": "qwen"})
+    assert (response.status_code, code(response)) == (504, "load_timeout")
+
+
+def test_other_llama_errors_on_load_are_reported_not_crashed(client, router, monkeypatch):
+    from llama_client import LlamaClient, LlamaError
+
+    async def refuse(self, method, path, **kwargs):
+        if path == "/models/load":
+            raise LlamaError(500, "out of memory")
+        return await original(self, method, path, **kwargs)
+
+    original = LlamaClient._json
+    monkeypatch.setattr(LlamaClient, "_json", refuse)
+    response = client.post("/api/models/load", json={"model": "qwen"})
+    assert (response.status_code, code(response)) == (500, "llama_error")
+    assert response.json()["error"]["message"] == "out of memory"

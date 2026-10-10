@@ -4,8 +4,8 @@
 
 | Component | Source | Responsibility |
 |---|---|---|
-| Entry point | `main.py` (`main`) | Creates the agent, runs one task, prints the result. Holds no agent logic. |
-| Harness | `agent/tiny_agent.py` (`TinyAgent`) | Control loop and the slots for LLM, memory, tools and planner. |
+| Entry point | `tiny_agent/main.py` (`main`) | Creates the agent, runs one task, prints the result. Holds no agent logic. |
+| Harness | `tiny_agent/shared/tiny_agent.py` (`TinyAgent`) | Control loop and the slots for LLM, memory, tools and planner. |
 
 `TinyAgent` has four attributes, all `None` today and filled in by later steps: `llm`, `memory`, `tools` and `planner`.
 

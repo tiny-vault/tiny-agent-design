@@ -2,18 +2,22 @@
 
 Guidance for AI coding agents (and people) working in this repository. Read this before changing anything; it lists what exists, how to run and test it, and the traps that have already cost time.
 
+## Rules for `tiny_agent/`
+
+The `tiny_agent/` folder has its own stricter rules, in `tiny_agent/AGENTS.md`: fix methods only, never rewrite or restructure, flag what is missing, and re-read a file before every edit. Read them before touching anything in that folder. They do not apply to the rest of the repo.
+
 ## What this repo is
 
 Two things live here:
 
-1. **TinyAgent** (`agent/`, `main.py`, `docs/`): a minimal, educational agent harness, built step by step. Currently a skeleton; no model is called.
-2. **Chat app** (`experimentation/chat-app/`): a local chat UI that talks to models served by llama.cpp, all in Docker. It is an experiment and does not use `agent/` yet.
+1. **TinyAgent** (`tiny_agent/`, `docs/`): a minimal, educational agent harness, built step by step. Currently a skeleton; no model is called.
+2. **Chat app** (`experimentation/chat-app/`): a local chat UI that talks to models served by llama.cpp, all in Docker. It is an experiment and does not use `tiny_agent/` yet.
 
 ## Layout
 
 ```
-agent/tiny_agent.py            TinyAgent harness (skeleton)
-main.py                        Demo entry point
+tiny_agent/main.py             Demo entry point (python -m tiny_agent.main)
+tiny_agent/shared/             TinyAgent harness, LLM client, model check, Response
 tools/unwrap-md.mjs            Keeps Markdown unwrapped (used by the pre-commit hook)
 docs/                          Sphinx docs (Furo theme)
 INSTRUCTIONS.md                How to run everything
@@ -51,7 +55,7 @@ All from `experimentation/chat-app` unless noted.
 | Frontend dev | `cd frontend; npm install; npm run dev` (needs the stack up; proxies to the gateway) |
 | Frontend build | `cd frontend; npm run build` |
 | Docs | repo root: `sphinx-build -b html -n -W --keep-going docs docs/_build/html` |
-| Demo agent | repo root: `python main.py` |
+| Demo agent | repo root: `python -m tiny_agent.main` |
 
 Python lives in the repo's `.venv` (Python 3.12). Activate it, or call `.venv/Scripts/python` directly. Backend dependencies are in `backend/requirements*.txt`.
 
@@ -62,6 +66,7 @@ Python lives in the repo's `.venv` (Python 3.12). Activate it, or call `.venv/Sc
 | Target | What it runs | Needs |
 |---|---|---|
 | `backend` | pytest in `backend/tests`, against a fake llama router | nothing |
+| `agent` | pytest in `tiny_agent/tests` (check.py, llm.py, Response, TinyAgent, the demo) against a fake model server | nothing |
 | `mocked` | Playwright `frontend/e2e/{gating,edge}.spec.js`, API stubbed in the browser, on a Vite dev server Playwright starts (so it tests the current source, not a Docker image) | nothing |
 | `live` | Playwright `frontend/e2e/live.spec.js` through the gateway, real models | the stack up (`node execute.mjs up`) |
 | `all` (default) | backend + mocked, plus live when the stack is up | |

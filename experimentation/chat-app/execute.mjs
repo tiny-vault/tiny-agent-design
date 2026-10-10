@@ -37,6 +37,7 @@ Models (through the gateway)
 Tests  (extra arguments after "--" go to the test runner)
   test                Everything that can run: backend + mocked (+ live if the stack is up)
   test backend        Backend pytest suite (fake llama router; no Docker needed)
+  test agent          tiny_agent pytest suite (fake model server; no Docker needed)
   test mocked         Playwright, API stubbed in the browser (current source; no Docker needed)
   test live           Playwright against the REAL stack: switches real models (slow; needs "up")
   test e2e            mocked + live
@@ -191,9 +192,10 @@ switch (command) {
     const own = split < 0 ? args : args.slice(0, split);
     const extra = split < 0 ? [] : args.slice(split + 1);
     const which = own[0] || "all";
-    const known = ["all", "backend", "mocked", "live", "e2e", "list"];
+    const known = ["all", "backend", "agent", "mocked", "live", "e2e", "list"];
     if (!known.includes(which)) fail(`Unknown test target '${which}'. Use one of: ${known.join(", ")}`);
 
+    const agent = (more = []) => run("python", ["-m", "pytest", "-q", "tiny_agent/tests", ...more], { cwd: join(ROOT, "..", "..") });
     const backend = (more = []) => run("python", ["-m", "pytest", "-q", ...more], { cwd: join(ROOT, "backend") });
     const playwright = (project, more = []) =>
       run("npx", ["playwright", "test", ...(project ? ["--project", project] : []), ...more], {
@@ -203,6 +205,7 @@ switch (command) {
 
     if (which === "list") {
       backend(["--collect-only", "-q"]);
+      agent(["--collect-only", "-q"]);
       process.exitCode = playwright(null, ["--list"]);
       break;
     }
@@ -217,6 +220,7 @@ switch (command) {
     };
 
     if (which === "backend" || which === "all") results.push(["backend", backend(extra)]);
+    if (which === "agent" || which === "all") results.push(["agent", agent(extra)]);
     if (which === "mocked" || which === "e2e" || which === "all") results.push(["mocked", playwright("mocked", extra)]);
     if (which === "live" || which === "e2e" || which === "all") {
       if (await stackIsUp()) results.push(["live", playwright("live", extra)]);

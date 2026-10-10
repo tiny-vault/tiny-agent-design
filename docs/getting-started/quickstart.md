@@ -1,7 +1,7 @@
 # Quickstart
 
 ```python
-from agent.tiny_agent import TinyAgent
+from tiny_agent.shared.tiny_agent import TinyAgent
 
 agent = TinyAgent()
 print(agent.run("Hello, agent!"))
@@ -9,4 +9,4 @@ print(agent.run("Hello, agent!"))
 
 This prints `Received: Hello, agent!`. No model is called yet: `run` passes the task to `_step`, which currently echoes it back.
 
-See {py:class}`agent.tiny_agent.TinyAgent` for the full API.
+See {py:class}`tiny_agent.shared.tiny_agent.TinyAgent` for the full API.

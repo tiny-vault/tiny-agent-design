@@ -15,6 +15,14 @@ class LlamaUnreachable(Exception):
     """llama-server could not be reached."""
 
 
+class LlamaError(Exception):
+    """llama-server answered with an error status."""
+
+    def __init__(self, status: int, message: str):
+        super().__init__(message)
+        self.status, self.message = status, message
+
+
 class ModelNotFound(Exception):
     """The requested model is not one of the names llama-server offers."""
 
@@ -46,7 +54,8 @@ class LlamaClient:
             response = await self.http.request(method, path, **kwargs)
         except httpx.HTTPError as error:
             raise LlamaUnreachable(str(error) or type(error).__name__) from error
-        response.raise_for_status()
+        if response.is_error:
+            raise LlamaError(response.status_code, _error_message(response))
         return response.json()
 
     async def is_up(self) -> bool:
@@ -84,9 +93,21 @@ class LlamaClient:
             raise ModelNotFound(model)
         if statuses[model] == "loaded":
             return
-        await self._json("POST", "/models/load", json={"model": model})
-
         started = time.monotonic()
+        # With one model allowed at a time, llama.cpp refuses a switch while the
+        # current model is still busy (for example finishing a generation that
+        # was just stopped). That clears by itself, so retry until it does.
+        while True:
+            try:
+                await self._json("POST", "/models/load", json={"model": model})
+                break
+            except LlamaError as error:
+                if "limit reached" not in error.message and error.status != 503:
+                    raise
+                if time.monotonic() - started > self.load_timeout:
+                    raise LoadTimeout(model) from error
+                await asyncio.sleep(self.poll_interval)
+
         saw_loading = False
         while True:
             status = (await self.model_statuses()).get(model, "unloaded")
@@ -99,3 +120,12 @@ class LlamaClient:
             if time.monotonic() - started > self.load_timeout:
                 raise LoadTimeout(model)
             await asyncio.sleep(self.poll_interval)
+
+
+def _error_message(response: httpx.Response) -> str:
+    """The message in llama-server's error body, else the raw text."""
+    try:
+        error = response.json().get("error", {})
+        return error.get("message") or str(error) if isinstance(error, dict) else str(error)
+    except (ValueError, AttributeError):
+        return response.text or f"HTTP {response.status_code}"

@@ -15,5 +15,5 @@ Use Google-style docstrings (`Args:`, `Returns:`, `Raises:`, `Example:`). They a
 
 ## Known documentation gaps
 
-* `main.main` has no `Returns:` section (it returns `None`).
+* `tiny_agent.main.main` has no `Returns:` section (it returns `None`).
 * `_step` and `_execute_action` are private and are not in the API reference. Their roles are described in the architecture overview.

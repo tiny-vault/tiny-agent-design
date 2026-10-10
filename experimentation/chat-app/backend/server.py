@@ -35,7 +35,7 @@ from fastapi.responses import JSONResponse, StreamingResponse
 from pydantic import BaseModel, Field
 from starlette.background import BackgroundTask
 
-from llama_client import LlamaClient, LlamaUnreachable, LoadFailed, LoadTimeout, ModelNotFound
+from llama_client import LlamaClient, LlamaError, LlamaUnreachable, LoadFailed, LoadTimeout, ModelNotFound
 
 HOP_BY_HOP = {"connection", "keep-alive", "transfer-encoding", "te", "trailer", "upgrade", "host", "content-length"}
 
@@ -84,6 +84,10 @@ def create_app(llama_url: str | None = None, **client_options) -> FastAPI:
         return JSONResponse({"error": {"message": f"Cannot reach llama-server: {error}", "code": "llama_unreachable"}},
                             status_code=502)
 
+    @app.exception_handler(LlamaError)
+    async def llama_error(_: Request, error: LlamaError):
+        return JSONResponse({"error": {"message": error.message, "code": "llama_error"}}, status_code=error.status)
+
     @app.exception_handler(404)
     async def not_found(_: Request, __):
         return JSONResponse({"error": {"message": "Not found", "code": "not_found"}}, status_code=404)
@@ -117,10 +121,7 @@ def create_app(llama_url: str | None = None, **client_options) -> FastAPI:
 
     @app.post("/api/chat")
     async def chat(body: ChatRequest, request: Request):
-        try:
-            return await llama(request).chat(body.model, body.messages)
-        except httpx.HTTPStatusError as error:
-            raise ApiError(error.response.status_code, error.response.text, "llama_error")
+        return await llama(request).chat(body.model, body.messages)
 
     async def forward(request: Request, path: str, body: bytes | None = None) -> StreamingResponse:
         """Stream a request to llama-server and its reply back, without buffering."""

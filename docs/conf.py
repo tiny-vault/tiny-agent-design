@@ -4,7 +4,7 @@ import sys
 from pathlib import Path
 
 # Make the project modules importable for autodoc. Importing them is safe:
-# agent/tiny_agent.py has no side effects and main.py guards its entry point.
+# tiny_agent/shared/tiny_agent.py has no side effects and tiny_agent/main.py guards its entry point.
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 project = "TinyAgent"

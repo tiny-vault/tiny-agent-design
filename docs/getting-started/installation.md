@@ -18,7 +18,7 @@ Set-ExecutionPolicy -Scope CurrentUser RemoteSigned
 ## Run the demo
 
 ```powershell
-python main.py
+python -m tiny_agent.main
 ```
 
 Expected output:
