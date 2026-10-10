@@ -2,7 +2,7 @@
 
 # 🤖 TinyAgent
 
-### A minimal, modular, educational agent framework, built chapter by chapter.
+### A minimal, modular, educational agent framework, built step by step.
 
 ![Python](https://img.shields.io/badge/python-3.12-3776AB?logo=python&logoColor=white)
 ![Status](https://img.shields.io/badge/status-skeleton-orange)
@@ -15,7 +15,7 @@
 
 ## ✨ What is this?
 
-An LLM only turns text into text. **The harness**, the code around the model, is what makes it an *agent*. TinyAgent is that harness, built small enough to read in a minute and structured so each capability plugs in as its own chapter.
+An LLM only turns text into text. **The harness**, the code around the model, is what makes it an *agent*. TinyAgent is that harness, built small enough to read in a minute and structured so each capability plugs in as its own step.
 
 ```
 task ─▶ [memory] ─▶ LLM decides ─▶ action ─▶ tool ─▶ observation ─┐
@@ -23,16 +23,16 @@ task ─▶ [memory] ─▶ LLM decides ─▶ action ─▶ tool ─▶ observa
   └───────────────────────────── loop ◀───────────────────────────┘
 ```
 
-> **Status:** this is a skeleton. The control flow and docs are in place; the LLM, memory, tools and planner are placeholders for the chapters below. No model is called yet.
+> **Status:** this is a skeleton. The control flow and docs are in place; the LLM, memory, tools and planner are placeholders for the steps below. No model is called yet.
 
 ## 🧩 Architecture
 
-| Component | Role | Chapter |
+| Component | Role | Step |
 |---|---|---|
-| 🧠 `llm` | The brain: reasons and picks the next step | 2 & 3 |
-| 📚 `memory` | The context: past messages and observations | 4 |
-| 🛠️ `tools` | The hands: functions that act on the world | 5 |
-| 🗺️ `planner` | The strategy: splits a goal into sub-steps | 6 |
+| 🧠 `llm` | The brain: reasons and picks the next step | 1 |
+| 📚 `memory` | The context: past messages and observations | 2 |
+| 🛠️ `tools` | The hands: functions that act on the world | 3 |
+| 🗺️ `planner` | The strategy: splits a goal into sub-steps | 4 |
 
 | Method | Phase | Job |
 |---|---|---|
@@ -85,10 +85,10 @@ tiny-agent-design/
 
 - [x] Agent skeleton and control-flow stubs
 - [x] Sphinx documentation
-- [ ] Ch. 2 & 3: LLM integration
-- [ ] Ch. 4: Memory
-- [ ] Ch. 5: Tools
-- [ ] Ch. 6: Planning
+- [ ] Step 1: LLM integration
+- [ ] Step 2: Memory
+- [ ] Step 3: Tools
+- [ ] Step 4: Planning
 
 ---
 

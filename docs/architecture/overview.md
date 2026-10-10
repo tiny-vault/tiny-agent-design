@@ -8,8 +8,7 @@
 | Harness | `tiny_agent.py` (`TinyAgent`) | Control loop and the slots for LLM, memory, tools and planner. |
 
 `TinyAgent` has four attributes, all `None` today and filled in by later
-chapters: `llm` (Chapters 2 and 3), `memory` (4), `tools` (5) and
-`planner` (6).
+steps: `llm`, `memory`, `tools` and `planner`.
 
 ## Data flow
 

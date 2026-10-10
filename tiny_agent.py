@@ -31,13 +31,13 @@ class TinyAgent:
 
     Attributes:
         llm: The "brain": reasons about the task and chooses the next step.
-            ``None`` until Chapters 2 and 3.
+            ``None`` until the LLM step.
         memory: The "context": remembers past messages and observations.
-            ``None`` until Chapter 4.
+            ``None`` until the memory step.
         tools: The "hands": functions the agent can call to affect the world.
-            ``None`` until Chapter 5.
+            ``None`` until the tools step.
         planner: The "strategy": breaks a goal into ordered sub-steps.
-            ``None`` until Chapter 6.
+            ``None`` until the planning step.
 
     Example:
         >>> agent = TinyAgent()
@@ -52,10 +52,10 @@ class TinyAgent:
         pluggable module, so the agent's capabilities can be swapped or
         extended without changing the control loop.
         """
-        self.llm = None  # Chapter 2 & 3: Add LLM
-        self.memory = None  # Chapter 4: Add Memory
-        self.tools = None  # Chapter 5: Add Tools
-        self.planner = None  # Chapter 6: Add Planning
+        self.llm = None  # Step 1: Add LLM
+        self.memory = None  # Step 2: Add Memory
+        self.tools = None  # Step 3: Add Tools
+        self.planner = None  # Step 4: Add Planning
 
     def run(self, task: str) -> str:
         """Run the agent on a task.
@@ -87,7 +87,7 @@ class TinyAgent:
         Returns:
             Currently a placeholder echo, ``"Received: <task>"``.
         """
-        # Placeholder - will be implemented in later chapters
+        # Placeholder - will be implemented in later steps
         return f"Received: {task}"
 
     def _execute_action(self, action: str) -> str:
@@ -103,5 +103,5 @@ class TinyAgent:
         Returns:
             Currently a placeholder, ``"Executed action: <action>"``.
         """
-        # Placeholder - will be implemented in later chapters
+        # Placeholder - will be implemented in later steps
         return f"Executed action: {action}"

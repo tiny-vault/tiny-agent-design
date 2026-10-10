@@ -7,7 +7,7 @@ A minimal, modular, and educational agent framework. ``TinyAgent`` is the
 .. note::
 
    The project is a skeleton. The LLM, memory, tools and planner are
-   placeholders that later chapters fill in. See :doc:`architecture/overview`.
+   placeholders that later steps fill in. See :doc:`architecture/overview`.
 
 .. note::
 

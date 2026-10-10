@@ -18,7 +18,7 @@ from tiny_agent import TinyAgent
 def main() -> None:
     """Build the agent, run one task, and print the answer.
 
-    Role: composition root. Constructs the agent (and, in later chapters,
+    Role: composition root. Constructs the agent (and, in later steps,
     configures its LLM, memory, tools and planner) before calling `run`.
     """
     agent = TinyAgent()
