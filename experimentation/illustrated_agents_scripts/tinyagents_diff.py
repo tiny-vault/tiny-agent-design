@@ -1,0 +1,18 @@
+from illustrated_agents.chapters.ch2 import tinyagents_diff
+tinyagents_diff
+
+# Runnable part: DiffViewer only renders HTML inside Jupyter, so print the
+# same unified diff as plain text when this file is run as a script.
+if __name__ == "__main__":
+    import difflib
+
+    from illustrated_agents.utils import _get_source
+
+    d = tinyagents_diff
+    print("\n".join(difflib.unified_diff(
+        _get_source(d.old_cls).splitlines(),
+        _get_source(d.new_cls).splitlines(),
+        d.old_name,
+        d.new_name,
+        lineterm="",
+    )))
