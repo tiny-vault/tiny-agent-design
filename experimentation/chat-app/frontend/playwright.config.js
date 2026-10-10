@@ -4,7 +4,7 @@ import { defineConfig, devices } from "@playwright/test";
 //   mocked  Fast and deterministic. Runs the CURRENT source on a Vite dev server
 //           that Playwright starts itself, with the API stubbed in the browser.
 //           Needs no Docker. Covers model-switching gating and chat edge cases.
-//   live    Drives the REAL stack through the gateway (node ../execute.mjs up):
+//   live    Drives the REAL stack through the gateway (node ../../../execute.mjs up):
 //           real router, real models. Slow, because switching loads models.
 // Run one with:  npx playwright test --project=mocked
 const DEV_PORT = 5174;

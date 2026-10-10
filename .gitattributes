@@ -3,3 +3,7 @@
 
 # Shell scripts run in Linux containers and must keep LF endings
 *.sh text eol=lf
+
+# Config files mounted into Linux containers must keep LF endings too
+experimentation/observability/** text eol=lf
+experimentation/chat-app/deploy/*.conf text eol=lf

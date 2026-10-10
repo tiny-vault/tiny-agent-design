@@ -1,6 +1,6 @@
 // End-to-end against the REAL stack: real router, real models. Slow, because
 // every switch loads a model onto the GPU. Start the stack first:
-//   node ../execute.mjs up
+//   node ../../../execute.mjs up
 
 import { expect, test } from "@playwright/test";
 import { chooseModel, composer, expectChatDisabled, expectChatEnabled, modelButton, sendButton, veil } from "./helpers.js";
@@ -68,4 +68,64 @@ test("the real backend refuses to chat with a model that is not loaded", async (
   });
   expect(response.status()).toBe(409);
   expect((await response.json()).error.code).toBe("model_not_loaded");
+});
+
+// ---- OpenObserve (the log search UI) opens already logged in ---------------------------------
+
+const OBSERVE = process.env.OBSERVE_URL || "http://localhost:5080";
+const onLoginPage = (page) => page.getByRole("button", { name: /^login$/i }).count();
+
+test("OpenObserve opens already logged in, with no login screen", async ({ browser }) => {
+  const context = await browser.newContext(); // a brand-new browser: no cookies, no storage
+  const page = await context.newPage();
+
+  await page.goto(OBSERVE + "/", { waitUntil: "networkidle" });
+  await page.waitForURL(/\/web\/(?!login)/, { timeout: 30_000 });
+  expect(await onLoginPage(page)).toBe(0);
+  await expect(page.getByText(/user email/i)).toHaveCount(0);
+
+  // The browser really holds a login: the cookie is set and the API answers as the admin.
+  expect((await context.cookies()).some((c) => c.name === "auth_tokens")).toBe(true);
+  const me = await page.evaluate(async () => (await fetch("/api/default/streams?type=logs")).status);
+  expect(me).toBe(200);
+  await context.close();
+});
+
+test("OpenObserve: opening the login page, or losing the stored login, signs in again by itself", async ({ browser }) => {
+  const context = await browser.newContext();
+  const page = await context.newPage();
+  await page.goto(OBSERVE + "/web/login", { waitUntil: "networkidle" }); // the login URL itself
+  await page.waitForURL(/\/web\/(?!login)/, { timeout: 30_000 });
+  expect(await onLoginPage(page)).toBe(0);
+
+  await page.evaluate(() => localStorage.clear()); // as if the browser storage was wiped
+  await page.goto(OBSERVE + "/web/", { waitUntil: "networkidle" });
+  await page.waitForURL(/\/web\/(?!login)/, { timeout: 30_000 });
+  expect(await onLoginPage(page)).toBe(0);
+  await context.close();
+});
+
+test("OpenObserve: the API is not open to someone with no login", async ({ request }) => {
+  // The auto-login is a browser cookie. A bare API call with no cookie and no credentials is refused.
+  const response = await request.get(OBSERVE + "/api/default/streams?type=logs");
+  expect(response.status()).toBe(401);
+});
+
+test("OpenObserve receives the container logs and the tiny-agent logs", async ({ request }) => {
+  const fs = await import("node:fs");
+  const secrets = "../../../experimentation/secrets/";
+  const user = fs.readFileSync(secrets + "openobserve_user", "utf8").trim();
+  const password = fs.readFileSync(secrets + "openobserve_password", "utf8").trim();
+  const auth = { Authorization: "Basic " + Buffer.from(`${user}:${password}`).toString("base64") };
+
+  const now = Date.now() * 1000; // microseconds
+  const count = async (stream) => {
+    const res = await request.post(`${OBSERVE}/api/default/_search?type=logs`, {
+      headers: auth,
+      data: { query: { sql: `SELECT * FROM "${stream}"`, start_time: now - 7 * 24 * 3600 * 1e6, end_time: now, from: 0, size: 1 } },
+    });
+    return res.ok() ? (await res.json()).total : 0;
+  };
+  expect(await count("docker")).toBeGreaterThan(0);
+  expect(await count("tiny_agent")).toBeGreaterThan(0);
 });

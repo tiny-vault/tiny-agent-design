@@ -303,3 +303,104 @@ def test_other_llama_errors_on_load_are_reported_not_crashed(client, router, mon
     response = client.post("/api/models/load", json={"model": "qwen"})
     assert (response.status_code, code(response)) == (500, "llama_error")
     assert response.json()["error"]["message"] == "out of memory"
+
+
+# ---- the llama.cpp API key (a Docker secret) ---------------------------------------
+
+def keyed_client(router, key="s3cret", **options):
+    """A backend configured with an API key, against a router that requires one."""
+    router.api_key = "s3cret"
+    return TestClient(create_app(router.url, api_key=key, **{**FAST, **options}))
+
+
+def test_the_key_is_sent_on_every_call(router):
+    with keyed_client(router) as client:
+        assert client.get("/api/models").status_code == 200
+        assert client.post("/api/models/load", json={"model": "qwen"}).status_code == 200
+        assert completion(client, "qwen").status_code == 200
+        assert client.post("/api/chat", json={"model": "qwen", "messages": [{"role": "user", "content": "x"}]}).status_code == 200
+    assert router.auth_seen and set(router.auth_seen) == {"Bearer s3cret"}  # every call carried the key
+
+
+def test_health_does_not_need_the_key(router):
+    router.api_key = "s3cret"
+    with TestClient(create_app(router.url, **FAST)) as client:  # no key configured
+        assert client.get("/health").json()["llama"] == "up"
+
+
+def test_a_missing_key_gives_a_clear_llama_error(router):
+    router.api_key = "s3cret"
+    with TestClient(create_app(router.url, **FAST)) as client:  # router needs a key, backend has none
+        response = client.get("/api/models")
+    assert (response.status_code, code(response)) == (401, "llama_error")
+    assert "Invalid API Key" in response.json()["error"]["message"]
+
+
+def test_a_wrong_key_is_refused(router):
+    with keyed_client(router, key="not-the-key") as client:
+        assert client.get("/api/models").status_code == 401
+
+
+def test_a_browsers_own_authorization_header_is_never_forwarded(router):
+    with keyed_client(router) as client:
+        client.post("/v1/chat/completions", json={"model": "gemma", "messages": []},
+                    headers={"Authorization": "Bearer evil-from-the-browser"})
+    assert "Bearer evil-from-the-browser" not in router.auth_seen
+    assert router.auth_seen[-1] == "Bearer s3cret"
+
+
+def test_no_key_is_sent_when_none_is_configured(router):
+    with TestClient(create_app(router.url, **FAST)) as client:
+        client.get("/api/models")
+    assert router.auth_seen == [None]
+
+
+# ---- reading the key from a secret file ------------------------------------------------
+
+def test_read_secret_takes_the_first_real_line(tmp_path):
+    from server import read_secret
+
+    secret = tmp_path / "key"
+    secret.write_text("# a comment\n\n  abc123  \nsecond\n", encoding="utf-8")
+    assert read_secret(str(secret)) == "abc123"
+
+
+def test_read_secret_without_a_trailing_newline(tmp_path):
+    from server import read_secret
+
+    secret = tmp_path / "key"
+    secret.write_text("abc123", encoding="utf-8")
+    assert read_secret(str(secret)) == "abc123"
+
+
+def test_read_secret_with_no_file_configured_is_none():
+    from server import read_secret
+
+    assert read_secret(None) is None and read_secret("") is None
+
+
+def test_an_empty_secret_file_is_an_error_not_a_silent_no_key(tmp_path):
+    import pytest
+    from server import read_secret
+
+    secret = tmp_path / "key"
+    secret.write_text("# only a comment\n", encoding="utf-8")
+    with pytest.raises(ValueError, match="is empty"):
+        read_secret(str(secret))
+
+
+def test_a_missing_secret_file_stops_the_backend_at_start(tmp_path, monkeypatch):
+    import pytest
+
+    monkeypatch.setenv("LLAMA_API_KEY_FILE", str(tmp_path / "nope"))
+    with pytest.raises(OSError):
+        create_app("http://127.0.0.1:9")
+
+
+def test_the_backend_reads_its_key_from_the_file_named_in_the_environment(router, tmp_path, monkeypatch):
+    secret = tmp_path / "llama_api_key"
+    secret.write_text("s3cret\n", encoding="utf-8")
+    monkeypatch.setenv("LLAMA_API_KEY_FILE", str(secret))
+    router.api_key = "s3cret"
+    with TestClient(create_app(router.url, **FAST)) as client:
+        assert client.get("/api/models").status_code == 200

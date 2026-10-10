@@ -1,6 +1,6 @@
 # Chat app
 
-A small local chat app for trying TinyAgent's models, run with one `docker compose up`. A browser frontend talks to a backend, which talks to a llama.cpp server over its OpenAI-compatible API. The models are the ones Ollama already downloaded (missing ones are fetched).
+A small local chat app for trying TinyAgent's models, run with one `docker compose up`. A browser frontend talks to a backend, which talks to a llama.cpp server over its OpenAI-compatible API. llama.cpp downloads the models from Hugging Face the first time it loads them; there is no Ollama.
 
 ```
 browser -> gateway (nginx, the only published port, :3200)
@@ -15,9 +15,9 @@ experimentation/chat-app/
 │   ├── server.py         API: /health, /api/models, /api/models/load, streamed /v1/*
 │   ├── llama_client.py   httpx client for llama.cpp's router API
 │   └── tests/            pytest suite with a fake router
-├── models/               llama.cpp setup: model list, per-model settings, downloader
-│   ├── models.ini        Model names -> Ollama blob files, plus ctx-size and GPU layers
-│   ├── pull-models.sh    Downloads missing models (run by compose)
+├── models/               llama.cpp setup: model list and per-model settings
+│   ├── models.ini        Model names -> Hugging Face repos, plus ctx-size and GPU layers
+│   ├── cache/            The downloaded models (git-ignored, never removed by prune)
 │   └── README.md         How to add or change a model
 └── deploy/               Everything needed to run it in Docker
     ├── docker-compose.yaml
@@ -57,10 +57,10 @@ curl http://localhost:3200/api/chat -d '{"model":"gemma4-e4b","messages":[{"role
 
 ## llama.cpp server
 
-`deploy/docker-compose.yaml` runs `llama-server` (CUDA build) in router mode. Ollama stores each model as a plain GGUF file named `sha256-<digest>`, so the compose file mounts your Ollama `models/blobs` folder read-only and `models.ini` maps friendly names to those files. Nothing is copied, and Ollama is unaffected.
+`experimentation/docker-compose.yaml` runs `llama-server` (CUDA build) in router mode. It downloads each model from Hugging Face the first time the model is loaded and keeps it in `chat-app/models/cache`; `models.ini` maps the names clients use to the Hugging Face repos.
 
 ```powershell
-cd experimentation/chat-app/deploy
+cd experimentation
 docker compose up -d --build
 docker compose logs -f llama
 ```
@@ -69,30 +69,21 @@ Then open the app at <http://localhost:3200>.
 
 The server has an OpenAI-compatible API on port 8080 inside the compose network. It is not published to the host and its built-in web page is disabled (`LLAMA_ARG_WEBUI=0`), so the custom frontend is the only UI. From your machine, use the gateway, which forwards `/v1/*` to the backend: <http://localhost:3200/v1/models>.
 
-### Missing models are downloaded automatically
+### Models are downloaded from Hugging Face
 
-`docker compose up` first runs a one-shot `pull-models` job (the `ollama/ollama` image running `pull-models.sh`). For each name in `PULL_MODELS` it checks whether Ollama already has the model, downloads it if not, and exits. Only then does `llama` start. Models you already have are skipped, so a second start needs no network.
+The first time a model is loaded, llama.cpp downloads it from Hugging Face into `chat-app/models/cache` (several GB, so the first load takes minutes; the app shows "Loading..." until it is done). Later loads and restarts use the cached file, and nothing else in the stack downloads models. To fetch them ahead of time:
 
 ```powershell
-# Different or extra models (space separated Ollama names):
-$env:PULL_MODELS = "gemma4:e4b-it-qat qwen3.5:4b llama3.2:3b"
-docker compose up -d
+node execute.mjs download            # every model in models.ini
+node execute.mjs download gemma4-e4b # just one
 ```
 
-Downloads go into `OLLAMA_MODELS_DIR`, the same folder the desktop Ollama uses, so both share one copy. The first download is several GB; follow it with `docker compose logs -f pull-models`.
+| Name in requests | Hugging Face source | Size |
+|---|---|---|
+| `gemma4-e4b` | `google/gemma-4-E4B-it-qat-q4_0-gguf` (Google's quantisation-aware 4-bit build) | about 5 GB |
+| `qwen3.5-4b` | `unsloth/Qwen3.5-4B-GGUF`, `Q4_K_M` | about 2.7 GB |
 
-After adding a model to `PULL_MODELS`, also add a section for it in `models.ini` (see below), or llama-server will not know the name.
-
-`models.ini` points at blob files by digest. If the registry publishes a new build of a tag, the downloaded digest differs and the path in `models.ini` must be updated to match.
-
-### Models
-
-| Name in requests | Ollama model |
-|---|---|
-| `gemma4-e4b` | `gemma4:e4b-it-qat` |
-| `qwen3.5-4b` | `qwen3.5:4b` |
-
-To add one, read its digest from `~/.ollama/models/manifests/registry.ollama.ai/library/<name>/<tag>` (the layer with media type `...image.model`) and add a section to `models.ini`.
+To add a model, add a section with `hf-repo` to `models.ini`; see [models/README.md](models/README.md).
 
 ### Switching models at runtime
 
@@ -111,8 +102,7 @@ curl http://localhost:3200/v1/chat/completions `
 | Variable | Default | Meaning |
 |---|---|---|
 | `LLAMA_MODELS_MAX` | `1` | Models kept loaded at once |
-| `OLLAMA_MODELS_DIR` | `%USERPROFILE%/.ollama/models` (`$HOME` on Linux/macOS) | Ollama model folder to mount and download into |
-| `PULL_MODELS` | `gemma4:e4b-it-qat qwen3.5:4b` | Models downloaded when missing |
+| `LLAMA_LOAD_TIMEOUT` | `1800` | Seconds the backend waits for a model to load (the first load includes the download) |
 
 Per-model settings (`ctx-size`, `n-gpu-layers`, `jinja`) live in `models.ini`.
 
@@ -122,4 +112,4 @@ The compose file reserves the NVIDIA GPU and `models.ini` offloads all layers (`
 
 ## Status
 
-The frontend, backend and llama.cpp wiring is written and the frontend builds. The full `docker compose up` stack has not been run end to end yet. llama.cpp's `/v1/models` `status` field (used to show which models are loaded) is read if present and ignored otherwise.
+The whole stack runs end to end with `node execute.mjs up`, and `node execute.mjs test` runs the tests. llama.cpp's `/v1/models` `status` field (used to show which models are loaded) is read if present and ignored otherwise.

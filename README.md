@@ -49,6 +49,17 @@ python -m tiny_agent.main
 Received: Hello, agent!
 ```
 
+To talk to a model, use the terminal chat below.
+
+### Chat from the terminal
+
+```powershell
+python -m pip install -e .
+tiny-agent
+```
+
+This gives you a `tiny-agent` command: an interactive chat with the model, or `tiny-agent "your question"` for a single answer. It uses the chat app stack and whichever model is loaded. See `INSTRUCTIONS.md` for the options.
+
 Or from code:
 
 ```python

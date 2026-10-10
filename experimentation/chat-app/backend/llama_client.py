@@ -38,10 +38,13 @@ class LoadTimeout(Exception):
 class LlamaClient:
     """Talks to one llama-server. Create once, close with ``aclose``."""
 
-    def __init__(self, base_url: str, *, timeout: float = 600, load_timeout: float = 300,
-                 poll_interval: float = 1, start_grace: float = 15):
+    def __init__(self, base_url: str, *, api_key: str | None = None, timeout: float = 600,
+                 load_timeout: float = 300, poll_interval: float = 1, start_grace: float = 15):
         self.base_url = base_url.rstrip("/")
-        self.http = httpx.AsyncClient(base_url=self.base_url, timeout=httpx.Timeout(timeout, connect=5))
+        # llama-server may require a key (--api-key-file). It is sent as a bearer token on every request.
+        headers = {"Authorization": f"Bearer {api_key}"} if api_key else {}
+        self.http = httpx.AsyncClient(base_url=self.base_url, headers=headers,
+                                      timeout=httpx.Timeout(timeout, connect=5))
         self.load_timeout = load_timeout
         self.poll_interval = poll_interval
         self.start_grace = start_grace

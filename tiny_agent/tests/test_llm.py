@@ -146,10 +146,77 @@ def test_a_server_without_status_is_not_blocked(fake_server):
     assert llm(fake_server).generate(MESSAGES).content == "ok"
 
 
-def test_a_model_the_server_does_not_list_is_left_to_the_server(fake_server):
+def test_a_model_the_router_does_not_offer_uses_the_loaded_one(fake_server):
+    fake_server.router(other="loaded", spare="unloaded")
+    fake_server.reply("ok")
+    with pytest.warns(UserWarning, match=r"'a' is not offered.*using the loaded model 'other'"):
+        response = llm(fake_server).generate(MESSAGES)
+    assert response.content == "ok"
+    assert fake_server.requests[0]["body"]["model"] == "other"  # the loaded model was asked, not "a"
+
+
+def test_the_substitution_is_for_one_call_only(fake_server):
     fake_server.router(other="loaded")
     fake_server.reply("ok")
+    client = llm(fake_server)
+    with pytest.warns(UserWarning):
+        client.generate(MESSAGES)
+    assert client.model == "a"  # the configured model is not rewritten
+
+
+def test_the_first_loaded_model_is_chosen_when_several_are(fake_server):
+    fake_server.router(x="unloaded", y="loaded", z="loaded")
+    fake_server.reply("ok")
+    with pytest.warns(UserWarning):
+        llm(fake_server).generate(MESSAGES)
+    assert fake_server.requests[0]["body"]["model"] == "y"
+
+
+def test_a_loading_model_is_not_picked_as_a_substitute(fake_server):
+    fake_server.router(x="loading", y="loaded")
+    fake_server.reply("ok")
+    with pytest.warns(UserWarning):
+        llm(fake_server).generate(MESSAGES)
+    assert fake_server.requests[0]["body"]["model"] == "y"
+
+
+def test_an_unoffered_model_with_nothing_loaded_lists_what_is_available(fake_server):
+    fake_server.router(x="unloaded", y="unloaded")
+    with pytest.raises(RuntimeError, match=r"not offered and no model is loaded.*Available: x, y"):
+        llm(fake_server).generate(MESSAGES)
+    assert fake_server.requests == []
+
+
+def test_a_model_that_is_offered_but_unloaded_is_not_substituted(fake_server):
+    """Substitution is only for names the router does not offer; an offered, unloaded model is an error."""
+    fake_server.router(a="unloaded", other="loaded")
+    with pytest.raises(RuntimeError, match="is unloaded"):
+        llm(fake_server).generate(MESSAGES)
+    assert fake_server.requests == []
+
+
+def test_a_loaded_model_is_used_without_a_warning(fake_server, recwarn):
+    fake_server.router(a="loaded", other="loaded")
+    fake_server.reply("ok")
+    llm(fake_server).generate(MESSAGES)
+    assert not [w for w in recwarn if issubclass(w.category, UserWarning)]
+    assert fake_server.requests[0]["body"]["model"] == "a"
+
+
+def test_a_server_without_status_never_substitutes(fake_server, recwarn):
+    """Ollama lists installed models but not what is loaded, so the name is sent as given."""
+    fake_server.models = [{"id": "other"}]
+    fake_server.reply("ok")
     assert llm(fake_server).generate(MESSAGES).content == "ok"
+    assert fake_server.requests[0]["body"]["model"] == "a"
+    assert not [w for w in recwarn if issubclass(w.category, UserWarning)]
+
+
+def test_metadata_reports_the_model_that_really_answered(fake_server):
+    fake_server.router(other="loaded")
+    fake_server.chat = {"model": "other", "usage": {}, "choices": [{"message": {"content": "ok"}}]}
+    with pytest.warns(UserWarning):
+        assert llm(fake_server).generate(MESSAGES).metadata["model"] == "other"
 
 
 # ---- failures: every one becomes a RuntimeError that says what happened ----------------

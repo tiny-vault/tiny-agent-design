@@ -1,0 +1,19 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "tiny-agent"
+version = "0.1.0"
+description = "A minimal, modular, educational agent framework, built step by step."
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = []  # standard library only
+
+[project.scripts]
+tiny-agent = "tiny_agent.cli:main"
+
+[tool.setuptools.packages.find]
+include = ["tiny_agent*"]
+exclude = ["tiny_agent.tests*"]
+namespaces = true  # tiny_agent/ has no __init__.py; the package code is in tiny_agent/shared/

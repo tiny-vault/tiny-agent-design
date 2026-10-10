@@ -25,7 +25,7 @@ frontend/
 │   ├── index.css         Tailwind import + design tokens (both themes)
 │   ├── components/       Header, ModelMenu, ChatLog, Turn, Composer, ui.jsx
 │   ├── hooks/            useAgentChat (the loop), useModels, useTheme, useKnowledgeBase
-│   └── lib/              ollama.js (API + streaming), tools.js, citations.js, constants.js
+│   └── lib/              llama.js (API + streaming), tools.js, citations.js, constants.js
 └── legacy/alpine.html    The original Alpine.js single-file version
 ```
 

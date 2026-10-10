@@ -30,6 +30,7 @@ import http.client
 import json
 import urllib.error
 import urllib.request
+import warnings
 
 from tiny_agent.shared import check
 from tiny_agent.shared.response import Response
@@ -137,6 +138,8 @@ class LLM:
                 * the server is a router that reports this model as ``unloaded``
                   or ``loading`` (raised before any chat request is sent, with
                   the command that loads it);
+                * the router does not offer this model and no model at all is
+                  loaded (raised with the list of available models);
                 * the server cannot be reached, refused, reset the connection or
                   timed out;
                 * the server answered with an error status (unknown model, bad
@@ -147,26 +150,51 @@ class LLM:
                 The original exception is kept as ``__cause__``.
 
         Note:
-            Each call first makes one extra request to ``/models`` to check the
-            model is loaded. A server that reports no status (such as Ollama) is
-            never blocked by that check.
+            Each call first makes one extra request to ``/models``. On a router
+            (the Docker gateway) this decides what happens next:
+
+            * the model is loaded: it is used;
+            * the model is offered but ``unloaded`` or ``loading``: ``RuntimeError``;
+            * the model is **not offered** at all: the first model that *is* loaded
+              is used instead, and a ``UserWarning`` says so. The substitution is
+              for this call only; ``self.model`` is unchanged, and
+              ``Response.metadata["model"]`` reports the model that really answered.
+
+            A server that reports no status (such as Ollama), or that cannot be
+            reached, is never blocked or redirected by this check.
         """
-        # Fail early, with a clear message, if the router has not loaded this model.
-        # (A server that reports no status, such as Ollama, is not blocked.)
-        status = check.model_status(self.model, self.base_url)
-        if status in ("unloaded", "loading"):
-            loaded = ", ".join(check.loaded_models(self.base_url)) or "none"
-            raise RuntimeError(
-                f"Model '{self.model}' is {status} (loaded now: {loaded}). "
-                f"Load it first: node execute.mjs load {self.model}"
-            )
+        # Ask the server which models it has, and which are loaded. (A server that is
+        # unreachable, or reports no status such as Ollama, is not blocked here.)
+        model = self.model
+        statuses = check.model_statuses(self.base_url)
+        if statuses is not None:
+            status = statuses.get(self.model)
+            loaded = [name for name, s in statuses.items() if s == "loaded"]
+            if status in ("unloaded", "loading"):
+                # Offered but not loaded: stop, and say how to load it.
+                raise RuntimeError(
+                    f"Model '{self.model}' is {status} (loaded now: {', '.join(loaded) or 'none'}). "
+                    f"Load it first: node execute.mjs load {self.model}"
+                )
+            if status is None and any(s in ("loaded", "loading", "unloaded") for s in statuses.values()):
+                # Not offered by this router: use a model that is loaded instead.
+                if not loaded:
+                    raise RuntimeError(
+                        f"Model '{self.model}' is not offered and no model is loaded. "
+                        f"Available: {', '.join(statuses)}. Load one first: node execute.mjs load <model>"
+                    )
+                model = loaded[0]
+                warnings.warn(
+                    f"Model '{self.model}' is not offered by {self.base_url}; using the loaded model '{model}'.",
+                    stacklevel=2,
+                )
 
         if not messages:
             raise ValueError("messages must not be empty")
 
         # Build the request body
         body = {
-            "model": self.model,
+            "model": model,
             "messages": messages,
         }
 

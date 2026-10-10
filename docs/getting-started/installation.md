@@ -26,3 +26,5 @@ Expected output:
 ```text
 Received: Hello, agent!
 ```
+
+This demo does not call a model. To chat with one, install the ``tiny-agent`` command; see ``INSTRUCTIONS.md`` in the repository root.

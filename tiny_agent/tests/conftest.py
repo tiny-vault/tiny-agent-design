@@ -130,3 +130,14 @@ def fake_server():
 def dead_url():
     """A model server URL where nothing is listening."""
     return "http://127.0.0.1:9/v1"
+
+
+@pytest.fixture(autouse=True)
+def log_folder(tmp_path, monkeypatch):
+    """Send every test's log files to a temp folder, never the repo's ``logs/``.
+
+    Returns the folder, so a test can read what was logged.
+    """
+    folder = tmp_path / "logs"
+    monkeypatch.setenv("TINYAGENT_LOG_DIR", str(folder))
+    return folder

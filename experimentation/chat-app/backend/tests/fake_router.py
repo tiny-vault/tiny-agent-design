@@ -33,7 +33,19 @@ class FakeRouter:
                 self.end_headers()
                 self.wfile.write(data)
 
+            def _authorized(self):
+                """Like llama-server with --api-key: everything but /health needs the key."""
+                fake.auth_seen.append(self.headers.get("Authorization"))
+                if fake.api_key is None or self.path == "/health":
+                    return True
+                if self.headers.get("Authorization") == f"Bearer {fake.api_key}":
+                    return True
+                self._send(401, {"error": {"code": 401, "message": "Invalid API Key"}})
+                return False
+
             def do_GET(self):
+                if not self._authorized():
+                    return
                 if self.path == "/health":
                     self._send(fake.health_code, {"status": "ok"})
                 elif self.path == "/v1/models":
@@ -42,6 +54,8 @@ class FakeRouter:
                     self._send(404, {"error": "nope"})
 
             def do_POST(self):
+                if not self._authorized():
+                    return
                 raw = self.rfile.read(int(self.headers.get("Content-Length") or 0))
                 try:
                     body = json.loads(raw or b"{}")
@@ -82,6 +96,8 @@ class FakeRouter:
         self.chat_calls = []
         self.load_calls = []
         self.health_code = 200
+        self.api_key = None  # when set, requests must carry "Authorization: Bearer <key>"
+        self.auth_seen = []  # the Authorization header of every request, in order
         self.busy_until = 0  # monotonic time until which loads are refused as "model limit reached"
 
     def _begin_load(self, model):

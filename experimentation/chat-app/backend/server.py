@@ -37,7 +37,27 @@ from starlette.background import BackgroundTask
 
 from llama_client import LlamaClient, LlamaError, LlamaUnreachable, LoadFailed, LoadTimeout, ModelNotFound
 
-HOP_BY_HOP = {"connection", "keep-alive", "transfer-encoding", "te", "trailer", "upgrade", "host", "content-length"}
+# Headers not passed on to llama-server. "authorization" is dropped so a browser can never
+# send its own key: the backend always uses the one from its secret file.
+HOP_BY_HOP = {"connection", "keep-alive", "transfer-encoding", "te", "trailer", "upgrade", "host", "content-length",
+              "authorization"}
+
+
+def read_secret(path: str | None) -> str | None:
+    """Return the first non-empty line of a secret file, or ``None`` if no file is configured.
+
+    Lines starting with ``#`` are comments, as in llama-server's own key file. An
+    unreadable or empty file is an error, not a silent "no key": the backend would
+    otherwise start and then be refused by llama-server on every request.
+    """
+    if not path:
+        return None
+    with open(path, encoding="utf-8") as handle:
+        for line in handle:
+            line = line.strip()
+            if line and not line.startswith("#"):
+                return line
+    raise ValueError(f"The secret file {path} is empty")
 
 
 class ApiError(Exception):
@@ -57,6 +77,10 @@ class ChatRequest(BaseModel):
 def create_app(llama_url: str | None = None, **client_options) -> FastAPI:
     """Build the app. ``client_options`` go to LlamaClient (timeouts, polling)."""
     url = llama_url or os.environ.get("LLAMA_URL", "http://llama:8080")
+    # The key comes from a file (a Docker secret), never from an environment variable or the image.
+    client_options.setdefault("api_key", read_secret(os.environ.get("LLAMA_API_KEY_FILE")))
+    # The first load of a model downloads it from Hugging Face (several GB), so allow a long time.
+    client_options.setdefault("load_timeout", float(os.environ.get("LLAMA_LOAD_TIMEOUT", "1800")))
 
     @asynccontextmanager
     async def lifespan(app: FastAPI):

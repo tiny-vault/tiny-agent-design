@@ -17,4 +17,5 @@ These apply to everything in this folder (everything under `shared/`, `main.py`,
 | `shared/llm.py` | The owner's LLM client. Fix its methods only. |
 | `shared/check.py` | Which models the server has loaded; used by `llm.py`. |
 | `main.py` | Demo entry point: `python -m tiny_agent.main` from the repo root. |
-| `tests/` | pytest suite with a fake model server: `node experimentation/chat-app/execute.mjs test agent`, or `python -m pytest tiny_agent/tests` from the repo root. Add a test when you change behaviour. |
+| `cli.py`, `__main__.py` | The terminal chat. `tiny-agent` after `python -m pip install -e .` (see `pyproject.toml` at the repo root), or `python -m tiny_agent`. |
+| `tests/` | pytest suite with a fake model server: `node execute.mjs test agent`, or `python -m pytest tiny_agent/tests` from the repo root. Add a test when you change behaviour. |

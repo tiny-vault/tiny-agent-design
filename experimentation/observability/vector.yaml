@@ -1,0 +1,89 @@
+# Vector: collects logs and sends them to OpenObserve (see docker-compose.yaml).
+data_dir: /var/lib/vector
+
+# The OpenObserve login comes from Docker secrets (files in /run/secrets), never from
+# this file or the environment: SECRET[docker.<file name>] below.
+secret:
+  docker:
+    type: directory
+    path: /run/secrets
+
+sources:
+  # Logs of the chat-app containers only (this machine runs other projects too).
+  docker:
+    type: docker_logs
+    include_labels:
+      - "com.docker.compose.project=chat-app"
+
+  # Written by `tiny-agent` (cli.log) and `python -m tiny_agent.main` (main.log).
+  tiny_agent_files:
+    type: file
+    include:
+      - /var/log/tiny-agent/cli.log
+      - /var/log/tiny-agent/main.log
+    read_from: beginning
+
+transforms:
+  docker_clean:
+    type: remap
+    inputs: [docker]
+    source: |
+      .service = string(.label."com.docker.compose.service") ?? "unknown"
+      # Do not collect our own log pipeline: that would feed back on itself.
+      if includes(["openobserve", "observe", "vector"], .service) {
+        abort
+      }
+      .container = .container_name
+      del(.label)
+      del(.container_name)
+
+  tiny_agent_clean:
+    type: remap
+    inputs: [tiny_agent_files]
+    source: |
+      # Lines look like: 2026-10-10 22:13:06,710 INFO    tiny_agent.cli: message
+      parsed, err = parse_regex(.message, r'^(?P<logged_at>\S+ \S+) (?P<level>\w+)\s+(?P<logger>[\w.]+): (?P<text>.*)$')
+      if err == null {
+        .level = parsed.level
+        .logger = parsed.logger
+        .logged_at = parsed.logged_at
+        .message = parsed.text
+      }
+      .service = if ends_with(string(.file) ?? "", "main.log") { "tiny-agent-main" } else { "tiny-agent-cli" }
+
+sinks:
+  openobserve_docker:
+    type: http
+    inputs: [docker_clean]
+    uri: http://openobserve:5080/api/default/docker/_json
+    method: post
+    auth:
+      strategy: basic
+      user: "SECRET[docker.openobserve_user]"
+      password: "SECRET[docker.openobserve_password]"
+    compression: gzip
+    encoding:
+      codec: json
+    healthcheck:
+      enabled: false
+    request:
+      headers:
+        Content-Type: application/json
+
+  openobserve_tiny_agent:
+    type: http
+    inputs: [tiny_agent_clean]
+    uri: http://openobserve:5080/api/default/tiny_agent/_json
+    method: post
+    auth:
+      strategy: basic
+      user: "SECRET[docker.openobserve_user]"
+      password: "SECRET[docker.openobserve_password]"
+    compression: gzip
+    encoding:
+      codec: json
+    healthcheck:
+      enabled: false
+    request:
+      headers:
+        Content-Type: application/json

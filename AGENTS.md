@@ -17,16 +17,22 @@ Two things live here:
 
 ```
 tiny_agent/main.py             Demo entry point (python -m tiny_agent.main)
+tiny_agent/cli.py              Terminal chat: the `tiny-agent` command (pip install -e .)
 tiny_agent/shared/             TinyAgent harness, LLM client, model check, Response
+pyproject.toml                 Packaging: the `tiny-agent` console command
 tools/unwrap-md.mjs            Keeps Markdown unwrapped (used by the pre-commit hook)
 docs/                          Sphinx docs (Furo theme)
 INSTRUCTIONS.md                How to run everything
-experimentation/chat-app/
-├── execute.mjs                Control the Docker deployment (start here)
-├── frontend/                  React 19 + Vite + Tailwind v4 (src/components, hooks, lib)
-├── backend/                   FastAPI + httpx; tests/ has a fake llama router
-├── models/                    llama.cpp things: models.ini, pull-models.sh, README
-└── deploy/                    docker-compose.yaml, Dockerfiles, nginx configs
+execute.mjs                    Control the Docker deployment and run the tests (start here)
+experimentation/
+├── docker-compose.yaml        The whole stack; .env, secrets/ and logs/ live next to it
+├── observability/             OpenObserve image wrapper (reads secrets) and the Vector config
+├── logs/ , secrets/           Generated, git-ignored: log files + OpenObserve data; Docker secrets
+└── chat-app/
+    ├── frontend/                  React 19 + Vite + Tailwind v4 (src/components, hooks, lib)
+    ├── backend/                   FastAPI + httpx; tests/ has a fake llama router
+    ├── models/                    llama.cpp things: models.ini (Hugging Face repos), cache/ (downloads), README
+    └── deploy/                    Dockerfiles, nginx configs
 ```
 
 ## How the chat app fits together
@@ -37,13 +43,13 @@ browser -> gateway (nginx, the ONLY published port, 3200)
              `-- /api, /v1  -> backend (FastAPI) -> llama.cpp (router mode, internal)
 ```
 
-- Nothing but the gateway is published to the host. Do not add `ports:` to other services; add routes to `deploy/gateway.nginx.conf` instead.
+- Nothing but the gateway is published to the host. Do not add `ports:` to other services; add routes to `experimentation/chat-app/deploy/gateway.nginx.conf` instead.
 - The backend is the only code that talks to llama.cpp. It exposes `/api/models`, `/api/models/load`, `/api/chat`, a streamed `/v1/*` passthrough, and refuses `POST /v1/chat/completions` with **409** unless the model is already loaded.
 - The frontend lets the user chat only when the router reports the selected model `loaded` and no switch is in progress. It never relies on llama.cpp loading a model implicitly.
 
 ## Commands
 
-All from `experimentation/chat-app` unless noted.
+All from the repo root unless noted.
 
 | Task | Command |
 |---|---|
@@ -87,10 +93,18 @@ When you change behaviour, add or update a test in the same change. The fake rou
 - **Errors from the backend** always look like `{"error": {"message", "code"}}`. Keep that shape; the frontend reads `message`.
 - **Do not commit:** `.env`, model files, `node_modules`, `dist`, `.venv`, `docs/_build`. `.gitignore` already covers them; check `git status` before committing.
 
+## Secrets and logs
+
+* Credentials are **Docker secrets**: files in `experimentation/secrets/` (git-ignored), created with random values by `node execute.mjs up` and mounted at `/run/secrets/<name>`. Never put a password or key in the compose file, an environment variable, `.env`, an image or a log line. Today there are two: the OpenObserve login and `llama_api_key` (llama-server requires it; only the backend sends it).
+* Services read a secret from a file: llama-server with `LLAMA_ARG_API_KEY_FILE`, the backend with `LLAMA_API_KEY_FILE`, Vector with `SECRET[docker.<name>]`. OpenObserve cannot read files, so `observability/openobserve.Dockerfile` adds a tiny shell whose entrypoint does it.
+* The OpenObserve UI opens **already logged in**: the `observe` service (nginx, `observability/auto-login.sh` and `observe.nginx.conf.template`) builds the login cookie and browser state from the secrets and signs every browser in. OpenObserve has no setting for this, so it is a proxy. Trade-off: anyone who can reach `127.0.0.1:5080` on this machine is the admin; the API itself still refuses a call with no cookie or credentials. Keep redirects relative (`absolute_redirect off`): nginx listens on 80 inside the container.
+* All logs go to OpenObserve (<http://localhost:5080>): container logs through Vector's Docker socket mount, and `tiny_agent/log.py` writes `experimentation/logs/cli.log` and `main.log` for `tiny-agent` and `main.py` only. Do not add file logging to the other modules; Docker already captures them.
+* `node execute.mjs prune` removes the whole setup except the downloaded models and the Docker images (llama.cpp alone is several GB). It removes the stack's containers, networks and every volume labelled for the `chat-app` project, plus the generated secrets, logs and build output. It never runs `docker system prune`: this machine hosts other projects.
+
 ## Gotchas (learned the hard way)
 
 - **llama.cpp router behaviour** (verified against the real server): `POST /models/load` returns `{"success":true}` immediately; the model then reports `loading` and later `loaded` in `GET /v1/models` (`status.value`). With `LLAMA_MODELS_MAX=1`, loading one model unloads the other. An unknown name gives 404. The built-in web page is disabled (`LLAMA_ARG_WEBUI=0`).
-- **Model files:** the stack reuses the models Ollama downloaded. `models/models.ini` points at blob files by sha256 digest, so a new build of a model tag needs its path updated. `pull-models` downloads missing models and the folder defaults to `%USERPROFILE%/.ollama/models` (`$HOME` elsewhere); override with `OLLAMA_MODELS_DIR`.
+- **Model files:** llama.cpp downloads each model from Hugging Face the first time it is loaded (`hf-repo` in `models/models.ini`) into `models/cache/` (git-ignored; `prune` never removes it). There is no Ollama and no separate download service. A first load can take many minutes, so the backend allows `LLAMA_LOAD_TIMEOUT` (1800 s) and the gateway 2000 s; keep those in step if you change them.
 - **Ports:** this machine already uses 3000, 8000, 8080 and 3001 for other projects. The gateway uses **3200** (`GATEWAY_PORT`). Check with `netstat` before picking a new one.
 - **Compose project name** is pinned to `chat-app` (`name:` in the compose file) so moving files around does not create a second stack.
 - **Compose does not expand `~`.** Use `USERPROFILE`/`HOME` or a full path.
@@ -102,7 +116,7 @@ When you change behaviour, add or update a test in the same change. The fake rou
 
 1. Run `node execute.mjs test` (backend + mocked, plus live when the stack is up).
 2. If you touched the frontend, also run `npm run build` in `frontend/`.
-3. If you touched Docker or nginx files, run `docker compose -f deploy/docker-compose.yaml config -q`, then `node execute.mjs up` and `node execute.mjs health`.
+3. If you touched Docker or nginx files, run `docker compose -f experimentation/docker-compose.yaml config -q`, then `node execute.mjs up` and `node execute.mjs health`.
 4. Update the docs listed above, then check `git status` for anything that should not be committed.
 
 ## Attribution
