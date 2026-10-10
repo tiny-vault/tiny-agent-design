@@ -1114,5 +1114,6 @@ nohup.out
 /experimentation/chat-app/frontend/test-results/
 /experimentation/chat-app/frontend/playwright-report/
 /tiny_agent.egg-info/
-notes/
-.claude/skills/paste-to-notes/
+/training-notes/
+/notes/
+/.claude/skills/

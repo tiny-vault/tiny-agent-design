@@ -5,6 +5,9 @@ Jay Alammar (O'Reilly). The book's companion repository has no license, so
 all rights remain with the authors.
 """
 
+from llm_client.llm import LLM
+from tiny_agent.shared.trajectory import Trajectory
+
 
 class TinyAgent:
     """A minimal, modular, and educational agent framework.
@@ -26,36 +29,44 @@ class TinyAgent:
       real world and feeds the result back.
     * the attributes below - pluggable slots for memory, tools and planning.
 
-    The model decides; the harness does. Right now these are placeholders, so
-    the harness is only a skeleton and no model is called yet.
+    The model decides; the harness does. The agent now calls the model once
+    per task and records what happened; the loop, memory, tools and planning
+    are still placeholders.
 
     Attributes:
         llm: The "brain": reasons about the task and chooses the next step.
-            ``None`` until the LLM step.
+            Passed in when the agent is created.
         memory: The "context": remembers past messages and observations.
             ``None`` until the memory step.
         tools: The "hands": functions the agent can call to affect the world.
             ``None`` until the tools step.
         planner: The "strategy": breaks a goal into ordered sub-steps.
             ``None`` until the planning step.
+        trajectory: The :class:`~tiny_agent.shared.trajectory.Trajectory`:
+            every run and the steps taken in it, for debugging.
 
     Example:
-        >>> agent = TinyAgent()
-        >>> agent.run("Hello, agent!")
-        'Received: Hello, agent!'
+        >>> agent = TinyAgent(LLM(model="gemma4-e4b"))  # doctest: +SKIP
+        >>> agent.run("Hello, agent!")  # doctest: +SKIP
+        'Hello! How can I help?'
     """
 
-    def __init__(self):
+    def __init__(self, llm: LLM):
         """Assemble the agent's components.
 
         Role: configuration and dependency wiring. Each attribute is a
         pluggable module, so the agent's capabilities can be swapped or
         extended without changing the control loop.
+
+        Args:
+            llm: The client the agent asks for each decision.
         """
-        self.llm = None  # Step 1: Add LLM
-        self.memory = None  # Step 2: Add Memory
-        self.tools = None  # Step 3: Add Tools
-        self.planner = None  # Step 4: Add Planning
+        self.llm = llm
+        self.memory = None  # Chapter 4: Add Memory
+        self.tools = None  # Chapter 5: Add Tools
+        self.planner = None  # Chapter 6: Add Planning
+
+        self.trajectory = Trajectory()
 
     def run(self, task: str) -> str:
         """Run the agent on a task.
@@ -69,8 +80,9 @@ class TinyAgent:
             task: The goal or question for the agent, in natural language.
 
         Returns:
-            The agent's result. Currently ``"Received: <task>"``.
+            The agent's result. Currently the model's reply to the task.
         """
+        self.trajectory.initialize(task)
         return self._step(task)
 
     def _step(self, task: str) -> str:
@@ -85,12 +97,15 @@ class TinyAgent:
             task: The current task text.
 
         Returns:
-            Currently a placeholder echo, ``"Received: <task>"``.
+            Currently the model's reply text. The call is recorded as a
+            :class:`~tiny_agent.shared.step.Step` in ``self.trajectory``.
         """
-        # Placeholder - will be implemented in later steps
-        return f"Received: {task}"
+        messages = [{"role": "user", "content": task}]
+        response = self.llm.generate(messages)
+        self.trajectory.add(response)
+        return response.content
 
-    def _execute_action(self, action: str) -> str:
+    def _execute_action(self, action: str) -> str | None:
         """Execute a tool action.
 
         Role: the "act" phase. Parses the action the LLM chose, dispatches it
