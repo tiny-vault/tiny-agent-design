@@ -1,0 +1,704 @@
+<!doctype html>
+<!--
+  TinyAgent Chat: an Alpine.js agent chat for a local Ollama model.
+
+  The visual language and several chat behaviours are ported (not copied) from
+  Utopia by DeepLethe, Apache-2.0: https://github.com/deeplethe/utopia
+  (web/DESIGN.md and web/src/{styles.css,citations.ts,chatScroll.ts,liveAnswer.ts}).
+  Ported ideas: neutral glass in two themes, five named type sizes, a 4/8/12/16/24/32
+  spacing scale, four radii derived from one --radius, two text levels, status as a
+  dot plus plain words, a step trace for tool calls, [n] citations with a source
+  list that shows only the cited sources, "follow the answer only if the reader is
+  at the bottom" scrolling, and token updates batched every 33 ms.
+-->
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>TinyAgent Chat</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600&family=Manrope:wght@600&display=swap">
+  <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.14.1/dist/cdn.min.js"></script>
+  <style>
+    :root {
+      --font-sans: "Geist", system-ui, -apple-system, "Segoe UI", sans-serif;
+      --font-brand: "Manrope", "Geist", system-ui, sans-serif;
+      --font-mono: ui-monospace, "Cascadia Code", Consolas, monospace;
+
+      /* Five type sizes, by name (size / line). Chat reads at the title step. */
+      --text-fine: 12px;   --lh-fine: 16px;
+      --text-small: 13px;  --lh-small: 20px;
+      --text-body: 14px;   --lh-body: 22px;
+      --text-title: 16px;  --lh-title: 24px;
+      --text-display: 24px; --lh-display: 32px;
+
+      /* Six spacing steps. */
+      --s1: 4px; --s2: 8px; --s3: 12px; --s4: 16px; --s6: 24px; --s8: 32px;
+
+      /* Four radii, all derived from one knob. */
+      --radius: 0.625rem;
+      --radius-cell: calc(var(--radius) * 0.8);
+      --radius-control: var(--radius);
+      --radius-panel: calc(var(--radius) * 1.4);
+      --radius-overlay: var(--radius);
+
+      --fast: 120ms; --base: 260ms;
+    }
+
+    /* Dark: neutral glass, no hue in the chrome. */
+    :root, :root[data-theme="dark"] {
+      color-scheme: dark;
+      --ground: #0a0a0a;
+      --ink: #ededed;
+      --ink-2: #a8a8a8;
+      --line: rgba(255,255,255,.08);
+      --line-strong: rgba(255,255,255,.14);
+      --raise: rgba(255,255,255,.025);
+      --bubble: rgba(255,255,255,.08);
+      --surface-2: rgba(255,255,255,.045);
+      --surface-3: rgba(255,255,255,.08);
+      --well: rgba(0,0,0,.4);
+      --glass-strong: rgba(10,10,10,.86);
+      --ring: rgba(255,255,255,.6);
+      --primary: #ededed; --on-primary: #0a0a0a;
+      --ok: #4cc38a; --warn: #f2b66d; --danger: #ff9daf;
+    }
+    :root[data-theme="light"] {
+      color-scheme: light;
+      --ground: #fafafa;
+      --ink: #171717;
+      --ink-2: #5c5c5c;
+      --line: rgba(0,0,0,.08);
+      --line-strong: rgba(0,0,0,.14);
+      --raise: #fff;
+      --bubble: rgba(0,0,0,.06);
+      --surface-2: rgba(0,0,0,.03);
+      --surface-3: rgba(0,0,0,.055);
+      --well: rgba(0,0,0,.05);
+      --glass-strong: rgba(250,250,250,.9);
+      --ring: rgba(0,0,0,.55);
+      --primary: #171717; --on-primary: #fafafa;
+      --ok: #1a7f4b; --warn: #9a6a12; --danger: #c0284f;
+    }
+
+    * { box-sizing: border-box; }
+    [x-cloak] { display: none !important; }
+    html, body { height: 100%; }
+    body {
+      margin: 0; background: var(--ground); color: var(--ink);
+      font: 400 var(--text-body)/var(--lh-body) var(--font-sans);
+    }
+    button, textarea { font: inherit; color: inherit; }
+    :focus-visible { outline: 2px solid var(--ring); outline-offset: 2px; }
+
+    /* Controls own their states: hover in --fast, out --base; disabled dims. */
+    .btn {
+      display: inline-flex; align-items: center; justify-content: center; gap: var(--s2);
+      height: 32px; padding: 0 var(--s3); cursor: pointer;
+      background: transparent; border: 1px solid var(--line-strong);
+      border-radius: var(--radius-control); font-weight: 500;
+      transition: background-color var(--base) ease;
+    }
+    .btn:hover { background: var(--surface-2); transition-duration: var(--fast); }
+    .btn.primary { background: var(--primary); color: var(--on-primary); border-color: transparent; font-weight: 600; }
+    .btn.primary:hover { opacity: .9; }
+    .btn.icon { width: 32px; padding: 0; }
+    .btn:disabled { opacity: .5; cursor: default; pointer-events: none; }
+    .btn svg { width: 16px; height: 16px; stroke: currentColor; fill: none; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+
+    .app { max-width: 48rem; height: 100dvh; margin: 0 auto; display: flex; flex-direction: column; padding: 0 var(--s4); }
+    @media (min-width: 640px) { .app { padding: 0 var(--s6); } }
+
+    header { display: flex; align-items: center; justify-content: space-between; gap: var(--s3); padding: var(--s4) 0; }
+    .wordmark { font: 600 var(--text-title)/var(--lh-title) var(--font-brand); letter-spacing: -.01em; }
+    .tools { display: flex; align-items: center; gap: var(--s2); }
+
+    /* Model dropdown: a themed menu, not a native select. */
+    .dropdown { position: relative; }
+    .dropdown > .btn { max-width: 220px; }
+    .dropdown > .btn span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .menu {
+      position: absolute; right: 0; top: calc(100% + var(--s1)); z-index: 10; min-width: 220px;
+      padding: var(--s1); background: var(--glass-strong); border: 1px solid var(--line);
+      border-radius: var(--radius-overlay); backdrop-filter: blur(20px) saturate(.3);
+      -webkit-backdrop-filter: blur(20px) saturate(.3);
+    }
+    .menu button {
+      display: flex; width: 100%; align-items: center; gap: var(--s3);
+      padding: var(--s2) var(--s3); background: transparent; border: 0; cursor: pointer; text-align: left;
+      border-radius: var(--radius-cell); transition: background-color var(--base) ease;
+    }
+    .menu button:hover { background: var(--surface-2); transition-duration: var(--fast); }
+    .menu .opt { display: flex; align-items: center; }
+    .menu .opt .name { flex: 1; overflow-wrap: anywhere; }
+    .menu .opt .state { color: var(--ink-2); font-size: var(--text-fine); line-height: var(--lh-fine); }
+    .menu .opt button[aria-selected="true"] .name { font-weight: 600; }
+    .menu .opt .unload { width: 28px; height: 28px; justify-content: center; padding: 0; color: var(--ink-2); flex: none; }
+    .menu .none { padding: var(--s2) var(--s3); color: var(--ink-2); }
+
+    /* While a model loads, the whole chat pane is frozen under a veil. */
+    .pane { position: relative; flex: 1; min-height: 0; display: flex; flex-direction: column; }
+    .freeze {
+      position: absolute; inset: 0; z-index: 5; display: flex; align-items: center; justify-content: center; gap: var(--s3);
+      background: color-mix(in srgb, var(--ground) 70%, transparent); backdrop-filter: blur(4px) saturate(.3);
+      -webkit-backdrop-filter: blur(4px) saturate(.3); color: var(--ink-2); cursor: progress;
+    }
+    .freeze b { color: var(--ink); font-weight: 500; }
+
+    /* The conversation. */
+    .log { flex: 1; overflow-y: auto; padding: var(--s4) 0 var(--s8); display: flex; flex-direction: column; gap: var(--s6); }
+    .turn { display: flex; flex-direction: column; gap: var(--s3); }
+    .user {
+      align-self: flex-end; max-width: 85%; padding: var(--s2) var(--s4); background: var(--bubble);
+      border-radius: var(--radius-panel); font-size: var(--text-title); line-height: var(--lh-title);
+      white-space: pre-wrap; overflow-wrap: anywhere;
+    }
+    .answer { font-size: var(--text-title); line-height: var(--lh-title); white-space: pre-wrap; overflow-wrap: anywhere; }
+    .thinking {
+      color: var(--ink-2); font-size: var(--text-small); line-height: var(--lh-small);
+      border-left: 2px solid var(--line-strong); padding-left: var(--s3); white-space: pre-wrap;
+    }
+    .secondary { color: var(--ink-2); font-size: var(--text-small); line-height: var(--lh-small); }
+
+    /* One panel with rows: the step trace and the source list. */
+    .panel { border: 1px solid var(--line); border-radius: var(--radius-panel); background: var(--raise); overflow: hidden; }
+    .row { border-top: 1px solid var(--line); }
+    .row:first-child { border-top: 0; }
+    .row > button {
+      display: flex; width: 100%; align-items: center; gap: var(--s3); padding: var(--s2) var(--s4);
+      background: transparent; border: 0; cursor: pointer; text-align: left;
+      font-size: var(--text-small); line-height: var(--lh-small); transition: background-color var(--base) ease;
+    }
+    .row > button:hover { background: var(--surface-2); transition-duration: var(--fast); }
+    .row .label { font-weight: 500; }
+    .row .detail { color: var(--ink-2); margin-left: auto; text-align: right; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .row .body {
+      margin: 0 var(--s4) var(--s3); padding: var(--s3); background: var(--well); border-radius: var(--radius-cell);
+      font-size: var(--text-small); line-height: var(--lh-small); overflow-wrap: anywhere;
+    }
+    .row .body pre { margin: 0; font: var(--text-fine)/var(--lh-fine) var(--font-mono); white-space: pre-wrap; }
+    .row .body.think { white-space: pre-wrap; color: var(--ink-2); }
+    .row.hit { background: var(--surface-2); }
+    .caption { padding: var(--s2) var(--s4); font-size: var(--text-fine); line-height: var(--lh-fine); color: var(--ink-2); border-bottom: 1px solid var(--line); }
+
+    /* A status is a coloured dot and plain words. */
+    .dot { width: 8px; height: 8px; border-radius: 50%; flex: none; background: var(--ink-2); }
+    .dot.ok { background: var(--ok); }
+    .dot.warn { background: var(--warn); }
+    .dot.danger { background: var(--danger); }
+    .dot.run { animation: pulse 1.2s ease-in-out infinite; }
+    @keyframes pulse { 50% { opacity: .35; } }
+    @media (prefers-reduced-motion: reduce) { .dot.run { animation: none; } }
+
+    /* Citation marks: [1] [1, 2] become small buttons. */
+    .cite {
+      display: inline-flex; align-items: center; justify-content: center; min-width: 18px; height: 18px; padding: 0 var(--s1);
+      margin: 0 1px; vertical-align: 2px; background: var(--surface-3); border: 0; border-radius: var(--radius-cell);
+      font: 500 var(--text-fine)/var(--lh-fine) var(--font-sans); cursor: pointer; transition: background-color var(--base) ease;
+    }
+    .cite:hover { background: var(--line-strong); transition-duration: var(--fast); }
+    .num { font-variant-numeric: tabular-nums; }
+    .chip { display: inline-flex; padding: 0 var(--s2); border: 1px solid var(--line-strong); border-radius: var(--radius-cell); font-size: var(--text-fine); line-height: var(--lh-fine); color: var(--ink-2); }
+
+    .error { color: var(--danger); font-size: var(--text-small); line-height: var(--lh-small); }
+
+    .empty { margin: auto; text-align: center; display: flex; flex-direction: column; align-items: center; gap: var(--s3); }
+    .empty h1 { margin: 0; font: 600 var(--text-display)/var(--lh-display) var(--font-brand); letter-spacing: -.01em; }
+    .suggest { display: flex; flex-wrap: wrap; justify-content: center; gap: var(--s2); margin-top: var(--s3); }
+
+    /* Composer: a raised panel. */
+    .composer { padding: var(--s3) 0 var(--s6); }
+    .box {
+      display: flex; align-items: flex-end; gap: var(--s2); padding: var(--s2); background: var(--raise);
+      border: 1px solid var(--line-strong); border-radius: var(--radius-panel);
+    }
+    .box:focus-within { border-color: var(--ring); }
+    textarea {
+      flex: 1; resize: none; border: 0; outline: 0; background: transparent; max-height: 8em;
+      padding: var(--s1) var(--s3); font-size: var(--text-title); line-height: var(--lh-title);
+    }
+    textarea::placeholder { color: var(--ink-2); }
+  </style>
+</head>
+<body>
+  <div class="app" x-data="agentChat()" x-init="init()" x-cloak>
+    <header>
+      <span class="wordmark">TinyAgent</span>
+      <div class="tools">
+        <div class="dropdown" @keydown.escape="menuOpen = false" @click.outside="menuOpen = false">
+          <button type="button" class="btn" :disabled="busy || loading" @click="menuOpen = !menuOpen; if (menuOpen) refreshModels()" aria-haspopup="listbox" :aria-expanded="menuOpen">
+            <span class="dot" :class="loading ? 'run' : loaded.has(model) ? 'ok' : ''" x-show="model"></span>
+            <span x-text="loading ? 'Loading ' + loading + '…' : model || 'No model'"></span>
+            <svg viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"/></svg>
+          </button>
+          <div class="menu" x-show="menuOpen" role="listbox">
+            <template x-for="m in models" :key="m">
+              <div class="opt">
+                <button type="button" role="option" :aria-selected="m === model" @click="pickModel(m)">
+                  <span class="dot" :class="loading === m ? 'run' : loaded.has(m) ? 'ok' : ''"></span>
+                  <span class="name" x-text="m"></span>
+                  <span class="state" x-text="loading === m ? 'Loading…' : loaded.has(m) ? 'Loaded' : ''"></span>
+                </button>
+                <button type="button" class="unload" x-show="loaded.has(m) && loading !== m" @click.stop="unloadModel(m)" aria-label="Unload model" title="Unload from memory">
+                  <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18M6 6l12 12"/></svg>
+                </button>
+              </div>
+            </template>
+            <p class="none" x-show="!models.length">No models installed. Run <code>ollama pull &lt;model&gt;</code>.</p>
+          </div>
+        </div>
+        <button type="button" class="btn icon" @click="turns = []; convo = [convo[0]]; error = ''" :disabled="busy || loading || !turns.length" aria-label="New conversation" title="New conversation">
+          <svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>
+        </button>
+        <button type="button" class="btn icon" @click="toggleTheme()" aria-label="Toggle theme" title="Toggle theme">
+          <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg>
+        </button>
+      </div>
+    </header>
+
+<main class="pane" :inert="!!loading" :aria-busy="!!loading">
+    <div class="log" x-ref="log" @scroll.passive="follow = followsBottom($refs.log)" @click="onLogClick($event)">
+      <div class="empty" x-show="!turns.length">
+        <h1>Ask the agent</h1>
+        <p class="secondary" x-show="model">Answers come from <b x-text="model"></b> and a small TinyAgent knowledge base.</p>
+        <p class="secondary" x-show="!model">No models installed. Run <code>ollama pull &lt;model&gt;</code>, then reload.</p>
+        <div class="suggest" x-show="model">
+          <template x-for="q in suggestions" :key="q">
+            <button type="button" class="btn" @click="input = q; send()" x-text="q"></button>
+          </template>
+        </div>
+      </div>
+
+      <template x-for="(t, ti) in turns" :key="ti">
+        <div class="turn">
+          <div class="user" x-text="t.question"></div>
+
+          <div class="panel" x-show="t.steps.length">
+            <div class="caption" x-text="t.steps.length === 1 ? '1 step' : t.steps.length + ' steps'"></div>
+            <template x-for="(s, si) in t.steps" :key="si">
+              <div class="row">
+                <button type="button" @click="s.open = !s.open" :aria-expanded="s.open">
+                  <span class="dot" :class="s.dotClass()"></span>
+                  <span class="label" x-text="s.label"></span>
+                  <span class="detail" x-text="s.detail"></span>
+                </button>
+                <div class="body" x-show="s.open"><pre x-text="s.raw"></pre></div>
+              </div>
+            </template>
+          </div>
+
+          <div class="panel" x-show="t.thinking">
+            <div class="row">
+              <button type="button" @click="t.thinkOpen = !t.thinkOpen" :aria-expanded="t.thinkOpen">
+                <span class="dot" :class="t.working && !t.content ? 'run' : 'ok'"></span>
+                <span class="label" x-text="t.working && !t.content ? 'Thinking…' : 'Thought'"></span>
+                <span class="detail num" x-text="t.thinking.length + ' chars'"></span>
+              </button>
+              <div class="body think" x-show="t.thinkOpen" x-text="t.thinking"></div>
+            </div>
+          </div>
+          <div class="answer" x-show="t.content" x-html="renderAnswer(t)"></div>
+          <div class="panel" x-show="t.choice">
+            <div class="row">
+              <button type="button" @click="t.choiceOpen = !t.choiceOpen" :aria-expanded="t.choiceOpen">
+                <span class="dot ok"></span>
+                <span class="label">choices[0]</span>
+                <span class="detail">raw response</span>
+              </button>
+              <div class="body" x-show="t.choiceOpen"><pre x-text="t.choice"></pre></div>
+            </div>
+          </div>
+          <p class="secondary" x-show="t.working && !t.content && !t.thinking && !t.steps.length">Working…</p>
+          <p class="secondary" x-show="t.note" x-text="t.note"></p>
+          <p class="error" x-show="t.error" x-text="t.error"></p>
+          <p class="secondary" x-show="t.stopped">Stopped.</p>
+
+          <div class="panel" x-show="citedSources(t).length">
+            <div class="caption">Sources</div>
+            <template x-for="src in citedSources(t)" :key="src.n">
+              <div class="row" :class="t.openSource === src.n && 'hit'" :data-src="ti + '-' + src.n">
+                <button type="button" @click="t.openSource = t.openSource === src.n ? 0 : src.n">
+                  <span class="chip num" x-text="src.n"></span>
+                  <span class="label" x-text="src.title"></span>
+                </button>
+                <div class="body" x-show="t.openSource === src.n" x-text="src.text"></div>
+              </div>
+            </template>
+          </div>
+          <p class="secondary" x-show="answeredWithoutSources(t)">Answered without citing any source.</p>
+        </div>
+      </template>
+    </div>
+
+    <form class="composer" @submit.prevent="send()">
+      <div class="box">
+        <textarea rows="1" x-ref="input" x-model="input" placeholder="Message the agent" aria-label="Message"
+          @input="grow()" @keydown.enter="if (!$event.shiftKey && !$event.isComposing) { $event.preventDefault(); send() }"></textarea>
+        <button type="button" class="btn primary" x-show="busy" @click="stop()">Stop</button>
+        <button type="submit" class="btn primary" x-show="!busy" :disabled="!input.trim() || !model || loading">Send</button>
+      </div>
+    </form>
+
+    <div class="freeze" x-show="loading" role="status">
+      <span class="dot run"></span>
+      <span>Loading <b x-text="loading"></b>…</span>
+    </div>
+    </main>
+  </div>
+
+  <script>
+    // Ollama accepts localhost origins by default, so serve this page over
+    // http://localhost (see README.md); opening it as file:// will not work.
+    const OLLAMA = "http://localhost:11434";
+    const MAX_ROUNDS = 5;
+    const FOLLOW_SLACK_PX = 48;   // how near the bottom still counts as "reading along"
+    const NOTIFY_MS = 33;         // batch streamed tokens: ~30 repaints a second
+
+    const SYSTEM_PROMPT =
+      "You are the TinyAgent assistant. For any question about TinyAgent, its design, models, setup or credits, " +
+      "call search_docs first and answer only from what it returns. Cite the passages you use with their number " +
+      "in square brackets, like [1] or [1, 2]. If the passages do not answer the question, say so. " +
+      "Use get_current_time for questions about the current time or date. Be concise.";
+
+    const TOOLS = [
+      {
+        type: "function",
+        function: {
+          name: "search_docs",
+          description: "Search the TinyAgent knowledge base. Returns numbered passages to cite.",
+          parameters: {
+            type: "object",
+            properties: { query: { type: "string", description: "Keywords to search for" } },
+            required: ["query"],
+          },
+        },
+      },
+      {
+        type: "function",
+        function: {
+          name: "get_current_time",
+          description: "Get the current local date and time.",
+          parameters: { type: "object", properties: {} },
+        },
+      },
+    ];
+
+    /* True when the log is at (or within 48px of) the bottom. Content shorter than
+       the viewport counts as at the bottom: there is nowhere to scroll away to. */
+    function followsBottom(el) {
+      return el.scrollHeight - el.scrollTop - el.clientHeight <= FOLLOW_SLACK_PX;
+    }
+
+    /* Split text into plain text and citation groups: [1], [1][2], [1, 2].
+       A marker still streaming in, like "[1", does not match until its bracket
+       closes, so a half-drawn mark never flickers into place. A fresh regex per
+       call, because a shared /g regex keeps lastIndex between calls. */
+    function splitCitations(text) {
+      const re = /\[(\d+(?:\s*[,，]\s*\d+)*)\]/g;
+      const out = [];
+      let last = 0;
+      for (let m = re.exec(text); m; m = re.exec(text)) {
+        const ns = m[1].split(/[,，]/).map((s) => Number(s.trim())).filter((n) => Number.isInteger(n) && n > 0);
+        if (!ns.length) continue;
+        if (m.index > last) out.push({ text: text.slice(last, m.index) });
+        out.push({ cite: ns });
+        last = m.index + m[0].length;
+      }
+      if (!out.length) return [{ text }];
+      if (last < text.length) out.push({ text: text.slice(last) });
+      return out;
+    }
+
+    const escapeHtml = (s) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+
+    function newStep(label) {
+      return {
+        label, detail: "", raw: "", status: "running", open: false,
+        dotClass() { return this.status === "ok" ? "ok" : this.status === "running" ? "run" : this.status === "failed" ? "danger" : "warn"; },
+      };
+    }
+
+    function agentChat() {
+      return {
+        models: [], loaded: new Set(), loading: "", model: "", menuOpen: false, kb: [],
+        turns: [], convo: [{ role: "system", content: SYSTEM_PROMPT }],
+        input: "", busy: false, error: "", follow: true, controller: null,
+        noTools: new Set(),
+        suggestions: ["What is TinyAgent?", "How does the agent loop work?", "What time is it?"],
+
+        async init() {
+          try { this.setTheme(localStorage.getItem("theme") || (matchMedia("(prefers-color-scheme: light)").matches ? "light" : "dark")); }
+          catch { this.setTheme("dark"); }
+          try {
+            this.kb = await (await fetch("kb.json")).json();
+          } catch (e) { this.error = "Could not load kb.json"; }
+          await this.refreshModels(true);
+        },
+
+        /* The dropdown lists every installed model (/api/tags) and marks the ones
+           loaded in memory right now (/api/ps). */
+        async refreshModels(first = false) {
+          try {
+            const [tags, ps] = await Promise.all([fetch(`${OLLAMA}/api/tags`), fetch(`${OLLAMA}/api/ps`)]);
+            if (!tags.ok || !ps.ok) throw new Error(`HTTP ${tags.ok ? ps.status : tags.status}`);
+            this.models = (await tags.json()).models.map((m) => m.name);
+            this.loaded = new Set((await ps.json()).models.map((m) => m.name));
+            this.error = "";
+            if (first) {
+              let saved = null;
+              try { saved = localStorage.getItem("model"); } catch {}
+              this.model = this.models.includes(saved) ? saved
+                : [...this.loaded][0] || this.models[0] || "";
+            } else if (!this.model && this.models.length) {
+              this.model = [...this.loaded][0] || this.models[0];
+            }
+          } catch (e) { this.error = `Cannot reach Ollama at ${OLLAMA}: ${e.message}`; }
+        },
+
+        /* Load or unload a model at runtime. An /api/generate call with no prompt
+           loads the model; keep_alive 0 unloads it. */
+        async setLoaded(m, keepAlive) {
+          const res = await fetch(`${OLLAMA}/api/generate`, {
+            method: "POST", headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ model: m, keep_alive: keepAlive }),
+          });
+          if (!res.ok) throw new Error(`HTTP ${res.status}: ${await res.text()}`);
+        },
+        async loadModel(m) {
+          this.loading = m; this.error = "";
+          try { await this.setLoaded(m, "5m"); }
+          catch (e) { this.error = `Could not load ${m}: ${e.message}`; }
+          finally { this.loading = ""; await this.refreshModels(); }
+        },
+        async unloadModel(m) {
+          this.error = "";
+          try { await this.setLoaded(m, 0); }
+          catch (e) { this.error = `Could not unload ${m}: ${e.message}`; }
+          await this.refreshModels();
+        },
+
+        /* ---- chrome ---- */
+        setTheme(t) {
+          document.documentElement.dataset.theme = t;
+          try { localStorage.setItem("theme", t); } catch {}
+        },
+        toggleTheme() { this.setTheme(document.documentElement.dataset.theme === "light" ? "dark" : "light"); },
+        pickModel(m) {
+          this.model = m; this.menuOpen = false;
+          try { localStorage.setItem("model", m); } catch {}
+          if (!this.loaded.has(m) && !this.loading) this.loadModel(m);
+        },
+        grow() {
+          const el = this.$refs.input;
+          el.style.height = "auto";
+          el.style.height = el.scrollHeight + "px";
+        },
+        followIfReading() {
+          if (!this.follow) return;
+          this.$nextTick(() => { this.$refs.log.scrollTop = this.$refs.log.scrollHeight; });
+        },
+        followsBottom,
+
+        /* ---- rendering ---- */
+        renderAnswer(t) {
+          return splitCitations(t.content).map((p) => {
+            if (p.text !== undefined) return escapeHtml(p.text);
+            return p.cite.map((n) => t.sources.some((s) => s.n === n)
+              ? `<button type="button" class="cite num" data-cite="${n}">${n}</button>`
+              : `[${n}]`).join("");
+          }).join("");
+        },
+        /* Only sources the answer actually cites, numbered as retrieved. */
+        citedSources(t) {
+          const cited = new Set();
+          for (const p of splitCitations(t.content)) if (p.cite) p.cite.forEach((n) => cited.add(n));
+          return t.sources.filter((s) => cited.has(s.n));
+        },
+        /* Flag a finished answer that used the search tool but cited nothing. */
+        answeredWithoutSources(t) {
+          if (t.working || !t.content || t.error || t.stopped) return false;
+          return t.steps.some((s) => s.tool === "search_docs") && this.citedSources(t).length === 0;
+        },
+        onLogClick(e) {
+          const n = Number(e.target.dataset?.cite);
+          if (!n) return;
+          const ti = [...this.$refs.log.querySelectorAll(".turn")].indexOf(e.target.closest(".turn"));
+          if (ti < 0) return;
+          this.turns[ti].openSource = n;
+          this.$nextTick(() => this.$refs.log.querySelector(`[data-src="${ti}-${n}"]`)?.scrollIntoView({ block: "nearest", behavior: "smooth" }));
+        },
+
+        /* ---- tools ---- */
+        runTool(name, args, turn, step) {
+          if (name === "get_current_time") {
+            const now = new Date();
+            step.detail = now.toLocaleTimeString();
+            return JSON.stringify({ local: now.toString(), iso: now.toISOString() });
+          }
+          if (name === "search_docs") {
+            const words = String(args.query || "").toLowerCase().match(/[a-z0-9_]{3,}/g) || [];
+            const scored = this.kb.map((p) => {
+              const title = p.title.toLowerCase(), text = p.text.toLowerCase();
+              const score = words.reduce((n, w) => n + (title.includes(w) ? 3 : 0) + (text.split(w).length - 1), 0);
+              return { p, score };
+            }).filter((x) => x.score > 0).sort((a, b) => b.score - a.score).slice(0, 3);
+            const out = scored.map(({ p }) => {
+              let src = turn.sources.find((s) => s.id === p.id);
+              if (!src) { src = { n: turn.sources.length + 1, id: p.id, title: p.title, text: p.text }; turn.sources.push(src); }
+              return { n: src.n, title: p.title, text: p.text };
+            });
+            step.detail = out.length === 1 ? "1 source" : `${out.length} sources`;
+            step.status = out.length ? "ok" : "not_found";
+            if (!out.length) step.detail = "No sources found";
+            return JSON.stringify(out.length ? out : { result: "No matching passages." });
+          }
+          step.status = "not_found"; step.detail = "Unknown tool";
+          return JSON.stringify({ error: `Unknown tool: ${name}` });
+        },
+
+        /* ---- the agent loop ---- */
+        stop() { this.controller?.abort(); },
+
+        async send() {
+          const text = this.input.trim();
+          if (!text || this.busy || !this.model || this.loading) return;
+          this.input = ""; this.$nextTick(() => this.grow());
+          this.error = ""; this.follow = true;
+
+          this.turns.push({ question: text, content: "", thinking: "", steps: [], sources: [], openSource: 0, note: "", error: "", stopped: false, working: true, thinkOpen: false, choice: "", choiceOpen: false });
+          const turn = this.turns[this.turns.length - 1];
+          const base = this.convo.length;
+          this.convo.push({ role: "user", content: text });
+          this.busy = true;
+          this.controller = new AbortController();
+          this.followIfReading();
+
+          try {
+            for (let round = 0; round < MAX_ROUNDS; round++) {
+              turn.content = ""; turn.thinking = "";
+              const useTools = !this.noTools.has(this.model);
+              let reply;
+              try {
+                reply = await this.complete(useTools, turn);
+              } catch (e) {
+                // Models without native tool calling are rejected with a 400 that mentions tools.
+                if (useTools && e.status === 400 && /tool/i.test(e.body || "")) {
+                  this.noTools.add(this.model);
+                  turn.note = `${this.model} has no native tool calling, so it answers without tools.`;
+                  reply = await this.complete(false, turn);
+                } else throw e;
+              }
+              turn.choice = JSON.stringify(reply.choice, null, 2);   // like print(result["choices"][0])
+              if (!reply.calls.length) { this.convo.push({ role: "assistant", content: reply.content }); break; }
+
+              this.convo.push({
+                role: "assistant", content: reply.content,
+                tool_calls: reply.calls.map((c) => ({ id: c.id, type: "function", function: { name: c.name, arguments: c.args } })),
+              });
+              for (const c of reply.calls) {
+                const step = newStep(c.name);
+                step.tool = c.name;
+                turn.steps.push(step);
+                const entry = turn.steps[turn.steps.length - 1];
+                let args = {}, result;
+                try { args = c.args ? JSON.parse(c.args) : {}; } catch { args = null; }
+                if (args === null) {
+                  entry.status = "invalid"; entry.detail = "Could not read arguments";
+                  result = JSON.stringify({ error: "Arguments were not valid JSON" });
+                } else {
+                  entry.label = c.name + (args.query ? ` “${args.query}”` : "");
+                  result = this.runTool(c.name, args, turn, entry);
+                  if (entry.status === "running") entry.status = "ok";
+                }
+                entry.raw = `arguments: ${c.args || "{}"}\n\nresult: ${result}`;
+                this.convo.push({ role: "tool", tool_call_id: c.id, content: result });
+                this.followIfReading();
+              }
+              if (round === MAX_ROUNDS - 1) turn.error = "Stopped after too many tool rounds.";
+            }
+          } catch (e) {
+            this.convo.length = base;           // drop the half-finished exchange from the API history
+            this.convo.push({ role: "user", content: text });
+            if (turn.content) this.convo.push({ role: "assistant", content: turn.content });
+            if (e.name === "AbortError") turn.stopped = true;
+            else turn.error = e.message;
+          } finally {
+            turn.steps.forEach((s) => { if (s.status === "running") { s.status = "failed"; s.detail = "Interrupted"; } });
+            turn.working = false;
+            this.busy = false;
+            this.controller = null;
+            this.followIfReading();
+            this.refreshModels();
+          }
+        },
+
+        /* One streamed model call. Returns { content, calls }. */
+        async complete(useTools, turn) {
+          const body = { model: this.model, stream: true, messages: this.convo };
+          if (useTools) body.tools = TOOLS;
+          const res = await fetch(`${OLLAMA}/v1/chat/completions`, {
+            method: "POST", headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(body), signal: this.controller.signal,
+          });
+          if (!res.ok) {
+            const err = new Error(`HTTP ${res.status}: ${await res.text()}`);
+            err.status = res.status; err.body = err.message;
+            throw err;
+          }
+
+          let content = "", thinking = "", finish = null, timer = null;
+          const calls = [];
+          const paint = () => {
+            timer = null;
+            turn.content = content; turn.thinking = thinking;
+            this.followIfReading();
+          };
+
+          const reader = res.body.getReader();
+          const decoder = new TextDecoder();
+          let buffer = "";
+          try {
+            for (;;) {
+              const { done, value } = await reader.read();
+              if (done) break;
+              buffer += decoder.decode(value, { stream: true });
+              const lines = buffer.split("\n");
+              buffer = lines.pop();
+              for (const line of lines) {
+                if (!line.startsWith("data:")) continue;
+                const data = line.slice(5).trim();
+                if (!data || data === "[DONE]") continue;
+                const chunk = JSON.parse(data).choices?.[0] ?? {};
+                if (chunk.finish_reason) finish = chunk.finish_reason;
+                const delta = chunk.delta ?? {};
+                if (delta.reasoning) thinking += delta.reasoning;
+                if (delta.content) content += delta.content;
+                for (const tc of delta.tool_calls ?? []) {
+                  const i = tc.index ?? 0;
+                  calls[i] ??= { id: "", name: "", args: "" };
+                  calls[i].id ||= tc.id || "";
+                  calls[i].name ||= tc.function?.name || "";
+                  const a = tc.function?.arguments;
+                  if (a !== undefined) calls[i].args += typeof a === "string" ? a : JSON.stringify(a);
+                }
+                if (!timer) timer = setTimeout(paint, NOTIFY_MS);
+              }
+            }
+          } finally {
+            clearTimeout(timer);
+            paint();
+          }
+          calls.forEach((c, i) => { c.id ||= `call_${Date.now()}_${i}`; });
+          const done = calls.filter(Boolean);
+          // The streamed pieces joined back into the shape of a non-streaming choices[0].
+          const message = { role: "assistant", content };
+          if (thinking) message.reasoning = thinking;
+          if (done.length) message.tool_calls = done.map((c) => ({ id: c.id, type: "function", function: { name: c.name, arguments: c.args } }));
+          return { content, calls: done, choice: { index: 0, message, finish_reason: finish } };
+        },
+      };
+    }
+  </script>
+</body>
+</html>

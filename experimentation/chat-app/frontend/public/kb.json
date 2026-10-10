@@ -1,0 +1,42 @@
+[
+  {
+    "id": "kb1",
+    "title": "What TinyAgent is",
+    "text": "TinyAgent is a minimal, modular, educational agent framework. An LLM only turns text into text; the harness, the code around the model, is what makes it an agent. TinyAgent is that harness, small enough to read in a minute."
+  },
+  {
+    "id": "kb2",
+    "title": "The agent loop",
+    "text": "The agent loop is: task, memory, the LLM decides, an action, a tool, an observation, and then back to the start until the task is done. The public entry point is run(task). The private method _step(task) builds the prompt, asks the LLM and returns an answer or an action. The private method _execute_action(action) dispatches to a tool and returns an observation."
+  },
+  {
+    "id": "kb3",
+    "title": "Components",
+    "text": "TinyAgent has four components. llm is the brain that reasons and picks the next step. memory is the context holding past messages and observations. tools are the hands: functions that act on the world. planner is the strategy that splits a goal into sub-steps. All four are placeholders today and are added step by step."
+  },
+  {
+    "id": "kb4",
+    "title": "Roadmap",
+    "text": "The roadmap is built step by step. Done: the agent skeleton with control-flow stubs, and the Sphinx documentation. Next: Step 1 LLM integration, Step 2 Memory, Step 3 Tools, Step 4 Planning."
+  },
+  {
+    "id": "kb5",
+    "title": "Models used",
+    "text": "The project studies two local models served by Ollama. gemma3:4b is the baseline: it has no native reasoning and no native tool calling. gemma4:e4b-it-qat is the agentic model, trained for reasoning and tool calling. Both are 4B-class, so differences come from training, not size."
+  },
+  {
+    "id": "kb6",
+    "title": "Running the project",
+    "text": "Create a virtual environment and run python main.py, which prints 'Received: Hello, agent!'. Build the documentation with python -m sphinx -b html -n -W --keep-going docs docs/_build/html and open docs/_build/html/index.html. Pull the models with ollama pull gemma3:4b and ollama pull gemma4:e4b-it-qat."
+  },
+  {
+    "id": "kb7",
+    "title": "Hardware notes",
+    "text": "The development machine has an RTX 3060 Laptop GPU with 6 GB of VRAM and about 16 GB of RAM. gemma3:4b fits entirely in VRAM. gemma4:e4b-it-qat is about 6.1 GB, so a small part runs on the CPU. Use ollama ps to see the GPU and CPU split of a loaded model."
+  },
+  {
+    "id": "kb8",
+    "title": "Credits and license",
+    "text": "TinyAgent is based on the book An Illustrated Guide to AI Agents by Maarten Grootendorst and Jay Alammar (O'Reilly). The book's companion repository has no license, so all rights remain with the authors. This is an independent learning project, not affiliated with or endorsed by them."
+  }
+]

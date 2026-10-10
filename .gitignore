@@ -1,42 +1,260 @@
-# Byte-compiled / optimized / DLL files
+# =============================================================================
+# Exhaustive .gitignore
+# Sections: OS, editors/IDEs, Python, Node/JS, frontend frameworks, other
+# languages, containers/infra, data/ML, secrets, logs/temp, project specifics.
+# Rooted patterns (leading "/") are used for generic names like lib/ and build/
+# so they do not hide source folders such as frontend/src/lib.
+# =============================================================================
+
+# ----- Operating systems ------------------------------------------------------
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+._*
+.DocumentRevisions-V100
+.fseventsd
+.Spotlight-V100
+.TemporaryItems
+.Trashes
+.VolumeIcon.icns
+.com.apple.timemachine.donotpresent
+.AppleDB
+.AppleDesktop
+Network Trash Folder
+Temporary Items
+.apdisk
+Icon?
+
+# Windows
+Thumbs.db
+Thumbs.db:encryptable
+ehthumbs.db
+ehthumbs_vista.db
+Desktop.ini
+desktop.ini
+$RECYCLE.BIN/
+*.lnk
+*.stackdump
+[Dd]esktop.ini
+*.cab
+*.msi
+*.msix
+*.msm
+*.msp
+
+# Linux
+*~
+.fuse_hidden*
+.directory
+.Trash-*
+.nfs*
+
+# ----- Editors and IDEs -------------------------------------------------------
+# VS Code
+.vscode/*
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+!.vscode/extensions.json
+!.vscode/*.code-snippets
+.history/
+*.vsix
+.vscode-test/
+
+# JetBrains (IntelliJ, PyCharm, WebStorm, Rider, ...)
+.idea/
+*.iml
+*.ipr
+*.iws
+out/
+cmake-build-*/
+.idea_modules/
+
+# Visual Studio
+.vs/
+*.suo
+*.user
+*.userosscache
+*.sln.docstates
+*.userprefs
+*.DotSettings.user
+[Dd]ebug/
+[Dd]ebugPublic/
+[Rr]elease/
+[Rr]eleases/
+x64/
+x86/
+[Ww][Ii][Nn]32/
+[Aa][Rr][Mm]/
+[Aa][Rr][Mm]64/
+bld/
+[Bb]in/
+[Oo]bj/
+[Ll]og/
+[Ll]ogs/
+*.pdb
+*.ilk
+*.obj
+*.pch
+*.pgc
+*.pgd
+*.rsp
+*.sbr
+*.tlb
+*.tli
+*.tlh
+*.tmp_proj
+*_i.c
+*_p.c
+*.ncb
+*.sdf
+*.opensdf
+*.VC.db
+*.VC.VC.opendb
+
+# Vim / Neovim
+[._]*.s[a-v][a-z]
+[._]*.sw[a-p]
+[._]s[a-rt-v][a-z]
+[._]ss[a-gi-z]
+[._]sw[a-p]
+Session.vim
+Sessionx.vim
+.netrwhist
+tags
+[._]*.un~
+
+# Emacs
+\#*\#
+.\#*
+.emacs.desktop
+.emacs.desktop.lock
+*.elc
+auto-save-list
+tramp
+*_flymake.*
+.projectile
+
+# Sublime Text
+*.sublime-workspace
+*.sublime-project
+*.tmlanguage.cache
+*.tmPreferences.cache
+*.stTheme.cache
+
+# Eclipse / STS
+.classpath
+.project
+.settings/
+.metadata/
+.recommenders/
+.factorypath
+.springBeans
+.sts4-cache/
+bin/
+tmp/
+*.tmp
+*.bak
+*.swp
+*.swo
+
+# NetBeans
+nbproject/private/
+nbbuild/
+nbdist/
+.nb-gradle/
+
+# Xcode
+xcuserdata/
+*.xccheckout
+*.xcscmblueprint
+*.moved-aside
+DerivedData/
+*.hmap
+*.ipa
+*.dSYM.zip
+*.dSYM
+*.xcuserstate
+
+# Android Studio
+.gradle/
+local.properties
+captures/
+.externalNativeBuild/
+.cxx/
+*.apk
+*.aab
+*.aar
+*.ap_
+*.dex
+
+# Other editors and AI tools
+.cursorignore
+.cursorindexingignore
+.aider*
+.continue/
+.windsurf/
+.zed/
+.fleet/
+.atom/
+.brackets.json
+.kiro/
+*.code-workspace
+!/*.code-workspace.example
+.claude/settings.local.json
+.claude/worktrees/
+CLAUDE.local.md
+
+# ----- Python -----------------------------------------------------------------
 __pycache__/
 *.py[cod]
 *$py.class
-
-# C extensions
 *.so
-
-# Distribution / packaging
 .Python
-build/
-develop-eggs/
-dist/
-downloads/
-eggs/
-.eggs/
-lib/
-lib64/
-parts/
-sdist/
-var/
-wheels/
-share/python-wheels/
+/build/
+/develop-eggs/
+/dist/
+/downloads/
+/eggs/
+/.eggs/
+/lib/
+/lib64/
+/parts/
+/sdist/
+/var/
+/wheels/
+/share/python-wheels/
 *.egg-info/
 .installed.cfg
 *.egg
 MANIFEST
-
-# PyInstaller
-#  Usually these files are written by a python script from a template
-#  before PyInstaller builds the exe, so as to inject date/other infos into it.
 *.manifest
 *.spec
-
-# Installer logs
 pip-log.txt
 pip-delete-this-directory.txt
+pip-wheel-metadata/
 
-# Unit test / coverage reports
+# Virtual environments
+.env
+.env.*
+!.env.example
+!.env.sample
+!.env.template
+.venv
+.venv/
+venv/
+env/
+ENV/
+env.bak/
+venv.bak/
+virtualenv/
+.python-version
+__pypackages__/
+.conda/
+conda-meta/
+
+# Testing and coverage
 htmlcov/
 .tox/
 .nox/
@@ -50,139 +268,830 @@ coverage.xml
 .hypothesis/
 .pytest_cache/
 cover/
+.testmondata
+.pytest-benchmark/
+.benchmarks/
+junit*.xml
+test-results/
+playwright-report/
+blob-report/
+playwright/.cache/
 
-# Translations
-*.mo
-*.pot
+# Type checkers and linters
+.mypy_cache/
+.dmypy.json
+dmypy.json
+.pyre/
+.pytype/
+.ruff_cache/
+.pylint.d/
+.pyright/
+.flake8.cache
 
-# Django stuff:
+# Package managers
+Pipfile.lock.bak
+.pdm.toml
+.pdm-python
+.pdm-build/
+.pybuilder/
+target/
+.uv-cache/
+.poetry/
+pip-selfcheck.json
+
+# Frameworks
 *.log
 local_settings.py
 db.sqlite3
 db.sqlite3-journal
-
-# Flask stuff:
 instance/
 .webassets-cache
-
-# Scrapy stuff:
 .scrapy
-
-# Sphinx documentation
-docs/_build/
-
-# PyBuilder
-.pybuilder/
-target/
-
-# Jupyter Notebook
-.ipynb_checkpoints
-
-# IPython
-profile_default/
-ipython_config.py
-
-# pyenv
-#   For a library or package, you might want to ignore these files since the code is
-#   intended to run in multiple environments; otherwise, check them in:
-# .python-version
-
-# pipenv
-#   According to pypa/pipenv#598, it is recommended to include Pipfile.lock in version control.
-#   However, in case of collaboration, if having platform-specific dependencies or dependencies
-#   having no cross-platform support, pipenv may install dependencies that don't work, or not
-#   install all needed dependencies.
-#Pipfile.lock
-
-# UV
-#   Similar to Pipfile.lock, it is generally recommended to include uv.lock in version control.
-#   This is especially recommended for binary packages to ensure reproducibility, and is more
-#   commonly ignored for libraries.
-#uv.lock
-
-# poetry
-#   Similar to Pipfile.lock, it is generally recommended to include poetry.lock in version control.
-#   This is especially recommended for binary packages to ensure reproducibility, and is more
-#   commonly ignored for libraries.
-#   https://python-poetry.org/docs/basic-usage/#commit-your-poetrylock-file-to-version-control
-#poetry.lock
-
-# pdm
-#   Similar to Pipfile.lock, it is generally recommended to include pdm.lock in version control.
-#pdm.lock
-#   pdm stores project-wide configurations in .pdm.toml, but it is recommended to not include it
-#   in version control.
-#   https://pdm.fming.dev/latest/usage/project/#working-with-version-control
-.pdm.toml
-.pdm-python
-.pdm-build/
-
-# PEP 582; used by e.g. github.com/David-OConnor/pyflow and github.com/pdm-project/pdm
-__pypackages__/
-
-# Celery stuff
 celerybeat-schedule
 celerybeat.pid
-
-# SageMath parsed files
 *.sage.py
-
-# Environments
-.env
-.venv
-env/
-venv/
-ENV/
-env.bak/
-venv.bak/
-
-# Spyder project settings
 .spyderproject
 .spyproject
-
-# Rope project settings
 .ropeproject
-
-# mkdocs documentation
 /site
-
-# mypy
-.mypy_cache/
-.dmypy.json
-dmypy.json
-
-# Pyre type checker
-.pyre/
-
-# pytype static type analyzer
-.pytype/
-
-# Cython debug symbols
 cython_debug/
-
-# PyCharm
-#  JetBrains specific template is maintained in a separate JetBrains.gitignore that can
-#  be found at https://github.com/github/gitignore/blob/main/Global/JetBrains.gitignore
-#  and can be added to the global gitignore or merged into this file.  For a more nuclear
-#  option (not recommended) you can uncomment the following to ignore the entire idea folder.
-#.idea/
-
-# Ruff stuff:
-.ruff_cache/
-
-# PyPI configuration file
 .pypirc
+*.pyd
+*.pyo
+*.pyc
+*.mo
+*.pot
 
-# Cursor  
-#  Cursor is an AI-powered code editor.`.cursorignore` specifies files/directories to 
-#  exclude from AI features like autocomplete and code analysis. Recommended for sensitive data
-#  refer to https://docs.cursor.com/context/ignore-files
-.cursorignore
-.cursorindexingignore
-# Project additions
+# Jupyter / IPython
+.ipynb_checkpoints
+profile_default/
+ipython_config.py
+*.nbconvert.ipynb
+
+# Sphinx / docs
+docs/_build/
 docs/api/generated/
-.vscode/
+docs/_autosummary/
+_build/
+.doctrees/
+
+# ----- Node.js / JavaScript / TypeScript --------------------------------------
+node_modules/
+jspm_packages/
+bower_components/
+web_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+lerna-debug.log*
+pnpm-debug.log*
+.pnpm-debug.log*
+.pnpm-store/
+.npm/
+.npmrc.local
+.yarn/*
+!.yarn/patches
+!.yarn/plugins
+!.yarn/releases
+!.yarn/sdks
+!.yarn/versions
+.pnp.*
+.yarn-integrity
+.eslintcache
+.stylelintcache
+.prettiercache
+*.tsbuildinfo
+.node_repl_history
+*.tgz
+.rpt2_cache/
+.rts2_cache_cjs/
+.rts2_cache_es/
+.rts2_cache_umd/
+.parcel-cache/
+.cache/
+.temp/
+.tmp/
+.fusebox/
+.dynamodb/
+.grunt/
+.lock-wscript
+.eslintcache
+report.[0-9]*.[0-9]*.[0-9]*.[0-9]*.json
+pids/
+*.pid
+*.seed
+*.pid.lock
+lib-cov/
+coverage/
+.nyc_output/
+*.lcov
+
+# Build output
+dist/
+dist-ssr/
+build/
+!/docs/_static/build/
+.output/
+.vercel/
+.netlify/
+.turbo/
+.vite/
+.vitepress/cache/
+.vitepress/dist/
+.rollup.cache/
+.esbuild/
+.swc/
+.webpack/
+storybook-static/
+*.local
+
+# Frameworks
+.next/
+out/
+.nuxt/
+.svelte-kit/
+.angular/
+.docusaurus/
+.expo/
+.expo-shared/
+.astro/
+.gatsby-cache/
+public/build/
+.sst/
+.wrangler/
+.serverless/
+.cache-loader/
+.remix/
+.solid/
+.qwik/
+.tanstack/
+.vinxi/
+.react-router/
+.mf/
 .idea/
-.DS_Store
-Thumbs.db
-desktop.ini
+.firebase/
+firebase-debug.log*
+firebase-debug.*.log*
+.vercel_build_output/
+
+# Bundler / Deno / Bun
+.deno/
+bun-debug.log*
+.bun/
+
+# Cypress / E2E
+cypress/videos/
+cypress/screenshots/
+cypress/downloads/
+
+# Testing
+.jest/
+jest-cache/
+__snapshots__/*.actual.*
+__image_snapshots__/__diff_output__/
+
+# ----- Java / Kotlin / Scala / Groovy -----------------------------------------
+*.class
+*.jar
+*.war
+*.ear
+*.nar
+*.log
+hs_err_pid*
+replay_pid*
+.mvn/timing.properties
+.mvn/wrapper/maven-wrapper.jar
+target/
+pom.xml.tag
+pom.xml.releaseBackup
+pom.xml.versionsBackup
+pom.xml.next
+release.properties
+dependency-reduced-pom.xml
+buildNumber.properties
+.gradle/
+gradle-app.setting
+!gradle-wrapper.jar
+.gradletasknamecache
+.bsp/
+.bloop/
+.metals/
+.scala-build/
+.ensime
+.ensime_cache/
+project/target/
+project/project/
+.lib/
+
+# ----- C / C++ ----------------------------------------------------------------
+*.o
+*.a
+*.lo
+*.la
+*.lai
+*.slo
+*.lib
+*.dll
+*.dylib
+*.exe
+*.out
+*.app
+*.gch
+*.su
+*.idb
+*.lst
+*.elf
+*.hex
+*.bin
+*.map
+*.ko
+*.obj
+CMakeCache.txt
+CMakeFiles/
+CMakeScripts/
+cmake_install.cmake
+install_manifest.txt
+CTestTestfile.cmake
+_deps/
+compile_commands.json
+.ccls-cache/
+.clangd/
+.cache/clangd/
+Makefile.in
+autom4te.cache/
+config.log
+config.status
+configure~
+libtool
+stamp-h1
+
+# ----- C# / .NET --------------------------------------------------------------
+*.rsuser
+*.userprefs
+project.lock.json
+project.fragment.lock.json
+artifacts/
+*.nupkg
+*.snupkg
+.nuget/
+*.nuget.props
+*.nuget.targets
+BenchmarkDotNet.Artifacts/
+TestResults/
+[Tt]est[Rr]esult*/
+*.trx
+*.coverage
+*.coveragexml
+.vs/
+*.publishsettings
+PublishScripts/
+csx/
+ecf/
+rcf/
+AppPackages/
+BundleArtifacts/
+Package.StoreAssociation.xcpackage
+launchSettings.json.user
+.paket/
+paket-files/
+*.dotCover
+_ReSharper*/
+*.[Rr]e[Ss]harper
+*.DotSettings.user
+.ionide/
+
+# ----- Go ---------------------------------------------------------------------
+*.test
+*.prof
+go.work.sum
+/vendor/
+coverage.out
+coverage.html
+
+# ----- Rust -------------------------------------------------------------------
+/target/
+**/*.rs.bk
+*.pdb
+# Cargo.lock is committed for binaries; uncomment for libraries.
+# Cargo.lock
+.cargo/
+
+# ----- Ruby -------------------------------------------------------------------
+*.gem
+*.rbc
+/.config
+/InstalledFiles
+/pkg/
+/spec/reports/
+/spec/examples.txt
+/test/tmp/
+/test/version_tmp/
+.bundle/
+/vendor/bundle
+.byebug_history
+.rspec_status
+.sass-cache/
+*.sassc
+.yardoc/
+_yardoc/
+.ruby-version
+.ruby-gemset
+.rvmrc
+.irbrc
+
+# ----- PHP --------------------------------------------------------------------
+/vendor/
+composer.phar
+.phpunit.result.cache
+.phpunit.cache/
+.php-cs-fixer.cache
+.php_cs.cache
+.phpcs-cache
+.phpstan.cache
+/storage/*.key
+/public/hot
+/public/storage
+Homestead.json
+Homestead.yaml
+auth.json
+
+# ----- Swift / Objective-C / iOS ----------------------------------------------
+.build/
+.swiftpm/
+Package.pins
+Package.resolved
+*.xcodeproj/*
+!*.xcodeproj/project.pbxproj
+!*.xcodeproj/xcshareddata/
+!*.xcodeproj/project.xcworkspace/
+*.xcworkspace/*
+!*.xcworkspace/contents.xcworkspacedata
+Pods/
+Carthage/Build/
+fastlane/report.xml
+fastlane/Preview.html
+fastlane/screenshots/**/*.png
+fastlane/test_output
+
+# ----- Dart / Flutter ---------------------------------------------------------
+.dart_tool/
+.packages
+.pub-cache/
+.pub/
+.flutter-plugins
+.flutter-plugins-dependencies
+flutter_*.png
+pubspec.lock.bak
+*.g.dart.bak
+
+# ----- Elixir / Erlang --------------------------------------------------------
+/_build/
+/cover/
+/deps/
+/doc/
+.fetch
+erl_crash.dump
+*.ez
+*.beam
+.elixir_ls/
+.rebar3/
+ebin/
+rebar3.crashdump
+
+# ----- Haskell / OCaml / Clojure / Lisp ---------------------------------------
+dist-newstyle/
+.stack-work/
+.cabal-sandbox/
+cabal.sandbox.config
+*.hi
+*.chi
+*.chs.h
+*.dyn_o
+*.dyn_hi
+_opam/
+_esy/
+*.cmi
+*.cmo
+*.cmx
+*.cmxa
+*.cma
+.lein-*
+.nrepl-port
+.cpcache/
+*.fasl
+
+# ----- Lua / R / Julia / Perl -------------------------------------------------
+luac.out
+*.luac
+.Rhistory
+.RData
+.Rproj.user/
+.Ruserdata
+*.Rproj
+rsconf/
+renv/library/
+renv/staging/
+Manifest.toml.bak
+*.jl.cov
+*.jl.*.cov
+*.jl.mem
+blib/
+_build/
+cover_db/
+MYMETA.*
+pm_to_blib
+
+# ----- Zig / Nim / V / Crystal ------------------------------------------------
+.zig-cache/
+zig-out/
+zig-cache/
+nimcache/
+nimblecache/
+.shards/
+lib/crystal/
+
+# ----- Terraform / Pulumi / Ansible / Infra -----------------------------------
+.terraform/
+.terraform.lock.hcl
+*.tfstate
+*.tfstate.*
+crash.log
+crash.*.log
+*.tfvars
+*.tfvars.json
+!*.tfvars.example
+override.tf
+override.tf.json
+*_override.tf
+*_override.tf.json
+.terraformrc
+terraform.rc
+.terragrunt-cache/
+Pulumi.*.yaml
+.pulumi/
+*.retry
+.vagrant/
+packer_cache/
+.cdk.staging/
+cdk.out/
+.aws-sam/
+samconfig.toml
+.serverless/
+.chalice/
+cdk.context.json
+*.pem
+*.key
+*.p12
+*.pfx
+*.crt
+*.cer
+*.der
+*.csr
+*.jks
+*.keystore
+id_rsa
+id_rsa.pub
+id_ed25519
+id_ed25519.pub
+!*.example.pem
+
+# ----- Containers / Kubernetes ------------------------------------------------
+docker-compose.override.yml
+docker-compose.override.yaml
+compose.override.yml
+compose.override.yaml
+.docker/
+.dockerignore.local
+*.tar.gz.docker
+.devcontainer/devcontainer.local.json
+.podman/
+.helm/
+charts/*.tgz
+.kube/
+kubeconfig
+*.kubeconfig
+skaffold.env
+.tilt-dev/
+.skaffold/
+tilt_modules/
+
+# ----- Cloud / deploy tools ---------------------------------------------------
+.vercel
+.netlify
+.amplify/
+amplify/#current-cloud-backend/
+amplify/.config/local-*
+amplify/mock-data/
+amplify/backend/amplify-meta.json
+amplify/backend/.temp
+.sentryclirc
+.heroku/
+.fly/
+.railway/
+.render/
+.supabase/
+supabase/.branches/
+supabase/.temp/
+.dart_tool/
+.gcloudignore.local
+gha-creds-*.json
+service-account*.json
+*-credentials.json
+credentials.json
+client_secret*.json
+
+# ----- Databases and local data -----------------------------------------------
+*.sqlite
+*.sqlite3
+*.db
+*.db-journal
+*.db-shm
+*.db-wal
+*.mdb
+*.accdb
+*.rdb
+*.dump
+*.sql.gz
+*.sql.bak
+dump.rdb
+*.ldb
+*.mdf
+*.ldf
+*.ndf
+data/db/
+mongodb-data/
+postgres-data/
+mysql-data/
+redis-data/
+pgdata/
+.chroma/
+chroma/
+chroma_db/
+.lancedb/
+*.lance
+faiss_index/
+*.faiss
+*.index
+qdrant_storage/
+weaviate-data/
+milvus/
+vector_store/
+vectorstore/
+*.duckdb
+*.duckdb.wal
+
+# ----- Machine learning / data science ----------------------------------------
+# Model weights and checkpoints (large; store elsewhere or use Git LFS)
+*.gguf
+*.ggml
+*.safetensors
+*.ckpt
+*.pt
+*.pth
+*.onnx
+*.h5
+*.hdf5
+*.keras
+*.pb
+*.tflite
+*.mlmodel
+*.mlpackage
+*.npz
+*.npy
+*.pkl
+*.pickle
+*.joblib
+*.bin.index.json
+*.llamafile
+*.trt
+*.engine
+*.pte
+*.mar
+checkpoints/
+ckpt/
+weights/
+models/*
+!models/.gitkeep
+!models/README.md
+!models/*.example
+!models/*.ini.example
+huggingface/
+.huggingface/
+.cache/huggingface/
+.ollama/
+.llama/
+.lmstudio/
+wandb/
+mlruns/
+mlartifacts/
+.mlflow/
+lightning_logs/
+tensorboard/
+tb_logs/
+runs/
+events.out.tfevents.*
+outputs/
+.hydra/
+multirun/
+.dvc/cache
+.dvc/tmp
+.dvc/config.local
+.dvcignore.local
+.neptune/
+.comet/
+.clearml/
+.aim/
+.sweep/
+optuna*.db
+ray_results/
+.ray/
+.deepspeed/
+.triton/
+__MACOSX/
+.torch/
+.kaggle/
+kaggle.json
+.cache/torch/
+
+# Datasets and bulk data (keep small samples with explicit "!" rules)
+*.csv.gz
+*.parquet
+*.feather
+*.arrow
+*.orc
+*.avro
+*.tfrecord
+*.tfrecords
+*.mat
+*.rds
+*.sav
+*.dta
+*.sas7bdat
+*.xpt
+*.zarr/
+datasets/
+raw_data/
+*.tsv.gz
+*.jsonl.gz
+
+# ----- Documents, archives, media (generated or large) ------------------------
+*.zip
+*.rar
+*.7z
+*.tar
+*.tar.gz
+*.tar.bz2
+*.tar.xz
+*.gz
+*.bz2
+*.xz
+*.zst
+*.iso
+*.dmg
+*.pkg
+*.deb
+*.rpm
+*.snap
+*.appimage
+*.AppImage
+*.flatpak
+*.msixbundle
+*.crx
+*.xpi
+*.mp4.part
+*.part
+*.crdownload
+*.download
+*.aux
+*.bbl
+*.blg
+*.fdb_latexmk
+*.fls
+*.lof
+*.lot
+*.nav
+*.snm
+*.synctex.gz
+*.toc
+*.vrb
+*.xdv
+*.bcf
+*.run.xml
+*.out.ps
+~$*
+.~lock.*#
+*.gdoc
+*.gsheet
+*.gslides
+
+# ----- Secrets and local configuration ----------------------------------------
+.env
+.env.local
+.env.*.local
+.env.development
+.env.production
+.env.test
+.envrc
+.direnv/
+*.secret
+*.secrets
+secrets/
+secrets.json
+secrets.yaml
+secrets.yml
+secrets.toml
+*.token
+.token
+.netrc
+_netrc
+.npmrc
+!/.npmrc.shared
+.pypirc
+.aws/
+.azure/
+.config/gcloud/
+.ssh/
+.gnupg/
+.pgpass
+.my.cnf
+.htpasswd
+.git-credentials
+.dockercfg
+.docker/config.json
+.kube/config
+*.ovpn
+*.gpg
+*.asc
+.vault-token
+.vault_pass
+.sops/
+local.settings.json
+appsettings.Development.json
+appsettings.Local.json
+application-local.properties
+application-local.yml
+application-local.yaml
+config.local.*
+settings.local.*
+*.local.json
+*.local.yaml
+*.local.yml
+*.local.toml
+*.local.ini
+!*.example.*
+
+# ----- Logs, temp and scratch -------------------------------------------------
+*.log
+*.log.*
+logs/
+log/
+*.tmp
+*.temp
+*.bak
+*.backup
+*.orig
+*.rej
+*.old
+*.stackdump
+*.pid
+*.lock.tmp
+npm-debug.log*
+.tmp/
+.temp/
+tmp/
+temp/
+scratch/
+scratchpad/
+.scratch/
+playground/
+*.swp
+*.core
+core.*
+!core.*.md
+vgcore.*
+*.dmp
+*.mdmp
+*.stackdump
+Session.vim
+.sass-cache/
+.cache/
+.eslintcache
+.history
+.ionide
+nohup.out
+
+# ----- Lockfiles -------------------------------------------------------------
+# Lockfiles ARE committed for apps (package-lock.json, pnpm-lock.yaml,
+# yarn.lock, uv.lock, poetry.lock, Cargo.lock, go.sum, Gemfile.lock,
+# composer.lock). Nothing to ignore here on purpose.
+
+# ----- Project specifics -----------------------------------------------------
+# Legacy Alpine version kept for reference
+# (remove this line to track it)
+# experimentation/chat-app/frontend/legacy/
+
+# Ollama model blobs are never copied into the repo
+experimentation/chat-app/**/sha256-*
+
+# Python venv at the repo root
+/.venv/

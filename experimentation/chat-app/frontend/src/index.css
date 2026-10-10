@@ -1,0 +1,129 @@
+@import "tailwindcss";
+
+/*
+  Design tokens. The look is ported from Utopia (DeepLethe, Apache-2.0,
+  web/DESIGN.md): neutral glass in two themes, five named type sizes, a
+  4/8/12/16/24/32 spacing scale (Tailwind's default 4px step), four radii from
+  one knob, two text levels, status as a dot plus words.
+*/
+:root {
+  --radius: 0.625rem;
+  color-scheme: dark;
+}
+:root,
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --ground: #0a0a0a;
+  --ink: #ededed;
+  --ink-2: #a8a8a8;
+  --line: rgba(255, 255, 255, 0.08);
+  --line-strong: rgba(255, 255, 255, 0.14);
+  --raise: rgba(255, 255, 255, 0.025);
+  --bubble: rgba(255, 255, 255, 0.08);
+  --surface-2: rgba(255, 255, 255, 0.045);
+  --surface-3: rgba(255, 255, 255, 0.08);
+  --well: rgba(0, 0, 0, 0.4);
+  --glass-strong: rgba(10, 10, 10, 0.86);
+  --ring: rgba(255, 255, 255, 0.6);
+  --primary: #ededed;
+  --on-primary: #0a0a0a;
+  --ok: #4cc38a;
+  --warn: #f2b66d;
+  --danger: #ff9daf;
+}
+:root[data-theme="light"] {
+  color-scheme: light;
+  --ground: #fafafa;
+  --ink: #171717;
+  --ink-2: #5c5c5c;
+  --line: rgba(0, 0, 0, 0.08);
+  --line-strong: rgba(0, 0, 0, 0.14);
+  --raise: #fff;
+  --bubble: rgba(0, 0, 0, 0.06);
+  --surface-2: rgba(0, 0, 0, 0.03);
+  --surface-3: rgba(0, 0, 0, 0.055);
+  --well: rgba(0, 0, 0, 0.05);
+  --glass-strong: rgba(250, 250, 250, 0.9);
+  --ring: rgba(0, 0, 0, 0.55);
+  --primary: #171717;
+  --on-primary: #fafafa;
+  --ok: #1a7f4b;
+  --warn: #9a6a12;
+  --danger: #c0284f;
+}
+
+@theme inline {
+  --color-ground: var(--ground);
+  --color-ink: var(--ink);
+  --color-ink-2: var(--ink-2);
+  --color-line: var(--line);
+  --color-line-strong: var(--line-strong);
+  --color-raise: var(--raise);
+  --color-bubble: var(--bubble);
+  --color-surface-2: var(--surface-2);
+  --color-surface-3: var(--surface-3);
+  --color-well: var(--well);
+  --color-glass-strong: var(--glass-strong);
+  --color-ring: var(--ring);
+  --color-primary: var(--primary);
+  --color-on-primary: var(--on-primary);
+  --color-ok: var(--ok);
+  --color-warn: var(--warn);
+  --color-danger: var(--danger);
+
+  --font-sans: "Geist", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-brand: "Manrope", "Geist", system-ui, sans-serif;
+  --font-mono: ui-monospace, "Cascadia Code", Consolas, monospace;
+
+  /* Five named type sizes. Chat reads at "title". */
+  --text-fine: 12px;
+  --text-fine--line-height: 16px;
+  --text-small: 13px;
+  --text-small--line-height: 20px;
+  --text-body: 14px;
+  --text-body--line-height: 22px;
+  --text-title: 16px;
+  --text-title--line-height: 24px;
+  --text-display: 24px;
+  --text-display--line-height: 32px;
+
+  /* Four radii, all derived from --radius. */
+  --radius-cell: calc(var(--radius) * 0.8);
+  --radius-control: var(--radius);
+  --radius-panel: calc(var(--radius) * 1.4);
+  --radius-overlay: var(--radius);
+}
+
+html,
+body,
+#root {
+  height: 100%;
+}
+body {
+  margin: 0;
+  background: var(--ground);
+  color: var(--ink);
+  font: 400 14px/22px var(--font-sans);
+}
+button,
+textarea {
+  font: inherit;
+  color: inherit;
+}
+:focus-visible {
+  outline: 2px solid var(--ring);
+  outline-offset: 2px;
+}
+@media (prefers-reduced-motion: reduce) {
+  .animate-pulse-dot {
+    animation: none;
+  }
+}
+@keyframes pulse-dot {
+  50% {
+    opacity: 0.35;
+  }
+}
+.animate-pulse-dot {
+  animation: pulse-dot 1.2s ease-in-out infinite;
+}
