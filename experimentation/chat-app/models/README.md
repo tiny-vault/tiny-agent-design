@@ -14,6 +14,19 @@ There is no separate download step and no Ollama: the first time a model is load
 | `gemma4-e4b` | `google/gemma-4-E4B-it-qat-q4_0-gguf`, file `gemma-4-E4B_q4_0-it.gguf` (Google's quantisation-aware 4-bit build) | about 5 GB |
 | `qwen3.5-4b` | `unsloth/Qwen3.5-4B-GGUF`, quantisation `Q4_K_M` | about 2.7 GB |
 
+## How long it takes
+
+Measured on the development laptop (6 GB GPU).
+
+| What | Time |
+|---|---|
+| First load of `gemma4-e4b` (includes the download) | 15 to 20 minutes |
+| First load of `qwen3.5-4b` (includes the download) | 6 minutes |
+| Switching to `qwen3.5-4b`, from the cache | 35 s |
+| Switching to `gemma4-e4b`, from the cache | 61 to 69 s |
+
+Only one model fits in GPU memory, so each switch is a full reload.
+
 ## Download the models now
 
 ```powershell

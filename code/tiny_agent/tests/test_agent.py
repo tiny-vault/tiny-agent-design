@@ -2,8 +2,8 @@
 
 import dataclasses
 
-from tiny_agent import main as demo
-from tiny_agent.shared.response import Response
+import main as demo
+from llm_client.response import Response
 from tiny_agent.shared.tiny_agent import TinyAgent
 
 

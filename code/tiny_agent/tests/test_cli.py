@@ -2,8 +2,8 @@
 
 import pytest
 
-from tiny_agent import cli
-from tiny_agent.shared.llm import LLM
+import cli
+from llm_client.llm import LLM
 
 
 def llm(fake_server, model="a", **kwargs):
@@ -311,7 +311,7 @@ def test_interactive_mode_runs_when_there_is_no_message(fake_server, monkeypatch
 def test_demo_runs_main_first_and_a_demo_failure_does_not_stop_the_chat(fake_server, monkeypatch, capsys):
     fake_server.router(a="loaded")
     fake_server.reply("ok")
-    from tiny_agent import main as demo
+    import main as demo
 
     def broken_demo():
         """A demo whose model call fails."""
@@ -334,3 +334,142 @@ def test_help_exits_zero(capsys):
         cli.main(["--help"])
     assert error.value.code == 0
     assert "tiny-agent" in capsys.readouterr().out
+
+
+# ---- settings from code/.env ---------------------------------------------------------------
+
+def env_file(tmp_path, text):
+    """Write a settings file and make the code read it instead of the real code/.env."""
+    import os
+
+    path = tmp_path / "settings.env"
+    path.write_text(text, encoding="utf-8")
+    os.environ["TINYAGENT_ENV_FILE"] = str(path)
+    return path
+
+
+def test_the_env_file_supplies_the_url_and_the_model(fake_server, tmp_path):
+    fake_server.router(a="loaded", b="loaded")
+    fake_server.reply("ok")
+    env_file(tmp_path, f"TINYAGENT_LLM_URL={fake_server.url}\nTINYAGENT_MODEL=b\n")
+    assert cli.main(["hi"]) == 0  # no --url, no --model on the command line
+    assert fake_server.requests[0]["body"]["model"] == "b"
+
+
+def test_command_line_options_beat_the_env_file(fake_server, tmp_path):
+    fake_server.router(a="loaded", b="loaded")
+    fake_server.reply("ok")
+    env_file(tmp_path, f"TINYAGENT_LLM_URL=http://127.0.0.1:9/v1\nTINYAGENT_MODEL=a\n")
+    assert cli.main(["--url", fake_server.url, "-m", "b", "hi"]) == 0
+    assert fake_server.requests[0]["body"]["model"] == "b"
+
+
+def test_the_real_environment_beats_the_env_file(fake_server, tmp_path, monkeypatch):
+    fake_server.router(a="loaded", b="loaded")
+    fake_server.reply("ok")
+    env_file(tmp_path, f"TINYAGENT_LLM_URL={fake_server.url}\nTINYAGENT_MODEL=a\n")
+    monkeypatch.setenv("TINYAGENT_MODEL", "b")
+    assert cli.main(["hi"]) == 0
+    assert fake_server.requests[0]["body"]["model"] == "b"
+
+
+def test_think_and_system_come_from_the_env_file(fake_server, tmp_path):
+    fake_server.router(a="loaded")
+    fake_server.reply("ok")
+    backslash_n = chr(92) + "n"  # the two characters \ and n, which the file format turns into a new line
+    env_file(tmp_path, f'TINYAGENT_LLM_URL={fake_server.url}\nTINYAGENT_THINK=yes\nTINYAGENT_SYSTEM="Be brief.{backslash_n}Really."\n')
+    cli.main(["hi"])
+    body = fake_server.requests[0]["body"]
+    assert "reasoning_effort" not in body  # thinking is on
+    assert body["messages"][0] == {"role": "system", "content": "Be brief.\nReally."}
+
+
+@pytest.mark.parametrize("value,expected", [("1", True), ("true", True), ("YES", True), ("on", True), (" On ", True),
+                                            ("0", False), ("false", False), ("no", False), ("", False), (None, False), ("maybe", False)])
+def test_truthy(value, expected):
+    assert cli.truthy(value) is expected
+
+
+def test_an_api_key_from_the_env_file_is_sent(fake_server, tmp_path):
+    fake_server.router(a="loaded")
+    fake_server.reply("ok")
+    env_file(tmp_path, f"TINYAGENT_LLM_URL={fake_server.url}\nTINYAGENT_API_KEY=sekret-123\n")
+    cli.main(["hi"])
+    assert fake_server.requests[0]["headers"]["Authorization"] == "Bearer sekret-123"
+
+
+def test_an_api_key_file_is_read_and_beats_nothing_else_is_needed(fake_server, tmp_path):
+    fake_server.router(a="loaded")
+    fake_server.reply("ok")
+    key = tmp_path / "api_key"
+    key.write_text("# the key\n\nfile-key-456\n", encoding="utf-8")
+    env_file(tmp_path, f"TINYAGENT_LLM_URL={fake_server.url}\nTINYAGENT_API_KEY_FILE={key}\nTINYAGENT_API_KEY=ignored\n")
+    cli.main(["hi"])
+    assert fake_server.requests[0]["headers"]["Authorization"] == "Bearer file-key-456"
+
+
+def test_no_key_configured_keeps_the_placeholder(fake_server, tmp_path):
+    fake_server.router(a="loaded")
+    fake_server.reply("ok")
+    env_file(tmp_path, f"TINYAGENT_LLM_URL={fake_server.url}\n")
+    cli.main(["hi"])
+    assert fake_server.requests[0]["headers"]["Authorization"] == "Bearer no_key"
+
+
+def test_a_missing_key_file_is_a_clear_error_not_a_crash(fake_server, tmp_path, capsys):
+    fake_server.router(a="loaded")
+    env_file(tmp_path, f"TINYAGENT_LLM_URL={fake_server.url}\nTINYAGENT_API_KEY_FILE={tmp_path / 'nope'}\n")
+    assert cli.main(["hi"]) == 2
+    assert "Cannot read the API key file" in capsys.readouterr().out
+    assert fake_server.requests == []
+
+
+def test_an_empty_key_file_is_a_clear_error(fake_server, tmp_path, capsys):
+    fake_server.router(a="loaded")
+    key = tmp_path / "api_key"
+    key.write_text("# nothing\n", encoding="utf-8")
+    env_file(tmp_path, f"TINYAGENT_LLM_URL={fake_server.url}\nTINYAGENT_API_KEY_FILE={key}\n")
+    assert cli.main(["hi"]) == 2
+    assert "is empty" in capsys.readouterr().out
+
+
+def test_a_missing_or_empty_env_file_changes_nothing(fake_server, tmp_path):
+    fake_server.router(a="loaded")
+    fake_server.reply("ok")
+    (tmp_path / "empty.env").write_text("", encoding="utf-8")
+    import os
+    for target in (tmp_path / "empty.env", tmp_path / "missing.env"):
+        os.environ["TINYAGENT_ENV_FILE"] = str(target)
+        assert cli.main(["--url", fake_server.url, "hi"]) == 0
+
+
+def test_the_log_names_the_loaded_settings_but_never_their_values(fake_server, tmp_path, log_folder):
+    from tiny_agent import log
+
+    fake_server.router(a="loaded")
+    fake_server.reply("ok")
+    env_file(tmp_path, f"TINYAGENT_LLM_URL={fake_server.url}\nTINYAGENT_API_KEY=very-secret-value\n")
+    cli.main(["hi"])
+    text = (log_folder / "cli.log").read_text(encoding="utf-8")
+    assert "settings loaded from the .env file: TINYAGENT_API_KEY, TINYAGENT_LLM_URL" in text
+    assert "very-secret-value" not in text
+    for handler in list(__import__("logging").getLogger("tiny_agent.cli").handlers):
+        if getattr(handler, "_tiny_agent_file_handler", False):
+            handler.close()
+
+
+def test_main_py_reads_its_log_settings_from_the_env_file(tmp_path, capsys):
+    import logging
+
+    import main as demo
+
+    import os
+
+    os.environ.pop("TINYAGENT_LOG_DIR")  # the log_folder fixture sets it; the real environment would win over the file
+    logs = tmp_path / "from-env-file"
+    env_file(tmp_path, f"TINYAGENT_LOG_DIR={logs}\n")
+    demo.main()
+    assert (logs / "main.log").exists()
+    for handler in list(logging.getLogger("tiny_agent.main").handlers):
+        if getattr(handler, "_tiny_agent_file_handler", False):
+            handler.close()

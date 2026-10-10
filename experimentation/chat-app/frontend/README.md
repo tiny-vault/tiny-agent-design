@@ -51,6 +51,11 @@ The look and several chat behaviours are ported from [Utopia](https://github.com
 * Streamed tokens are painted in batches every 33 ms.
 * Fonts are Geist and Manrope from Google Fonts, so the page needs internet the first time.
 
+## Tests
+
+* `mocked`: 35 Playwright tests with the API stubbed in the browser. They cover the model-switch gating (chat is off until the router reports the model loaded, a failed load can be retried, a model unloaded elsewhere switches chat off) and chat edge cases (blank input, stopping, tool errors, citations, HTML in answers). Run them with `node execute.mjs test mocked`.
+* `live`: Playwright against the running stack, with real models: switching between both models from the dropdown, and the OpenObserve page opening already logged in. Run them with `node execute.mjs test live` (several minutes, because every switch loads a model).
+
 ## Notes
 
 * The conversation lives in the page only. Reloading clears it.

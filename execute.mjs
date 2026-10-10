@@ -19,11 +19,11 @@ const PORT = process.env.GATEWAY_PORT || "3200";
 const URL_BASE = `http://localhost:${PORT}`;
 // OpenObserve (log search) and the folder that holds its data and the tiny-agent/main.py logs.
 const OBSERVE_URL = `http://localhost:${process.env.OPENOBSERVE_PORT || "5080"}`;
-const LOG_DIR = join(DEPLOY, "logs");
+const LOG_DIR = join(CHAT_APP, "logs");
 // Models llama.cpp downloaded from Hugging Face (git-ignored). prune never touches this folder.
 const MODELS_DIR = join(CHAT_APP, "models", "cache");
 // The OpenObserve login is a Docker secret: two files that are not in git (secrets/ is ignored).
-const SECRETS_DIR = join(DEPLOY, "secrets");
+const SECRETS_DIR = join(CHAT_APP, "secrets");
 const SECRET_USER = join(SECRETS_DIR, "openobserve_user");
 const SECRET_PASSWORD = join(SECRETS_DIR, "openobserve_password");
 const SECRET_LLAMA_KEY = join(SECRETS_DIR, "llama_api_key");
@@ -66,6 +66,7 @@ Tests  (extra arguments after "--" go to the test runner)
   test                Everything that can run: backend + mocked (+ live if the stack is up)
   test backend        Backend pytest suite (fake llama router; no Docker needed)
   test agent          tiny_agent pytest suite (fake model server; no Docker needed)
+  test llm            llm_client pytest suite (fake model server; no Docker needed)
   test mocked         Playwright, API stubbed in the browser (current source; no Docker needed)
   test live           Playwright against the REAL stack: switches real models (slow; needs "up")
   test e2e            mocked + live
@@ -327,7 +328,7 @@ async function prune(args) {
     ...(keepSecrets ? [] : [SECRETS_DIR]),
     join(frontend, "node_modules"), join(frontend, "dist"), join(frontend, "test-results"),
     join(frontend, "playwright-report"), join(ROOT, "docs", "_build"), join(ROOT, "docs", "api", "generated"),
-    join(ROOT, ".pytest_cache"), join(CHAT_APP, "backend", ".pytest_cache"), join(ROOT, "tiny_agent.egg-info"),
+    join(ROOT, ".pytest_cache"), join(CHAT_APP, "backend", ".pytest_cache"), join(ROOT, "tiny_agent.egg-info"), join(ROOT, "code", "tiny_agent.egg-info"),
     ...findPycache(ROOT),
   ].filter((p) => existsSync(p));
 
@@ -452,10 +453,11 @@ switch (command) {
     const own = split < 0 ? args : args.slice(0, split);
     const extra = split < 0 ? [] : args.slice(split + 1);
     const which = own[0] || "all";
-    const known = ["all", "backend", "agent", "mocked", "live", "e2e", "list"];
+    const known = ["all", "backend", "agent", "llm", "mocked", "live", "e2e", "list"];
     if (!known.includes(which)) fail(`Unknown test target '${which}'. Use one of: ${known.join(", ")}`);
 
-    const agent = (more = []) => run("python", ["-m", "pytest", "-q", "tiny_agent/tests", ...more], { cwd: ROOT });
+    const agent = (more = []) => run("python", ["-m", "pytest", "-q", "code/tiny_agent/tests", ...more], { cwd: ROOT });
+    const llm = (more = []) => run("python", ["-m", "pytest", "-q", "code/llm_client/tests", ...more], { cwd: ROOT });
     const backend = (more = []) => run("python", ["-m", "pytest", "-q", ...more], { cwd: join(CHAT_APP, "backend") });
     const playwright = (project, more = []) =>
       run("npx", ["playwright", "test", ...(project ? ["--project", project] : []), ...more], {
@@ -466,6 +468,7 @@ switch (command) {
     if (which === "list") {
       backend(["--collect-only", "-q"]);
       agent(["--collect-only", "-q"]);
+      llm(["--collect-only", "-q"]);
       process.exitCode = playwright(null, ["--list"]);
       break;
     }
@@ -481,6 +484,7 @@ switch (command) {
 
     if (which === "backend" || which === "all") results.push(["backend", backend(extra)]);
     if (which === "agent" || which === "all") results.push(["agent", agent(extra)]);
+    if (which === "llm" || which === "all") results.push(["llm", llm(extra)]);
     if (which === "mocked" || which === "e2e" || which === "all") results.push(["mocked", playwright("mocked", extra)]);
     if (which === "live" || which === "e2e" || which === "all") {
       if (await stackIsUp()) results.push(["live", playwright("live", extra)]);

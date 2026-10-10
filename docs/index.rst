@@ -6,8 +6,11 @@ A minimal, modular, and educational agent framework. ``TinyAgent`` is the
 
 .. note::
 
-   The project is a skeleton. The LLM, memory, tools and planner are
-   placeholders that later steps fill in. See :doc:`architecture/overview`.
+   The agent loop (``TinyAgent``) is still a skeleton: memory, tools and the
+   planner are placeholders, and the loop does not call a model yet. Around it
+   there is a working LLM client, a model check, a terminal chat
+   (``tiny-agent``) and a Docker chat app that serves local models. See
+   :doc:`architecture/overview` and :doc:`guides/chat-app`.
 
 .. note::
 
@@ -36,4 +39,5 @@ A minimal, modular, and educational agent framework. ``TinyAgent`` is the
 
    api/index
    guides/models
+   guides/chat-app
    guides/development

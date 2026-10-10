@@ -5,8 +5,9 @@ from pathlib import Path
 
 import pytest
 
-from tiny_agent import cli, log
-from tiny_agent import main as demo
+import cli
+import main as demo
+from tiny_agent import log
 
 
 @pytest.fixture(autouse=True)
@@ -40,9 +41,9 @@ def test_log_dir_comes_from_the_environment(log_folder):
 
 def test_log_dir_defaults_to_experimentation_logs_in_the_repo(monkeypatch):
     monkeypatch.delenv("TINYAGENT_LOG_DIR")
-    expected = Path(log.__file__).resolve().parents[1] / "experimentation" / "logs"
+    expected = Path(log.__file__).resolve().parents[2] / "experimentation" / "chat-app" / "logs"
     assert log.log_dir() == expected
-    assert (expected.parent.parent / "pyproject.toml").exists()
+    assert (expected.parents[2] / "pyproject.toml").exists()
 
 
 def test_setup_creates_the_folder_and_writes_a_timestamped_line(log_folder):

@@ -2,14 +2,14 @@
 
 How to set up and run everything in this repository. All commands are PowerShell, run from the repo root.
 
-## 1. TinyAgent (the skeleton)
+## 1. TinyAgent (the harness, the LLM client and the terminal chat)
 
 No runtime dependencies, Python 3.12.
 
 ```powershell
 python -m venv .venv
 .\.venv\Scripts\Activate.ps1
-python -m tiny_agent.main
+python code/main.py
 ```
 
 Expected output: `Received: Hello, agent!`. This demo does not call a model; to chat with one, use the `tiny-agent` command below.
@@ -63,14 +63,14 @@ docker compose logs -f llama
 `node execute.mjs up` starts the complete stack, including the log pipeline: OpenObserve stores and searches the logs and Vector collects them. Everything is in one place, <http://localhost:5080>, which opens already logged in (no login screen):
 
 * stream `docker`: the chat-app containers (gateway, frontend, backend, llama.cpp), field `service` tells them apart;
-* stream `tiny_agent`: `tiny-agent` (service `tiny-agent-cli`) and `python -m tiny_agent.main` (service `tiny-agent-main`), which also write `experimentation/logs/cli.log` and `main.log`.
+* stream `tiny_agent`: `tiny-agent` (service `tiny-agent-cli`) and `python code/main.py` (service `tiny-agent-main`), which also write `experimentation/chat-app/logs/cli.log` and `main.log`.
 
 ```powershell
 node execute.mjs observe              # URL and what is collected
 node execute.mjs observe --password   # also print the login, if you ever need it
 ```
 
-The OpenObserve login and the llama.cpp API key are Docker secrets: `up` creates them with random values in `experimentation/secrets/` (not in git). The model server only accepts calls that carry the key, and only the backend has it.
+The OpenObserve login and the llama.cpp API key are Docker secrets: `up` creates them with random values in `experimentation/chat-app/secrets/` (not in git). The model server only accepts calls that carry the key, and only the backend has it.
 
 ```powershell
 node execute.mjs prune --dry-run   # show what would be removed
@@ -78,6 +78,21 @@ node execute.mjs prune             # remove the whole setup, asking first
 ```
 
 `prune` removes the containers, networks, every volume of the stack, the secrets, the logs (including OpenObserve's data) and the build output. It does **not** touch your downloaded models, the Docker images (so the next `up` needs no big downloads), source, `.env`, `.venv` or git.
+
+### How long things take
+
+Measured on the development laptop (6 GB GPU), with the models already on disk unless stated.
+
+| What | Time |
+|---|---|
+| First `node execute.mjs up` (downloads images, builds the app) | several minutes; the llama.cpp image alone is 7 GB |
+| First load of a model, which downloads it from Hugging Face | `qwen3.5-4b` (3.4 GB) 6 minutes; `gemma4-e4b` (5.9 GB) 15 to 20 minutes |
+| Switching to `qwen3.5-4b` | 35 s |
+| Switching to `gemma4-e4b` | 61 to 69 s |
+| A chat answer starts, model already loaded | about 1 s |
+| `node execute.mjs test backend`, `llm`, `agent`, `mocked` | 14 s, 16 s, 11 s, about 50 s |
+
+Only one model fits in GPU memory (`gemma4-e4b` alone uses 5.3 of 6 GB), so every switch is a full unload and reload. Fetch both models ahead of time with `node execute.mjs download`, which also shows the progress.
 
 ### Frontend dev server
 
@@ -99,7 +114,7 @@ Markdown is kept unwrapped (one paragraph per line). Enable the commit hook that
 
 ```
 tiny-agent-design/
-├── tiny_agent/
+├── code/tiny_agent/
 │   ├── main.py        # entry point
 │   └── shared/        # the TinyAgent harness, LLM client, model check
 ├── docs/              # Sphinx documentation

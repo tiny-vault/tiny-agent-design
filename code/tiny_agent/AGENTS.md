@@ -1,4 +1,4 @@
-# Rules for the `tiny_agent/` folder
+# Rules for the `code/tiny_agent/` folder
 
 These apply to everything in this folder (everything under `shared/`, `main.py`, `tests/`, and anything added here). They override the repo's general guidance.
 
@@ -13,9 +13,7 @@ These apply to everything in this folder (everything under `shared/`, `main.py`,
 | File | State |
 |---|---|
 | `shared/tiny_agent.py` | `TinyAgent` skeleton: `run`, `_step`, `_execute_action` are placeholders. |
-| `shared/response.py` | The owner's `Response` dataclass (`content`, `reasoning`, `tool_call`, `metadata`). Do not restructure it. |
-| `shared/llm.py` | The owner's LLM client. Fix its methods only. |
-| `shared/check.py` | Which models the server has loaded; used by `llm.py`. |
-| `main.py` | Demo entry point: `python -m tiny_agent.main` from the repo root. |
-| `cli.py`, `__main__.py` | The terminal chat. `tiny-agent` after `python -m pip install -e .` (see `pyproject.toml` at the repo root), or `python -m tiny_agent`. |
-| `tests/` | pytest suite with a fake model server: `node execute.mjs test agent`, or `python -m pytest tiny_agent/tests` from the repo root. Add a test when you change behaviour. |
+| `../llm_client/` | The LLM client (`llm.py`, `response.py`, `check.py`) now lives in its own top-level, self-contained package with its own tests and README. The same rules apply to it: fix methods only, do not restructure. |
+| `../main.py` | Demo entry point, now at the root of `code/`: `python code/main.py`. |
+| `../cli.py`, `__main__.py` | The terminal chat. `cli.py` is at the root of `code/`; `tiny-agent` after `python -m pip install -e .` (see `pyproject.toml` at the repo root), or `python code/cli.py`, or `python -m tiny_agent`. |
+| `tests/` | pytest suite with a fake model server: `node execute.mjs test agent`, or `python -m pytest code/tiny_agent/tests` from the repo root. Add a test when you change behaviour. |

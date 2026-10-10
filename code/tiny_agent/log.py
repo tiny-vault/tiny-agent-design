@@ -1,8 +1,8 @@
 """Log files for the two terminal tools, ``cli.py`` and ``main.py``.
 
-Each tool writes its own file under ``experimentation/logs/`` (``cli.log`` and
+Each tool writes its own file under ``experimentation/chat-app/logs/`` (``cli.log`` and
 ``main.log``). Nothing else logs here: the backend, llama.cpp and nginx
-already write their logs in Docker (``node execute.mjs logs <service>``); OpenObserve collects those and these files in one place, and the library modules in ``tiny_agent/shared`` stay silent;
+already write their logs in Docker (``node execute.mjs logs <service>``); OpenObserve collects those and these files in one place, and the library modules in ``code/tiny_agent/shared`` stay silent;
 the tools log what those modules return or raise.
 
 Nothing is printed to the terminal by this module (the tools do their own
@@ -11,7 +11,7 @@ tool: it just runs without a log.
 
 Settings (environment variables):
 
-* ``TINYAGENT_LOG_DIR``: the folder to write to instead of ``<repo>/experimentation/logs``.
+* ``TINYAGENT_LOG_DIR``: the folder to write to instead of ``<repo>/experimentation/chat-app/logs``.
 * ``TINYAGENT_LOG_LEVEL``: ``DEBUG``, ``INFO`` (default), ``WARNING`` or ``ERROR``.
 
 Files rotate at 1 MB and keep 3 old copies (``cli.log.1`` and so on).
@@ -33,7 +33,7 @@ _MARK = "_tiny_agent_file_handler"  # tags the handlers this module adds, so set
 def log_dir() -> Path:
     """Return the folder the log files go in.
 
-    ``$TINYAGENT_LOG_DIR`` if set. Otherwise ``experimentation/logs/`` in the repo
+    ``$TINYAGENT_LOG_DIR`` if set. Otherwise ``experimentation/chat-app/logs/`` in the repo
     when the code is running from a checkout (the folder that holds
     ``pyproject.toml``), and ``logs/`` in the current directory when it is not (a
     regular, non-editable install).
@@ -41,9 +41,9 @@ def log_dir() -> Path:
     configured = os.environ.get("TINYAGENT_LOG_DIR")
     if configured:
         return Path(configured)
-    root = Path(__file__).resolve().parents[1]
+    root = Path(__file__).resolve().parents[2]  # code/tiny_agent/log.py -> the repo root
     if (root / "pyproject.toml").exists():
-        return root / "experimentation" / "logs"
+        return root / "experimentation" / "chat-app" / "logs"
     return Path.cwd() / "logs"
 
 

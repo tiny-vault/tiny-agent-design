@@ -2,7 +2,7 @@
 
 Step 1 of the harness. An LLM only maps text to text, so this module's one job
 is to send it a conversation and hand back what it said as a
-:class:`~tiny_agent.shared.response.Response`: the answer text, the model's
+:class:`~llm_client.response.Response`: the answer text, the model's
 reasoning if it sent any, and the tool it asked to run if it wants one.
 
 It speaks the ``/v1/chat/completions`` dialect that most local and hosted model
@@ -32,14 +32,14 @@ import urllib.error
 import urllib.request
 import warnings
 
-from tiny_agent.shared import check
-from tiny_agent.shared.response import Response
+from llm_client import check
+from llm_client.response import Response
 
 class LLM:
     """One chat model on one server.
 
     An ``LLM`` holds the connection settings and turns a list of messages into a
-    :class:`~tiny_agent.shared.response.Response` with :meth:`generate`. It keeps
+    :class:`~llm_client.response.Response` with :meth:`generate`. It keeps
     no conversation state: the caller passes the full message history every time,
     which is what lets the harness (and later its memory) decide what the model
     sees.
@@ -103,7 +103,7 @@ class LLM:
 
         Role: the one place the harness talks to the model. It asks the server
         which models are loaded, sends the conversation, and converts the JSON
-        reply into a :class:`~tiny_agent.shared.response.Response`.
+        reply into a :class:`~llm_client.response.Response`.
 
         The call blocks until the model has finished answering. It gives up after
         600 seconds, which is long enough for a slow local model to reason.

@@ -49,7 +49,11 @@ class FakeRouter:
                 if self.path == "/health":
                     self._send(fake.health_code, {"status": "ok"})
                 elif self.path == "/v1/models":
-                    self._send(200, {"data": [{"id": m, "status": {"value": s}} for m, s in fake.status.items()]})
+                    entries = [{"id": m, "status": {"value": s}} for m, s in fake.status.items()]
+                    if fake.report_source:  # a real router says where each model comes from
+                        entries = [{**e, "source": "preset"} for e in entries]
+                        entries += [{"id": c, "source": "cache", "status": {"value": "unloaded"}} for c in fake.cache_models]
+                    self._send(200, {"data": entries})
                 else:
                     self._send(404, {"error": "nope"})
 
@@ -95,6 +99,8 @@ class FakeRouter:
         self.status = {"gemma": "loaded", "qwen": "unloaded", "broken": "unloaded", "slow": "unloaded"}
         self.chat_calls = []
         self.load_calls = []
+        self.report_source = True  # include a "source" on every model, as llama.cpp's router does
+        self.cache_models = []  # extra entries the router found in its download cache
         self.health_code = 200
         self.api_key = None  # when set, requests must carry "Authorization: Bearer <key>"
         self.auth_seen = []  # the Authorization header of every request, in order

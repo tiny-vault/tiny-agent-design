@@ -4,8 +4,8 @@ import sys
 from pathlib import Path
 
 # Make the project modules importable for autodoc. Importing them is safe:
-# tiny_agent/shared/tiny_agent.py has no side effects and tiny_agent/main.py guards its entry point.
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+# code/tiny_agent/shared/tiny_agent.py has no side effects and code/main.py guards its entry point.
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "code"))
 
 project = "TinyAgent"
 copyright = "2026, TinyAgent contributors"
@@ -40,6 +40,9 @@ autodoc_default_options = {
 # napoleon: Google-style docstrings only
 napoleon_google_docstring = True
 napoleon_numpy_docstring = False
+# Show "Attributes:" sections as instance variables. Otherwise a dataclass such as
+# Response is documented twice: once from its docstring, once from its fields.
+napoleon_use_ivar = True
 
 # Keep section labels unique across documents.
 autosectionlabel_prefix_document = True

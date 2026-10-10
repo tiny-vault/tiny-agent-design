@@ -88,13 +88,13 @@ services:
       - ./chat-app/deploy/gateway.nginx.conf:/etc/nginx/conf.d/default.conf:ro
 
   # ---- Logs: OpenObserve stores and searches them; Vector collects them ----------
-  # OpenObserve keeps its data in ./logs/openobserve. The UI is on http://localhost:5080
+  # OpenObserve keeps its data in ./chat-app/logs/openobserve. The UI is on http://localhost:5080
   # (this machine only, already logged in). Docker logs of the chat-app containers go to the "docker" stream,
-  # and ./logs/cli.log and ./logs/main.log (written by tiny-agent and main.py) to "tiny_agent".
+  # and ./chat-app/logs/cli.log and main.log (written by tiny-agent and main.py) to "tiny_agent".
   # The login is a Docker secret (see "secrets:" below); `node execute.mjs up` creates it.
   openobserve:
     build:
-      context: ./observability
+      context: ./chat-app/observability
       dockerfile: openobserve.Dockerfile
     environment:
       ZO_DATA_DIR: /data
@@ -104,7 +104,7 @@ services:
     expose:
       - "5080"   # reached by Vector and by the "observe" proxy below, not published to the host
     volumes:
-      - ./logs/openobserve:/data
+      - ./chat-app/logs/openobserve:/data
 
   # The web UI door: nginx in front of OpenObserve that opens it already logged in (no login
   # screen). Published on this machine only (127.0.0.1). See observability/auto-login.sh.
@@ -119,8 +119,8 @@ services:
     ports:
       - "127.0.0.1:${OPENOBSERVE_PORT:-5080}:80"
     volumes:
-      - ./observability/auto-login.sh:/auto-login.sh:ro
-      - ./observability/observe.nginx.conf.template:/etc/nginx/templates/default.conf.template:ro
+      - ./chat-app/observability/auto-login.sh:/auto-login.sh:ro
+      - ./chat-app/observability/observe.nginx.conf.template:/etc/nginx/templates/default.conf.template:ro
 
   vector:
     image: timberio/vector:latest-alpine
@@ -131,8 +131,8 @@ services:
       - openobserve_user
       - openobserve_password
     volumes:
-      - ./observability/vector.yaml:/etc/vector/vector.yaml:ro
-      - ./logs:/var/log/tiny-agent:ro   # cli.log and main.log
+      - ./chat-app/observability/vector.yaml:/etc/vector/vector.yaml:ro
+      - ./chat-app/logs:/var/log/tiny-agent:ro   # cli.log and main.log
       - /var/run/docker.sock:/var/run/docker.sock:ro   # lets Vector read the other containers' logs
       - vector-data:/var/lib/vector   # remembers how far each file has been read
 
@@ -142,11 +142,11 @@ services:
 # `node execute.mjs observe --password`.
 secrets:
   llama_api_key:
-    file: ./secrets/llama_api_key
+    file: ./chat-app/secrets/llama_api_key
   openobserve_user:
-    file: ./secrets/openobserve_user
+    file: ./chat-app/secrets/openobserve_user
   openobserve_password:
-    file: ./secrets/openobserve_password
+    file: ./chat-app/secrets/openobserve_password
 
 volumes:
   vector-data:

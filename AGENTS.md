@@ -2,37 +2,38 @@
 
 Guidance for AI coding agents (and people) working in this repository. Read this before changing anything; it lists what exists, how to run and test it, and the traps that have already cost time.
 
-## Rules for `tiny_agent/`
+## Rules for `code/tiny_agent/`
 
-The `tiny_agent/` folder has its own stricter rules, in `tiny_agent/AGENTS.md`: fix methods only, never rewrite or restructure, flag what is missing, and re-read a file before every edit. Read them before touching anything in that folder. They do not apply to the rest of the repo.
+The `code/tiny_agent/` folder has its own stricter rules, in `code/tiny_agent/AGENTS.md`: fix methods only, never rewrite or restructure, flag what is missing, and re-read a file before every edit. Read them before touching anything in that folder. They do not apply to the rest of the repo.
 
 ## What this repo is
 
 Two things live here:
 
-1. **TinyAgent** (`tiny_agent/`, `docs/`): a minimal, educational agent harness, built step by step. Currently a skeleton; no model is called.
-2. **Chat app** (`experimentation/chat-app/`): a local chat UI that talks to models served by llama.cpp, all in Docker. It is an experiment and does not use `tiny_agent/` yet.
+1. **TinyAgent** (`code/tiny_agent/`, `docs/`): a minimal, educational agent harness, built step by step. The loop (`TinyAgent`) is still a skeleton and does not call a model. Beside it are a working LLM client (the top-level `code/llm_client/` package: `llm.py`, `response.py`, `check.py`), and the `tiny-agent` terminal chat (`cli.py`).
+2. **Chat app** (`experimentation/chat-app/`): a local chat UI that talks to models served by llama.cpp, all in Docker. It is an experiment and does not use `code/tiny_agent/` yet.
 
 ## Layout
 
 ```
-tiny_agent/main.py             Demo entry point (python -m tiny_agent.main)
-tiny_agent/cli.py              Terminal chat: the `tiny-agent` command (pip install -e .)
-tiny_agent/shared/             TinyAgent harness, LLM client, model check, Response
+code/main.py                   Demo entry point (python code/main.py)
+code/cli.py                    Terminal chat: the `tiny-agent` command (pip install -e .)
+code/tiny_agent/shared/             The TinyAgent harness
+code/llm_client/                    Self-contained LLM client: llm.py, response.py, check.py, tests/, README
 pyproject.toml                 Packaging: the `tiny-agent` console command
 tools/unwrap-md.mjs            Keeps Markdown unwrapped (used by the pre-commit hook)
 docs/                          Sphinx docs (Furo theme)
 INSTRUCTIONS.md                How to run everything
 execute.mjs                    Control the Docker deployment and run the tests (start here)
 experimentation/
-├── docker-compose.yaml        The whole stack; .env, secrets/ and logs/ live next to it
-├── observability/             OpenObserve image wrapper (reads secrets) and the Vector config
-├── logs/ , secrets/           Generated, git-ignored: log files + OpenObserve data; Docker secrets
+├── docker-compose.yaml        The whole stack; the optional .env lives next to it
 └── chat-app/
     ├── frontend/                  React 19 + Vite + Tailwind v4 (src/components, hooks, lib)
     ├── backend/                   FastAPI + httpx; tests/ has a fake llama router
     ├── models/                    llama.cpp things: models.ini (Hugging Face repos), cache/ (downloads), README
-    └── deploy/                    Dockerfiles, nginx configs
+    ├── deploy/                    Dockerfiles, nginx configs
+    ├── observability/             OpenObserve image wrapper (reads secrets) and the Vector config
+    └── logs/ , secrets/           Generated, git-ignored: log files + OpenObserve data; Docker secrets
 ```
 
 ## How the chat app fits together
@@ -61,7 +62,7 @@ All from the repo root unless noted.
 | Frontend dev | `cd frontend; npm install; npm run dev` (needs the stack up; proxies to the gateway) |
 | Frontend build | `cd frontend; npm run build` |
 | Docs | repo root: `sphinx-build -b html -n -W --keep-going docs docs/_build/html` |
-| Demo agent | repo root: `python -m tiny_agent.main` |
+| Demo agent | repo root: `python code/main.py` |
 
 Python lives in the repo's `.venv` (Python 3.12). Activate it, or call `.venv/Scripts/python` directly. Backend dependencies are in `backend/requirements*.txt`.
 
@@ -72,7 +73,8 @@ Python lives in the repo's `.venv` (Python 3.12). Activate it, or call `.venv/Sc
 | Target | What it runs | Needs |
 |---|---|---|
 | `backend` | pytest in `backend/tests`, against a fake llama router | nothing |
-| `agent` | pytest in `tiny_agent/tests` (check.py, llm.py, Response, TinyAgent, the demo) against a fake model server | nothing |
+| `agent` | pytest in `code/tiny_agent/tests` (the chat command, logs, the demo, TinyAgent) against a fake model server | nothing |
+| `llm` | pytest in `code/llm_client/tests` (the LLM client, Response and the loaded-model check) against a fake model server | nothing |
 | `mocked` | Playwright `frontend/e2e/{gating,edge}.spec.js`, API stubbed in the browser, on a Vite dev server Playwright starts (so it tests the current source, not a Docker image) | nothing |
 | `live` | Playwright `frontend/e2e/live.spec.js` through the gateway, real models | the stack up (`node execute.mjs up`) |
 | `all` (default) | backend + mocked, plus live when the stack is up | |
@@ -95,10 +97,10 @@ When you change behaviour, add or update a test in the same change. The fake rou
 
 ## Secrets and logs
 
-* Credentials are **Docker secrets**: files in `experimentation/secrets/` (git-ignored), created with random values by `node execute.mjs up` and mounted at `/run/secrets/<name>`. Never put a password or key in the compose file, an environment variable, `.env`, an image or a log line. Today there are two: the OpenObserve login and `llama_api_key` (llama-server requires it; only the backend sends it).
+* Credentials are **Docker secrets**: files in `experimentation/chat-app/secrets/` (git-ignored), created with random values by `node execute.mjs up` and mounted at `/run/secrets/<name>`. Never put a password or key in the compose file, an environment variable, `.env`, an image or a log line. Today there are two: the OpenObserve login and `llama_api_key` (llama-server requires it; only the backend sends it).
 * Services read a secret from a file: llama-server with `LLAMA_ARG_API_KEY_FILE`, the backend with `LLAMA_API_KEY_FILE`, Vector with `SECRET[docker.<name>]`. OpenObserve cannot read files, so `observability/openobserve.Dockerfile` adds a tiny shell whose entrypoint does it.
 * The OpenObserve UI opens **already logged in**: the `observe` service (nginx, `observability/auto-login.sh` and `observe.nginx.conf.template`) builds the login cookie and browser state from the secrets and signs every browser in. OpenObserve has no setting for this, so it is a proxy. Trade-off: anyone who can reach `127.0.0.1:5080` on this machine is the admin; the API itself still refuses a call with no cookie or credentials. Keep redirects relative (`absolute_redirect off`): nginx listens on 80 inside the container.
-* All logs go to OpenObserve (<http://localhost:5080>): container logs through Vector's Docker socket mount, and `tiny_agent/log.py` writes `experimentation/logs/cli.log` and `main.log` for `tiny-agent` and `main.py` only. Do not add file logging to the other modules; Docker already captures them.
+* All logs go to OpenObserve (<http://localhost:5080>): container logs through Vector's Docker socket mount, and `code/tiny_agent/log.py` writes `experimentation/chat-app/logs/cli.log` and `main.log` for `tiny-agent` and `main.py` only. Do not add file logging to the other modules; Docker already captures them.
 * `node execute.mjs prune` removes the whole setup except the downloaded models and the Docker images (llama.cpp alone is several GB). It removes the stack's containers, networks and every volume labelled for the `chat-app` project, plus the generated secrets, logs and build output. It never runs `docker system prune`: this machine hosts other projects.
 
 ## Gotchas (learned the hard way)
@@ -109,7 +111,8 @@ When you change behaviour, add or update a test in the same change. The fake rou
 - **Compose project name** is pinned to `chat-app` (`name:` in the compose file) so moving files around does not create a second stack.
 - **Compose does not expand `~`.** Use `USERPROFILE`/`HOME` or a full path.
 - **Node on Windows:** calling `process.exit()` right after a `fetch` with a timeout can crash with a libuv assertion. Set `process.exitCode` instead.
-- **GPU:** the dev laptop has 6 GB of VRAM. Large models plus context may not fit; lower `n-gpu-layers` in `models/models.ini`.
+- **GPU:** the dev laptop has 6 GB of VRAM. Large models plus context may not fit; lower `n-gpu-layers` in `models/models.ini`. Measured: `gemma4-e4b` loaded uses 5.3 of 6 GB, so only one model fits and every switch is a full reload (35 s to `qwen3.5-4b`, 61 to 69 s to `gemma4-e4b`). A model's first load also downloads it from Hugging Face (6 to 20 minutes), which is why the load timeouts are so long.
+- **Things that already broke once:** OpenObserve refuses a root password without a lowercase letter, an uppercase letter, a digit and a special character (the generator in `execute.mjs` guarantees them); Node's `fetch` gives up after 5 minutes waiting for headers (long calls use `node:http`); the Hugging Face cache contains symlinks that Windows cannot read (size counters skip them); nginx redirects need `absolute_redirect off` behind a published port.
 - **Browser automation** (Claude in Chrome) needs the extension connected; if it is not, fall back to API checks and Playwright.
 
 ## Before you finish a change

@@ -6,4 +6,9 @@ API reference
    :recursive:
 
    tiny_agent.shared.tiny_agent
-   tiny_agent.main
+   main
+   cli
+   tiny_agent.log
+   llm_client.llm
+   llm_client.response
+   llm_client.check

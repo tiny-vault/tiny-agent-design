@@ -18,7 +18,7 @@ Set-ExecutionPolicy -Scope CurrentUser RemoteSigned
 ## Run the demo
 
 ```powershell
-python -m tiny_agent.main
+python code/main.py
 ```
 
 Expected output:
@@ -27,4 +27,13 @@ Expected output:
 Received: Hello, agent!
 ```
 
-This demo does not call a model. To chat with one, install the ``tiny-agent`` command; see ``INSTRUCTIONS.md`` in the repository root.
+This demo does not call a model.
+
+## Install the terminal chat
+
+```powershell
+python -m pip install -e .
+tiny-agent --help
+```
+
+This adds the ``tiny-agent`` command, still with no dependencies beyond the standard library. In this repository's virtual environment ``python -m pip`` is more reliable than the ``pip`` launcher. To chat with a model you also need the Docker stack running; see {doc}`../guides/chat-app` and ``INSTRUCTIONS.md`` in the repository root.

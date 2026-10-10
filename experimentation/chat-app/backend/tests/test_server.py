@@ -404,3 +404,39 @@ def test_the_backend_reads_its_key_from_the_file_named_in_the_environment(router
     router.api_key = "s3cret"
     with TestClient(create_app(router.url, **FAST)) as client:
         assert client.get("/api/models").status_code == 200
+
+
+# ---- models the router only found in its download cache ---------------------------------------
+
+def test_cache_discovered_models_are_not_offered(client, router):
+    """llama.cpp lists each cached download as an extra model; the app offers only the models.ini ones."""
+    router.cache_models = ["google/gemma-4-E4B-it-qat-q4_0-gguf:IT", "unsloth/Qwen3.5-4B-GGUF:Q4_K_M"]
+    assert set(statuses(client)) == {"gemma", "qwen", "broken", "slow"}
+
+
+def test_the_v1_models_list_hides_them_too(client, router):
+    router.cache_models = ["some/cached-model:Q4"]
+    ids = [m["id"] for m in client.get("/v1/models").json()["data"]]
+    assert "some/cached-model:Q4" not in ids and "gemma" in ids
+    assert client.get("/v1/models").json()["object"] == "list"
+
+
+def test_chatting_with_a_cache_only_model_is_refused_as_unknown(client, router):
+    router.cache_models = ["some/cached-model:Q4"]
+    response = completion(client, "some/cached-model:Q4")
+    assert (response.status_code, code(response)) == (404, "model_not_found")
+    assert router.chat_calls == []
+
+
+def test_loading_a_cache_only_model_is_refused_as_unknown(client, router):
+    router.cache_models = ["some/cached-model:Q4"]
+    response = client.post("/api/models/load", json={"model": "some/cached-model:Q4"})
+    assert (response.status_code, code(response)) == (404, "model_not_found")
+    assert router.load_calls == []
+
+
+def test_a_server_that_reports_no_source_keeps_all_its_models(client, router):
+    """Not a router (no "source" field): nothing to filter."""
+    router.report_source = False
+    assert set(statuses(client)) == {"gemma", "qwen", "broken", "slow"}
+    assert len(client.get("/v1/models").json()["data"]) == 4

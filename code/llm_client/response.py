@@ -12,7 +12,7 @@ from dataclasses import dataclass
 class Response:
     """Structured response from LLM calls.
 
-    Built by :meth:`tiny_agent.shared.llm.LLM.generate`. All fields have
+    Built by :meth:`llm_client.llm.LLM.generate`. All fields have
     defaults, so ``Response()`` is a valid empty response.
 
     A reply is usually one of two things: a final answer (``content`` is set,

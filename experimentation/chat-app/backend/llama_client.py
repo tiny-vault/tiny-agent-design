@@ -67,12 +67,23 @@ class LlamaClient:
         except httpx.HTTPError:
             return False
 
+    async def list_models(self) -> list[dict]:
+        """The model entries llama-server lists, without the ones it only found in its download cache.
+
+        The router lists every model it knows: the ones in ``models.ini`` (source ``preset``) and,
+        since llama.cpp keeps downloads in a cache, one extra entry for each cached download
+        (source ``cache``). Only the preset ones are offered. A server that reports no source is
+        not a router, so all of its entries are kept.
+        """
+        data = (await self._json("GET", "/v1/models")).get("data", [])
+        return [m for m in data if m.get("source", "preset") == "preset"]
+
     async def model_statuses(self) -> dict[str, str]:
         """Return ``{model: status}`` with status loaded, loading or unloaded.
 
         A server without router mode reports no status; its models count as loaded.
         """
-        data = (await self._json("GET", "/v1/models")).get("data", [])
+        data = await self.list_models()
         return {m["id"]: (m.get("status") or {}).get("value", "loaded") for m in data}
 
     async def chat(self, model: str, messages: list[dict], **options) -> dict:

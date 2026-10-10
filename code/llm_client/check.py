@@ -7,16 +7,19 @@ message instead of an HTTP error.
 
 Run it from the repo root to see the state::
 
-    python -m tiny_agent.shared.check                 # list every model and its status
-    python -m tiny_agent.shared.check gemma4-e4b      # exit code 0 if loaded, 1 if not
+    python -m llm_client.check                 # list every model and its status
+    python -m llm_client.check gemma4-e4b      # exit code 0 if loaded, 1 if not
 
 Standard library only.
 """
 
 import http.client
 import json
+import os
 import sys
 import urllib.request
+
+from llm_client import env
 
 DEFAULT_URL = "http://localhost:3200/v1"  # the Docker gateway
 
@@ -67,7 +70,7 @@ def loaded_models(base_url: str = DEFAULT_URL) -> list[str]:
 def model_status(model: str, base_url: str = DEFAULT_URL) -> str | None:
     """Return one model's status, or ``None`` if the server is unreachable or does not offer it.
 
-    This is what :meth:`tiny_agent.shared.llm.LLM.generate` calls before sending a
+    This is what :meth:`llm_client.llm.LLM.generate` calls before sending a
     chat request.
 
     Args:
@@ -87,7 +90,7 @@ def main(argv: list[str] | None = None) -> int:
 
     Command line::
 
-        python -m tiny_agent.shared.check [MODEL] [--url BASE_URL]
+        python -m llm_client.check [MODEL] [--url BASE_URL]
 
     With no ``MODEL`` it prints every model with its status, marking the loaded
     one with ``*``. With a ``MODEL`` it prints that model's status only, so it
@@ -99,7 +102,7 @@ def main(argv: list[str] | None = None) -> int:
             of the Docker gateway and must be followed by a value.
 
     Returns:
-        The exit code:
+        The process exit code, one of the following values.
 
         * ``0``: the list was printed, or the named model is loaded (or its
           status is unknown because the server does not report it).
@@ -110,8 +113,9 @@ def main(argv: list[str] | None = None) -> int:
         ``-h`` or ``--help`` prints the usage line and returns ``0``.
     """
     args = list(sys.argv[1:] if argv is None else argv)  # a copy: never change the caller's list
-    usage = "usage: python -m tiny_agent.shared.check [MODEL] [--url BASE_URL]"
-    base_url = DEFAULT_URL
+    usage = "usage: python -m llm_client.check [MODEL] [--url BASE_URL]"
+    env.load_env()  # code/.env may set TINYAGENT_LLM_URL
+    base_url = os.environ.get("TINYAGENT_LLM_URL", DEFAULT_URL)
     if "-h" in args or "--help" in args:
         print(usage)
         return 0

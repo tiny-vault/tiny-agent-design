@@ -1,8 +1,8 @@
-"""Tests for tiny_agent.shared.check: which models are loaded."""
+"""Tests for llm_client.check: which models are loaded."""
 
 import pytest
 
-from tiny_agent.shared import check
+from llm_client import check
 
 
 def test_statuses_of_a_router(fake_server):
@@ -173,3 +173,26 @@ def test_a_slow_server_times_out_to_none(fake_server):
 def test_an_http_error_status_gives_none(fake_server):
     fake_server.models_status = 503
     assert check.model_statuses(fake_server.url) is None
+
+
+# ---- the server address from code/.env --------------------------------------------------------
+
+def test_the_check_command_takes_its_default_url_from_the_env_file(fake_server, tmp_path, capsys):
+    import os
+
+    fake_server.router(a="loaded")
+    settings = tmp_path / "settings.env"
+    settings.write_text(f"TINYAGENT_LLM_URL={fake_server.url}\n", encoding="utf-8")
+    os.environ["TINYAGENT_ENV_FILE"] = str(settings)
+    assert check.main([]) == 0  # no --url given
+    assert "Loaded: a" in capsys.readouterr().out
+
+
+def test_the_url_option_beats_the_env_file(fake_server, tmp_path, dead_url, capsys):
+    import os
+
+    fake_server.router(a="loaded")
+    settings = tmp_path / "settings.env"
+    settings.write_text(f"TINYAGENT_LLM_URL={dead_url}\n", encoding="utf-8")
+    os.environ["TINYAGENT_ENV_FILE"] = str(settings)
+    assert check.main(["--url", fake_server.url]) == 0

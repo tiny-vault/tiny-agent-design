@@ -1,11 +1,11 @@
-"""Tests for tiny_agent.shared.llm: the LLM client and the Response it returns."""
+"""Tests for llm_client.llm: the LLM client and the Response it returns."""
 
 import json
 
 import pytest
 
-from tiny_agent.shared.llm import LLM
-from tiny_agent.shared.response import Response
+from llm_client.llm import LLM
+from llm_client.response import Response
 
 MESSAGES = [{"role": "user", "content": "hi"}]
 

@@ -182,6 +182,11 @@ def create_app(llama_url: str | None = None, **client_options) -> FastAPI:
             raise ApiError(409, f"{model} is {status}. Load it first (POST /api/models/load).", "model_not_loaded")
         return await forward(request, "/v1/chat/completions", raw)
 
+    @app.get("/v1/models")
+    async def v1_models(request: Request):
+        """The model list, with the router's cache-discovered duplicates left out (see list_models)."""
+        return {"object": "list", "data": await llama(request).list_models()}
+
     @app.api_route("/v1/{path:path}", methods=["GET", "POST"])
     async def passthrough(path: str, request: Request):
         return await forward(request, f"/v1/{path}")

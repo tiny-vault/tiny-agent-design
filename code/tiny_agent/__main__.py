@@ -2,6 +2,6 @@
 
 import sys
 
-from tiny_agent.cli import main
+from cli import main  # code/cli.py
 
 sys.exit(main())

@@ -9,22 +9,25 @@ browser -> gateway (nginx, the only published port, :3200)
 ```
 
 ```
-experimentation/chat-app/
-├── frontend/             React + Vite + Tailwind chat page (see frontend/README.md)
-├── backend/              FastAPI service in front of llama.cpp
-│   ├── server.py         API: /health, /api/models, /api/models/load, streamed /v1/*
-│   ├── llama_client.py   httpx client for llama.cpp's router API
-│   └── tests/            pytest suite with a fake router
-├── models/               llama.cpp setup: model list and per-model settings
-│   ├── models.ini        Model names -> Hugging Face repos, plus ctx-size and GPU layers
-│   ├── cache/            The downloaded models (git-ignored, never removed by prune)
-│   └── README.md         How to add or change a model
-└── deploy/               Everything needed to run it in Docker
-    ├── docker-compose.yaml
-    ├── backend.Dockerfile, frontend.Dockerfile
-    ├── gateway.nginx.conf    Single entry point (routes / and /api, /v1)
-    ├── frontend.nginx.conf   Static file server for the React build
-    └── .env.example      Optional settings (ports, models folder)
+experimentation/
+├── docker-compose.yaml   The whole stack (and .env.example, the optional settings: ports)
+└── chat-app/
+    ├── frontend/         React + Vite + Tailwind chat page (see frontend/README.md)
+    ├── backend/          FastAPI service in front of llama.cpp
+    │   ├── server.py     API: /health, /api/models, /api/models/load, streamed /v1/*
+    │   ├── llama_client.py   httpx client for llama.cpp's router API
+    │   └── tests/        pytest suite with a fake router
+    ├── models/           llama.cpp setup: model list and per-model settings
+    │   ├── models.ini    Model names -> Hugging Face repos, plus ctx-size and GPU layers
+    │   ├── cache/        The downloaded models (git-ignored, never removed by prune)
+    │   └── README.md     How to add or change a model
+    ├── deploy/           Dockerfiles and nginx configs
+    │   ├── backend.Dockerfile, frontend.Dockerfile
+    │   ├── gateway.nginx.conf    Single entry point (routes / and /api, /v1)
+    │   └── frontend.nginx.conf   Static file server for the React build
+    ├── observability/    OpenObserve image wrapper, auto-login proxy, Vector config
+    ├── logs/             Generated, git-ignored: cli.log, main.log and OpenObserve's data
+    └── secrets/          Generated, git-ignored: the Docker secrets (random values)
 ```
 
 ## Frontend
@@ -41,14 +44,19 @@ Open <http://localhost:5173> (needs the stack running; the dev server forwards `
 
 ## Backend
 
-`backend/server.py` is the only thing that talks to llama.cpp, through its HTTP API (`LLAMA_URL`, default `http://llama:8080`). It uses only the standard library.
+`backend/server.py` (FastAPI and httpx) is the only thing that talks to llama.cpp, through its HTTP API (`LLAMA_URL`, default `http://llama:8080`). It sends llama.cpp's API key, which it reads from a Docker secret, on every call; llama.cpp refuses callers without it.
 
 | Endpoint | What it does |
 |---|---|
 | `GET /health` | Backend status and whether llama.cpp is up |
-| `GET /api/models` | Model names from llama.cpp's `/v1/models` |
-| `POST /api/chat` | `{"model", "messages"}` in, first choice out (`llama_client.chat`) |
-| `/v1/*` | Streamed straight through to llama.cpp; the frontend uses this for live tokens and tool calls |
+| `GET /api/models` | `[{id, status}]`, status `loaded`, `loading` or `unloaded`. Only the models in `models.ini`: the router also lists each cached download as an extra entry, which is left out |
+| `POST /api/models/load` | Load a model through the router and wait until it is loaded (allows 30 minutes, because the first load downloads it). 404 unknown, 500 failed, 504 timed out. One switch at a time; it retries while llama.cpp is still busy |
+| `POST /api/chat` | `{"model", "messages"}` in, first choice out |
+| `GET /v1/models` | The same model list in OpenAI format |
+| `POST /v1/chat/completions` | Streamed to llama.cpp, but refused with 409 unless the model is already loaded, so a chat never triggers a surprise switch |
+| other `/v1/*` | Streamed straight through; the browser's own `Authorization` header is never forwarded |
+
+Every error body is `{"error": {"message", "code"}}`.
 
 ```powershell
 curl http://localhost:3200/api/models
@@ -110,6 +118,21 @@ Per-model settings (`ctx-size`, `n-gpu-layers`, `jinja`) live in `models.ini`.
 
 The compose file reserves the NVIDIA GPU and `models.ini` offloads all layers (`n-gpu-layers = 99`). The development laptop has 6 GB of VRAM, so a large model plus its context cache may not fit. If it runs out of memory, lower `n-gpu-layers` in `models.ini`; the remaining layers run on the CPU.
 
+## Measured results
+
+Measured on the development laptop (RTX 3060 Laptop, 6 GB of VRAM).
+
+| What | Result |
+|---|---|
+| Switching to `qwen3.5-4b`, models on disk | 35 s |
+| Switching to `gemma4-e4b`, models on disk | 61 s and 69 s |
+| First load including the Hugging Face download | `qwen3.5-4b` 6 min (3.4 GB), `gemma4-e4b` 15 to 20 min (5.9 GB) |
+| A chat answer starts, model already loaded | about 1 s |
+| GPU memory with `gemma4-e4b` loaded | 5.3 of 6 GB, so both models cannot be loaded together |
+| Disk used by the two downloaded models | 9.3 GB in `models/cache` (the old Ollama copies, 9.5 GB, were deleted) |
+
+Every switch is a full unload and reload because only one model fits. See `node execute.mjs test` for the tests: backend 59, `llm_client` 121, `tiny_agent` 93 and the stub-based browser tests 35 pass.
+
 ## Status
 
-The whole stack runs end to end with `node execute.mjs up`, and `node execute.mjs test` runs the tests. llama.cpp's `/v1/models` `status` field (used to show which models are loaded) is read if present and ignored otherwise.
+The whole stack runs end to end with `node execute.mjs up`, including the log pipeline (OpenObserve and Vector) and the Docker secrets. llama.cpp downloads the models from Hugging Face itself; nothing else is needed. The `status` field llama.cpp reports in `/v1/models` is what the app uses to know which model is loaded.

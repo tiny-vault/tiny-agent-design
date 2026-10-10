@@ -6,6 +6,7 @@ chat request body is recorded in ``fake_server.requests``.
 """
 
 import json
+import os
 import sys
 import threading
 import time
@@ -124,6 +125,21 @@ def fake_server():
     server = FakeServer()
     yield server
     server.close()
+
+
+@pytest.fixture(autouse=True)
+def isolated_env(tmp_path, monkeypatch):
+    """Keep every test away from the real ``code/.env`` and stop environment changes leaking.
+
+    ``os.environ`` is swapped for a copy (put back after the test), the settings file
+    is pointed at a file that does not exist, and the TINYAGENT_* settings are cleared.
+    A test that wants a settings file writes one and sets TINYAGENT_ENV_FILE itself.
+    """
+    monkeypatch.setattr(os, "environ", dict(os.environ))
+    os.environ["TINYAGENT_ENV_FILE"] = str(tmp_path / "no-such.env")
+    for name in ("TINYAGENT_MODEL", "TINYAGENT_LLM_URL", "TINYAGENT_API_KEY", "TINYAGENT_API_KEY_FILE",
+                 "TINYAGENT_THINK", "TINYAGENT_SYSTEM"):
+        os.environ.pop(name, None)
 
 
 @pytest.fixture

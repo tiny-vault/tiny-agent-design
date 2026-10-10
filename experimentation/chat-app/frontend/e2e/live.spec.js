@@ -113,7 +113,7 @@ test("OpenObserve: the API is not open to someone with no login", async ({ reque
 
 test("OpenObserve receives the container logs and the tiny-agent logs", async ({ request }) => {
   const fs = await import("node:fs");
-  const secrets = "../../../experimentation/secrets/";
+  const secrets = "../secrets/"; // experimentation/chat-app/secrets, from the frontend folder
   const user = fs.readFileSync(secrets + "openobserve_user", "utf8").trim();
   const password = fs.readFileSync(secrets + "openobserve_password", "utf8").trim();
   const auth = { Authorization: "Basic " + Buffer.from(`${user}:${password}`).toString("base64") };
