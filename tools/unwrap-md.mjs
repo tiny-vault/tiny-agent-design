@@ -46,12 +46,20 @@ export function unwrap(text) {
   let cur = null;
   let inFence = false;
   let inHtml = false;
+  // YAML front matter (e.g. SKILL.md name/description) is one key per line;
+  // joining those lines breaks the YAML, so pass the block through untouched.
+  let inFrontMatter = lines[0]?.trim() === "---";
   const flush = () => {
     if (cur !== null) out.push(hardBreak(cur) ? cur : cur.replace(/\s+$/, ""));
     cur = null;
   };
 
   lines.forEach((line, i) => {
+    if (inFrontMatter) {
+      out.push(line);
+      if (i > 0 && /^(---|\.\.\.)\s*$/.test(line)) inFrontMatter = false;
+      return;
+    }
     if (inFence) {
       out.push(line);
       if (FENCE.test(line)) inFence = false;
@@ -72,10 +80,6 @@ export function unwrap(text) {
     }
     if (inHtml) {
       out.push(line);
-      return;
-    }
-    if (i === 0 && line.trim() === "---") {
-      out.push(line); // front matter
       return;
     }
     if (/^\s*</.test(line) && cur === null) {
