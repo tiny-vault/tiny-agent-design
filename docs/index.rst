@@ -35,4 +35,5 @@ A minimal, modular, and educational agent framework. ``TinyAgent`` is the
    :caption: Reference
 
    api/index
+   guides/models
    guides/development
