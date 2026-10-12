@@ -1115,5 +1115,6 @@ nohup.out
 /experimentation/chat-app/frontend/playwright-report/
 /tiny_agent.egg-info/
 /training-notes/
-/notes/
 /.claude/skills/
+/.agents/skills/
+notes-site/

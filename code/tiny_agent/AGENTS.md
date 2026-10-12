@@ -1,19 +1,19 @@
-# Rules for the `code/tiny_agent/` folder
+# Rules for `code/tiny_agent/`
 
-These apply to everything in this folder (everything under `shared/`, `main.py`, `tests/`, and anything added here). They override the repo's general guidance.
+Apply to everything in this folder (`shared/`, `tests/`, anything added); they override the repo's general guidance.
 
-1. **Fix, do not rewrite.** When asked to fix, finish or "make it work", change only the methods and lines that need it. Keep the existing class structure, names, signatures, attributes, docstrings and style. Never replace a file wholesale, rename things, or restructure to suit your own taste. If you think the structure itself is wrong, say so and wait for a yes before changing it.
-2. **Flag what is missing, do not invent it.** If something the code needs is not there (a field, method, module, import, config, dependency, test, or a decision only the owner can make), say so in your reply: what is missing, where, and why it matters. Add the smallest stub only if asked. Do not quietly fill gaps with your own design.
-3. **Read the file immediately before you edit it, every time.** The owner edits these files while you work, and a file that was empty a minute ago may not be empty now. Use `Edit` on existing files, never `Write` over them. If you have not read the file's current contents, you may not overwrite it. If a write is refused because the file changed, read it again and work from what is there.
-4. **Stay inside the request.** Do not touch, commit or "tidy" files you were not asked about, including empty placeholder files created for later. Mention them instead.
-5. **Say what you changed, and what you did not.** End with the methods you touched, anything you left alone on purpose, and anything you could not verify.
+1. **Fix, do not rewrite.** When asked to fix, finish or "make it work", change only the methods and lines that need it. Keep class structure, names, signatures, attributes, docstrings and style. Never replace a file wholesale, rename, or restructure to taste; if the structure itself seems wrong, say so and wait for a yes.
+2. **Flag what is missing, do not invent it.** If something needed is absent (field, method, module, import, config, dependency, test, or an owner-only decision), say what, where and why it matters. Add the smallest stub only if asked.
+3. **Read the file immediately before every edit.** The owner edits while you work. Use `Edit` on existing files, never `Write` over them; if an edit is refused because the file changed, re-read and work from what is there.
+4. **Stay inside the request.** Do not touch, commit or "tidy" other files, including empty placeholders; mention them instead.
+5. **Report:** the methods you touched, what you left alone on purpose, and what you could not verify.
 
 ## Current files
 
 | File | State |
 |---|---|
 | `shared/tiny_agent.py` | `TinyAgent` skeleton: `run`, `_step`, `_execute_action` are placeholders. |
-| `../llm_client/` | The LLM client (`llm.py`, `response.py`, `check.py`) now lives in its own top-level, self-contained package with its own tests and README. The same rules apply to it: fix methods only, do not restructure. |
-| `../main.py` | Demo entry point, now at the root of `code/`: `python code/main.py`. |
-| `../cli.py`, `__main__.py` | The terminal chat. `cli.py` is at the root of `code/`; `tiny-agent` after `python -m pip install -e .` (see `pyproject.toml` at the repo root), or `python code/cli.py`, or `python -m tiny_agent`. |
-| `tests/` | pytest suite with a fake model server: `node execute.mjs test agent`, or `python -m pytest code/tiny_agent/tests` from the repo root. Add a test when you change behaviour. |
+| `../llm_client/` | LLM client (`llm.py`, `response.py`, `check.py`), a self-contained top-level package with its own tests and README; same rules. |
+| `../main.py` | Demo: `python code/main.py`. |
+| `../cli.py`, `__main__.py` | Terminal chat: `tiny-agent` after `python -m pip install -e .`, or `python code/cli.py`, or `python -m tiny_agent`. |
+| `tests/` | pytest with a fake model server: `node execute.mjs test agent`. Add a test when behaviour changes. |

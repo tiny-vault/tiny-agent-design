@@ -6,6 +6,11 @@ from pathlib import Path
 # Make the project modules importable for autodoc. Importing them is safe:
 # code/tiny_agent/shared/tiny_agent.py has no side effects and code/main.py guards its entry point.
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "code"))
+# The repo root, for experimentation.illustrated_agents_scripts and trigger_ias. Appended, not
+# inserted, so the stdlib `code` module is not shadowed by the repo's code/ folder. Those scripts
+# guard their model calls, but importing them reads the llama_api_key secret: run
+# `node execute.mjs up` once before building the docs.
+sys.path.append(str(Path(__file__).resolve().parent.parent))
 
 project = "TinyAgent"
 copyright = "2026, TinyAgent contributors"

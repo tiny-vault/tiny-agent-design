@@ -156,4 +156,6 @@ Built to learn how agents work, one small piece at a time.
 
 Based on *An Illustrated Guide to AI Agents* by Maarten Grootendorst and Jay Alammar (O'Reilly). Companion code: [HandsOnLLM/An-Illustrated-Guide-To-AI-Agents](https://github.com/HandsOnLLM/An-Illustrated-Guide-To-AI-Agents). That repository has no license, so all rights remain with the authors. This is a personal learning project, not affiliated with or endorsed by them. If you find the book useful, please cite it.
 
+The chat UI's look is adapted from [Utopia](https://github.com/deeplethe/utopia) by DeepLethe (Apache-2.0).
+
 </div>
