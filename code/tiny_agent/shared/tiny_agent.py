@@ -91,9 +91,9 @@ class TinyAgent:
         """
         self.memory.add("user", task)
         self.trajectory.initialize(task)
-        return self._step(task)
+        return self._step()
 
-    def _step(self, task: str) -> str:
+    def _step(self) -> str:
         """Perform a single step.
 
         Role: one iteration of the reason-act cycle (the "think" phase).
@@ -101,9 +101,8 @@ class TinyAgent:
         returns either a final answer or (later) an action for
         ``_execute_action`` to carry out.
 
-        Args:
-            task: The current task text. Not used for now: :meth:`run` has
-                already put the task into memory, which is what the model sees.
+        The task is not passed in: :meth:`run` has already put it into memory,
+        which is what the model sees.
 
         Returns:
             Currently the model's reply text. The call is recorded as a

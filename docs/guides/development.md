@@ -41,4 +41,4 @@ Markdown is never hard-wrapped: one paragraph or list item is one line. A pre-co
 ## Known documentation gaps
 
 * `_step` and `_execute_action` are private and are not in the API reference. Their roles are described in the architecture overview.
-* `tiny_agent.shared.step` and `tiny_agent.shared.trajectory` are empty placeholder files and are not documented.
+* `llm_client.env` (the `.env` loader) is not in the API reference.

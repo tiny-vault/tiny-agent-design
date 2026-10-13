@@ -10,7 +10,7 @@
 
 **Reading the output.** ``build_messages`` turns ``k`` examples into the chat; ``final_number`` takes the last number of a reply; ``show`` prints one run as a labelled block (what this run changes, the exact messages sent, the reply, and a result line with the answer, whether it is correct and the tokens). ``compare`` runs all six and ends with a table. ``python shot_prompting.py few_shot`` runs one method (plain and CoT); no argument runs ``compare``.
 
-**Limits.** ``llm`` is ``qwen3.5-4b`` via the gateway at ``temperature=1``, as in the book, and each variant runs once, so the table is illustrative: it cannot show that one method is better. Compare ``self_consistency``, which samples the zero-shot CoT prompt many times and votes.
+**Limits.** ``llm`` is ``qwen3.5-4b`` via the gateway at ``temperature=1``, as in the book, and each variant runs once, so the table is illustrative: it cannot show that one method is better. Compare ``best_of_n``, whose ``best_of_n_majority_vote`` samples many answers and votes.
 """
 
 import re

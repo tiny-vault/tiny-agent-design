@@ -18,9 +18,6 @@ an optional API key. Start the stack and load the model first
 (``node execute.mjs up``); the reply varies from run to run.
 
 Run it with ``python code/main.py``. It logs to ``main.log`` and prints the answer.
-
-NOTE: ``TinyAgent`` now requires a ``memory`` argument, but ``main()`` still calls
-``TinyAgent(llm)``, so the demo raises ``TypeError`` until that call is updated.
 """
 
 import os
@@ -29,6 +26,7 @@ from cli import api_key_from_env
 from llm_client import check, env
 from llm_client.llm import LLM
 from tiny_agent import log as logs
+from tiny_agent.shared.memory import Memory
 from tiny_agent.shared.tiny_agent import TinyAgent
 
 
@@ -47,7 +45,7 @@ def main() -> None:
         base_url=os.environ.get("TINYAGENT_LLM_URL", check.DEFAULT_URL),
         **({"api_key": api_key} if api_key else {}),
     )
-    agent = TinyAgent(llm)
+    agent = TinyAgent(llm, Memory())
     log.info("running task: %s", "Hello, agent!")
     result = agent.run("Hello, agent!")
     log.info("result: %s", result)

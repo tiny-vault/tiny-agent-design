@@ -34,7 +34,7 @@ task ─▶ [memory] ─▶ LLM decides ─▶ action ─▶ tool ─▶ observa
 | Method | Phase | Job |
 |---|---|---|
 | `run(task)` | Control loop | Public entry point; will loop until done |
-| `_step(task)` | Think | Build the prompt, ask the LLM, return answer or action |
+| `_step()` | Think | Send the memory to the LLM, store its reply, return answer or action |
 | `_execute_action(action)` | Act | Dispatch to a tool, return an observation |
 
 ## 🚀 Quickstart
@@ -81,14 +81,15 @@ The Python code reads its settings from `code/.env` (git-ignored; `code/.env.exa
 Or from code:
 
 ```python
+from tiny_agent.shared.memory import Memory
 from tiny_agent.shared.tiny_agent import TinyAgent
 from llm_client.llm import LLM
 
-agent = TinyAgent()
-print(agent.run("Hello, agent!"))          # the harness: still echoes, no model
-
 llm = LLM(model="gemma4-e4b")              # the LLM client: talks to a real model
 print(llm.generate([{"role": "user", "content": "Hi!"}]).content)
+
+agent = TinyAgent(llm, Memory())           # the harness: one model call per task, remembered in memory
+print(agent.run("Hello, agent!"))
 ```
 
 ## 📖 Documentation

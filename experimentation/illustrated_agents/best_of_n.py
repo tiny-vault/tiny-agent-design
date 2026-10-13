@@ -1,17 +1,18 @@
-"""Best-of-N four ways: generate 10 ``roman_to_int`` candidates and pick one with unit tests, an ORM, a PRM or a weighted PRM vote.
+"""Best-of-N five ways: generate 10 ``roman_to_int`` candidates and pick one with unit tests, an ORM, a PRM, a weighted PRM vote or a plain majority vote.
 
 **What it is.** Best-of-N draws N answers from a model and keeps the best one according to a verifier. The model never improves; the selection does. Everything depends on how good the verifier is.
 
-**The four verifiers.**
+**The five ways to pick.**
 
+- ``best_of_n_majority_vote``: self-consistency (Wang et al., 2022), the base variant. No verifier at all: candidates that return the same outputs on the test inputs (``behaviour``) vote for one answer, and the answer with the most votes wins. Agreement is evidence of correctness, not a guarantee.
 - ``best_of_n_unit_tests``: runs the candidate on ``test_cases`` (``verify``, a fraction 0.0 to 1.0; a crash or Markdown-fenced reply scores 0.0). Real ground truth.
 - ``best_of_n_orm``: an outcome reward model rates each finished answer 0 to 10 (``orm_score`` with ``ORM_PROMPT``).
 - ``best_of_n_prm``: a process reward model rates every non-empty code line (``split_steps``, ``prm_scores`` with ``PRM_PROMPT``) and the candidate with the best weakest step wins (``min``).
-- ``best_of_n_weighted_prm``: groups candidates that return the same outputs on the test inputs (``behaviour``), sums their PRM rewards and keeps the heaviest group, so an answer many good samples agree on beats one lucky outlier.
+- ``best_of_n_weighted_prm``: groups candidates that return the same outputs on the test inputs (``behaviour``), sums their PRM rewards and keeps the heaviest group, so an answer many good samples agree on beats one lucky outlier. It is the majority vote with each vote weighted by a reward.
 
-**How it works here.** Every method samples ``n`` answers to the book's coding ``query`` from ``llm`` (``qwen3.5-4b`` via the gateway, ``temperature=1`` so candidates differ) and differs only in how it picks. No trained reward model is in the stack, so ``judge`` (the same model at ``temperature=0``) stands in for both; its scores are the model's opinion, not a measured quality. The reward methods still run ``verify`` afterwards to show whether their pick really is the best.
+**How it works here.** Every method samples ``n`` answers to the book's coding ``query`` from ``llm`` (``qwen3.5-4b`` via the gateway, ``temperature=1`` so candidates differ) and differs only in how it picks. No trained reward model is in the stack, so ``judge`` (the same model at ``temperature=0``) stands in for both; its scores are the model's opinion, not a measured quality. The reward and voting methods still run ``verify`` afterwards to show whether their pick really is the best. The majority vote compares behaviour on the test inputs, not the code text, so differently written but equivalent solutions count as one answer; a model that is consistently wrong still wins the vote.
 
-**Running it.** ``python best_of_n.py orm`` runs one method (``unit_tests``, ``orm``, ``prm``, ``weighted_prm``); no argument runs all four. Scores vary between runs, so one run does not rank the verifiers. Compare ``self_consistency``, which votes without a verifier.
+**Running it.** ``python best_of_n.py orm`` runs one method (``majority_vote``, ``unit_tests``, ``orm``, ``prm``, ``weighted_prm``); no argument runs all five. Scores vary between runs, so one run does not rank the verifiers. Compare ``shot_prompting``, which tries single prompts instead of sampling many.
 
 Warning:
     ``verify`` and ``behaviour`` run model-written code with ``exec`` on this machine; a real system would sandbox it.
@@ -179,6 +180,39 @@ def sample():
     return llm.generate([{"role": "user", "content": query}]).content
 
 
+def best_of_n_majority_vote(n=10):
+    """Self-consistency: candidates with identical behaviour vote, and the most common answer wins.
+
+    Args:
+        n: Number of candidates to sample.
+
+    Returns:
+        The first candidate of the answer (behaviour group) with the most votes.
+    """
+    # No verifier: group candidates by what they output on the test inputs; one candidate, one vote
+    candidates = []
+    for i in range(n):
+        answer = sample()
+        tests = verify(answer)
+        candidates.append((answer, tests, behaviour(answer)))
+        print(f"candidate {i + 1}: unit tests {tests:.2f}")
+
+    members = defaultdict(list)
+    for candidate in candidates:
+        members[candidate[2]].append(candidate)
+
+    print("\nAnswers by number of votes (outputs on the test inputs):")
+    for key in sorted(members, key=lambda k: len(members[k]), reverse=True):
+        print(f"  {len(members[key])} vote(s), unit tests {members[key][0][1]:.2f}: {key}")
+
+    # The answer with the most votes wins; a tie goes to the group seen first
+    best_key = max(members, key=lambda k: len(members[k]))
+    best_answer, best_tests, _ = members[best_key][0]
+    print(f"\nMajority pick: {len(members[best_key])} of {n} votes, unit tests {best_tests:.2f}"
+          f" (best possible {max(c[1] for c in candidates):.2f})\n{best_answer}")
+    return best_answer
+
+
 def best_of_n_unit_tests(n=10):
     """Best-of-N where the unit tests are the verifier.
 
@@ -290,6 +324,7 @@ def best_of_n_weighted_prm(n=10):
 
 
 methods = {
+    "majority_vote": best_of_n_majority_vote,
     "unit_tests": best_of_n_unit_tests,
     "orm": best_of_n_orm,
     "prm": best_of_n_prm,
@@ -297,8 +332,8 @@ methods = {
 }
 
 if __name__ == "__main__":
-    # One method by name, or all four (needs the Docker stack with qwen3.5-4b loaded).
-    # Via trigger_ias.py, argv[1] is the script name, which matches no method, so all four run.
+    # One method by name, or all five (needs the Docker stack with qwen3.5-4b loaded).
+    # Via trigger_ias.py, argv[1] is the script name, which matches no method, so all five run.
     chosen = [sys.argv[1]] if len(sys.argv) > 1 and sys.argv[1] in methods else list(methods)
     for name in chosen:
         print(f"\n===== best_of_n_{name} =====")

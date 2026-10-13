@@ -34,7 +34,7 @@ def scripts() -> list[str]:
     """List the runnable script names.
 
     Returns:
-        The stems of the ``.py`` files in :data:`FOLDER`, minus :data:`HELPERS`, sorted alphabetically (for example ``["best_of_n", "diff_agent_adds_llm", ...]``).
+        The stems of the ``.py`` files in :data:`FOLDER`, minus :data:`HELPERS`, sorted alphabetically (for example ``["agent_without_memory", "best_of_n", ...]``).
     """
     return sorted(p.stem for p in FOLDER.glob("*.py") if p.stem not in HELPERS)
 

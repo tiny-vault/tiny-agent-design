@@ -2,14 +2,18 @@
 
 ## The harness
 
+Start the stack first (`node execute.mjs up`), because the agent calls a model:
+
 ```python
+from llm_client.llm import LLM
+from tiny_agent.shared.memory import Memory
 from tiny_agent.shared.tiny_agent import TinyAgent
 
-agent = TinyAgent()
+agent = TinyAgent(LLM(model="gemma4-e4b"), Memory())
 print(agent.run("Hello, agent!"))
 ```
 
-This prints `Received: Hello, agent!`. No model is called: `run` passes the task to `_step`, which currently echoes it back.
+This prints the model's reply, which varies between runs. `run` stores the task in `memory`, and `_step` sends the whole memory to the model and stores the reply, so a second `run` on the same agent sees the first exchange. Tools, planning and the multi-step loop are still placeholders.
 
 See {py:class}`tiny_agent.shared.tiny_agent.TinyAgent` for the full API.
 

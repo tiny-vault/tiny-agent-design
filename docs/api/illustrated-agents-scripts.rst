@@ -41,11 +41,6 @@ shadows the installed ``illustrated_agents`` package.
    :toctree: generated
 
    experimentation.illustrated_agents.shot_prompting
-   experimentation.illustrated_agents.self_consistency
    experimentation.illustrated_agents.best_of_n
-   experimentation.illustrated_agents.run_agent_trajectory
-   experimentation.illustrated_agents.agent_greeting
    experimentation.illustrated_agents.agent_without_memory
-   experimentation.illustrated_agents.diff_agent_adds_llm
-   experimentation.illustrated_agents.diff_agent_full_growth
    trigger_ias

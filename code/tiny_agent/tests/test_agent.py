@@ -3,11 +3,6 @@
 These tests never need a real model. ``EchoLLM`` replies "Received: <last message>",
 so a test can assert exactly what the agent sent and what it returned. The demo tests
 use the fake server from ``conftest.py`` instead, to cover the real HTTP path.
-
-NOTE: ``TinyAgent`` now takes a ``memory`` argument and sends the whole memory to the
-model, but the tests in the first section still build ``TinyAgent(llm)`` and expect
-``agent.memory`` to be ``None`` and a one-message request. They need updating with
-the new behaviour (not done in this documentation-only audit).
 """
 
 import dataclasses
@@ -16,6 +11,7 @@ import pytest
 
 import main as demo
 from llm_client.response import Response
+from tiny_agent.shared.memory import Memory
 from tiny_agent.shared.tiny_agent import TinyAgent
 
 
@@ -26,38 +22,62 @@ class EchoLLM:
         self.calls = []
 
     def generate(self, messages, tools=None):
-        self.calls.append(messages)
+        # A copy: memory hands out its live list, which grows after the call returns.
+        self.calls.append(list(messages))
         return Response(content=f"Received: {messages[-1]['content']}")
 
 
-# ---- TinyAgent (one model call per task; the other slots are placeholders) ----------
+# ---- TinyAgent (one model call per task, remembered in memory; tools and planner are placeholders) ----
 
-def test_the_llm_is_kept_and_the_other_slots_are_empty_until_their_step():
-    llm = EchoLLM()
-    agent = TinyAgent(llm)
+def test_the_llm_and_memory_are_kept_and_the_other_slots_are_empty_until_their_step():
+    llm, memory = EchoLLM(), Memory()
+    agent = TinyAgent(llm, memory)
     assert agent.llm is llm
-    assert (agent.memory, agent.tools, agent.planner) == (None, None, None)
+    assert agent.memory is memory
+    assert (agent.tools, agent.planner) == (None, None)
 
 
 def test_run_returns_the_models_reply():
-    assert TinyAgent(EchoLLM()).run("Hello, agent!") == "Received: Hello, agent!"
+    assert TinyAgent(EchoLLM(), Memory()).run("Hello, agent!") == "Received: Hello, agent!"
 
 
 def test_run_sends_the_task_as_one_user_message():
     llm = EchoLLM()
-    TinyAgent(llm).run("Hello, agent!")
+    TinyAgent(llm, Memory()).run("Hello, agent!")
     assert llm.calls == [[{"role": "user", "content": "Hello, agent!"}]]
 
 
+def test_run_remembers_the_task_and_the_reply():
+    memory = Memory()
+    TinyAgent(EchoLLM(), memory).run("Hello, agent!")
+    assert memory.get_messages() == [
+        {"role": "user", "content": "Hello, agent!"},
+        {"role": "assistant", "content": "Received: Hello, agent!"},
+    ]
+
+
+def test_a_second_run_sends_the_first_exchange_too():
+    llm = EchoLLM()
+    agent = TinyAgent(llm, Memory())
+    agent.run("one")
+    agent.run("two")
+    assert llm.calls[1] == [
+        {"role": "user", "content": "one"},
+        {"role": "assistant", "content": "Received: one"},
+        {"role": "user", "content": "two"},
+    ]
+
+
 def test_run_handles_empty_and_unusual_text():
-    assert TinyAgent(EchoLLM()).run("") == "Received: "
-    assert TinyAgent(EchoLLM()).run("héllo 🌍\nline two") == "Received: héllo 🌍\nline two"
+    assert TinyAgent(EchoLLM(), Memory()).run("") == "Received: "
+    assert TinyAgent(EchoLLM(), Memory()).run("héllo 🌍\nline two") == "Received: héllo 🌍\nline two"
 
 
 def test_step_and_execute_action_placeholders():
-    agent = TinyAgent(EchoLLM())
+    agent = TinyAgent(EchoLLM(), Memory())
     agent.trajectory.initialize("x")
-    assert agent._step("x") == "Received: x"
+    agent.memory.add("user", "x")
+    assert agent._step() == "Received: x"
     assert agent._execute_action("search") == "Executed action: search"
 
 

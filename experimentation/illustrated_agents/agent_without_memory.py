@@ -1,12 +1,10 @@
 """The phase 2 ``TinyAgent`` has no memory: tell it the authors' names, then ask for them in a second run.
 
-**What it shows.** An LLM only sees the messages it is sent. The phase 2 agent sends just the current task, so each ``run`` starts from nothing. Memory (phase 4) is what carries earlier turns forward.
+**What it shows.** In phase 1 ``TinyAgent`` only echoed its task. Phase 2 gives it an ``llm``: ``run`` sends the task to the model as one user message and returns the model's text. That is one LLM call, with no memory, tools or planning yet. An LLM only sees the messages it is sent, and this agent sends just the current task, so each ``run`` starts from nothing. Memory (phase 4) is what carries earlier turns forward.
 
-**How it works here.** ``agent`` first runs ``authors_greeting`` ("Hi! We are Maarten and Jay, ..."), then ``names_question`` ("Hi! What are our names?"). The second call sends only the question, never the greeting, so the model has no way to know the names.
+**How it works here.** ``agent`` is a ``TinyAgent`` built with ``llm``. It first runs ``authors_greeting`` ("Hi! We are Maarten and Jay, authors of 'An Illustrated Guide to AI Agents'."), then ``names_question`` ("Hi! What are our names?"). The second call sends only the question, never the greeting, so the model has no way to know the names.
 
-**What to expect.** The model says it doesn't know your names (it may guess or ask for them); wording varies between runs. A correct guess would be luck, not memory. ``llm`` is ``qwen3.5-4b`` via the gateway with ``temperature=None`` (the server's default, like the book's call), standing in for the book's ``gemma3:12b``.
-
-Compare ``agent_greeting``, which runs only the first turn.
+**What to expect.** A friendly reply to the greeting, then an answer saying it doesn't know your names (it may guess or ask for them); wording varies between runs. A correct guess would be luck, not memory. ``llm`` is ``qwen3.5-4b`` via the gateway with ``temperature=None`` (the server's default, like the book's call), standing in for the book's ``gemma3:12b``, which the stack does not serve.
 """
 
 from pathlib import Path

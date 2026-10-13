@@ -55,7 +55,7 @@ class Memory:
         """Get all messages.
 
         Returns:
-            The history itself, not a copy: changing it changes the memory. This is
-            what the agent passes to ``LLM.generate`` on each step.
+            The history itself, not a copy, so changing it changes the memory. This
+            is what the agent passes to ``LLM.generate`` on each step.
         """
         return self.messages

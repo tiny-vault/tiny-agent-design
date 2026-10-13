@@ -6,6 +6,7 @@ API reference
    :recursive:
 
    tiny_agent.shared.tiny_agent
+   tiny_agent.shared.memory
    tiny_agent.shared.trajectory
    tiny_agent.shared.step
    main

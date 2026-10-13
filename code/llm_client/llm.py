@@ -48,6 +48,7 @@ import warnings
 from llm_client import check
 from llm_client.response import Response
 
+
 class LLM:
     """One chat model on one server.
 
