@@ -7,6 +7,6 @@ Python runs this file when a package is started with ``-m``. It only forwards to
 
 import sys
 
-from cli import main  # cli.py
+from tiny_agent.cli import main  # cli.py
 
 sys.exit(main())
