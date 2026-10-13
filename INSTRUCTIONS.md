@@ -12,7 +12,7 @@ python -m venv .venv
 python code/main.py
 ```
 
-The demo sends `Hello, agent!` to the model once and prints its reply, so it needs a running model server: the Docker stack with a model loaded (`node execute.mjs up`). It reads the same `TINYAGENT_MODEL` (default `gemma4-e4b`), `TINYAGENT_LLM_URL` and `TINYAGENT_API_KEY_FILE` settings as the `tiny-agent` command below; for the stack, set `TINYAGENT_API_KEY_FILE=experimentation/chat-app/secrets/llama_api_key`.
+The demo tells the agent the authors' names and then asks for them in a second run on the same agent, so memory is what answers (it prints the second reply), so it needs a running model server: the Docker stack with a model loaded (`node execute.mjs up`). It reads the same `TINYAGENT_MODEL` (default `gemma4-e4b`), `TINYAGENT_LLM_URL` and `TINYAGENT_API_KEY_FILE` settings as the `tiny-agent` command below; for the stack, set `TINYAGENT_API_KEY_FILE=experimentation/chat-app/secrets/llama_api_key`.
 
 ### Chat from the terminal
 

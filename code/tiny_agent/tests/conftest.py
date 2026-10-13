@@ -150,9 +150,9 @@ def isolated_env(tmp_path, monkeypatch):
 
 @pytest.fixture
 def demo_server(fake_server, monkeypatch):
-    """A FakeServer that ``main.py`` talks to: ``gemma4-e4b`` loaded, answering ``Received: Hello, agent!``."""
+    """A FakeServer that ``main.py`` talks to: ``gemma4-e4b`` loaded, answering ``Your names are Maarten and Jay.``."""
     fake_server.router(**{"gemma4-e4b": "loaded"})
-    fake_server.reply("Received: Hello, agent!")
+    fake_server.reply("Your names are Maarten and Jay.")
     monkeypatch.setenv("TINYAGENT_LLM_URL", fake_server.url)
     return fake_server
 

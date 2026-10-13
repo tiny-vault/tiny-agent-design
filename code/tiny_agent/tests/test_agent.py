@@ -101,10 +101,20 @@ def test_response_equality_and_fields():
 # ---- the demo entry point -----------------------------------------------------------
 
 def test_main_prints_the_answer(demo_server, capsys):
-    """main() builds the agent, runs one task through the model and prints the result."""
+    """main() runs the greeting and then the question, and prints the second answer."""
     demo.main()
-    assert capsys.readouterr().out.strip() == "Received: Hello, agent!"
-    assert demo_server.requests[0]["body"]["messages"] == [{"role": "user", "content": "Hello, agent!"}]
+    assert capsys.readouterr().out.strip() == "Your names are Maarten and Jay."
+    assert demo_server.requests[0]["body"]["messages"] == [{"role": "user", "content": demo.GREETING}]
+
+
+def test_main_sends_the_greeting_again_with_the_question(demo_server):
+    """Memory: the second request carries the greeting and its reply, then the question."""
+    demo.main()
+    assert demo_server.requests[1]["body"]["messages"] == [
+        {"role": "user", "content": demo.GREETING},
+        {"role": "assistant", "content": "Your names are Maarten and Jay."},
+        {"role": "user", "content": demo.QUESTION},
+    ]
 
 
 def test_main_uses_the_model_named_in_the_environment(demo_server, monkeypatch):

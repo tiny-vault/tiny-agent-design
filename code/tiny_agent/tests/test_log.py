@@ -199,12 +199,13 @@ def test_chat_is_silent_on_the_terminal_without_main(fake_server, capsys):
 def test_main_logs_the_task_and_the_result(log_folder, demo_server, capsys):
     demo.main()
     text = read(log_folder, "main")
-    assert "running task: Hello, agent!" in text
-    assert "result: Received: Hello, agent!" in text
-    assert capsys.readouterr().out.strip() == "Received: Hello, agent!"
+    assert f"running task: {demo.GREETING}" in text
+    assert f"running task: {demo.QUESTION}" in text
+    assert "result: Your names are Maarten and Jay." in text
+    assert capsys.readouterr().out.strip() == "Your names are Maarten and Jay."
 
 
 def test_running_main_twice_appends(log_folder, demo_server):
     demo.main()
     demo.main()
-    assert read(log_folder, "main").count("running task") == 2
+    assert read(log_folder, "main").count("running task") == 4
