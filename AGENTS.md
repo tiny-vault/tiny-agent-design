@@ -54,12 +54,12 @@ Behaviour change = test change in the same commit. The fake router (`backend/tes
 
 ## Pasted model code (`experimentation/illustrated_agents/`)
 
-- Each pasted snippet is a **new** file (descriptive snake_case), unless it is a variant of a technique that has a file: then one more function there (e.g. `best_of_n_<type>` in `best_of_n.py`, picked by name on the command line). Never edit existing scripts' code; documentation-only edits via `edu-audit` are fine.
+- **One file per concept**, grouped by folder: each pasted snippet is a **new** file (descriptive snake_case). Variants of one technique live in the same folder (`best_of_n/orm.py`, `best_of_n/prm.py`, `shot_prompting/zero_shot.py`), one file each. If a folder has a comparison, it is its own `compare.py` in that folder, never mixed into a concept file. A lone concept stays at the top level (`agent_without_memory.py`). Never edit existing scripts' code; documentation-only edits via `edu-audit` are fine.
 - **No `__init__.py`** (namespace folder, so it never shadows the installed `illustrated_agents` package).
-- Each file is **self-sufficient**: own imports, `LLM(...)`, key reading, prompts (`query`, judge prompts), printing helpers (`show`). No shared module (no `common/`), no imports between scripts; duplicated setup is intended. Copy the header of `shot_prompting.py`.
-- Runs on the **existing Docker stack**, never Ollama (`localhost:11434`) or a new server: `base_url="http://localhost:3200/v1"`, stack model names (`qwen3.5-4b`, `gemma4-e4b`), key read at runtime from `experimentation/chat-app/secrets/llama_api_key` via `Path(__file__).parents[1]` (never print or hardcode it). Model not in `chat-app/models/models.ini`: say so and ask.
+- Each file is **self-sufficient**: own imports, `LLM(...)`, key reading, prompts (`query`, judge prompts), printing helpers (`show`). No shared module (no `common/`), no imports between scripts; duplicated setup is intended, including in `compare.py`. Copy the header of `shot_prompting/zero_shot.py`.
+- Runs on the **existing Docker stack**, never Ollama (`localhost:11434`) or a new server: `base_url="http://localhost:3200/v1"`, stack model names (`qwen3.5-4b`, `gemma4-e4b`), key read at runtime from `experimentation/chat-app/secrets/llama_api_key` via `Path(__file__).parents[1]` (`parents[2]` in a subfolder; never print or hardcode it). Model not in `chat-app/models/models.ini`: say so and ask.
 - **Documentation follows the `edu-audit` skill** (rules: its `references/style-guide.md`), for new snippets too. Repo specifics: the module docstring names the key names (``query``, ``llm`` settings, helpers), the expected answer and a "Compare <script>" pointer; Google-style docstrings that pass `sphinx-build -W` (napoleon); no `Run:`/`Requires:`/`Messages sent:` sections (`trigger_ias.py` and `docs/api/illustrated-agents-scripts.rst` cover running); `Warning:` only for a real hazard (e.g. `exec` of model code); logging goes to stderr, never to files.
-- Before running: `node execute.mjs status`; `up` if down, `load <model>` if not loaded. Must run as a file and via `trigger_ias.py <name>`.
+- Before running: `node execute.mjs status`; `up` if down, `load <model>` if not loaded. Must run as a file and via `trigger_ias.py <name>` (`folder/script` for a script in a subfolder, e.g. `best_of_n/orm`).
 
 ## Secrets and logs
 

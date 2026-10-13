@@ -1,20 +1,13 @@
-"""Zero-, one- and few-shot prompting, each plain and with chain-of-thought, compared on the same question.
+"""Compare zero-, one- and few-shot prompting, each plain and with chain-of-thought, on the same question.
 
-**What it is.** The number of solved examples placed before a question is the "shot" count: zero-shot has none, one-shot has one, few-shot has several. Chain-of-thought (CoT) adds step-by-step working, either in the examples' answers or, for zero-shot, with the phrase "Let's think step by step." (Kojima et al., 2022).
+**What it is.** The number of solved examples before a question is the "shot" count (zero, one or three here); chain-of-thought (CoT) adds step-by-step working, either in the examples' answers or, for zero-shot, with "Let's think step by step." (Kojima et al., 2022). Each choice trades prompt length against reply style: examples cost prompt tokens, CoT costs completion tokens.
 
-**One file, not four.** This script replaces the book's separate one-shot, chain-of-thought one-shot and zero-shot chain-of-thought cells, which are ``one_shot(cot=False)``, ``one_shot(cot=True)`` and ``zero_shot(cot=True)`` here; zero-shot without CoT and few-shot are new.
+**How it works here.** Every run asks the penguin ``query`` (answer 11) and differs only in what comes before it, built by ``build_messages(k, cot)`` from the first ``k`` of ``examples``. ``describe`` says what each run changes, ``show`` prints one run as a labelled block, and ``compare`` runs all six variants and ends with a table of answer, correctness and tokens (``final_number`` takes the last number of each reply).
 
-**Why compare them.** Each choice trades prompt length against reply style: examples cost prompt tokens, CoT costs completion tokens.
-
-**How it works here.** Every method asks the penguin ``query`` (answer 11) and differs only in what comes before it. ``zero_shot`` sends the query alone; ``one_shot`` first shows the flamingo example (``examples[0]``); ``few_shot`` shows all three ``examples`` (flamingos, apples, birds). With ``cot=False`` each example's answer is the bare number, so the model copies that format (expect ``11`` in a few tokens). With ``cot=True`` the answers show their working, so the model reasons first (about 50 to 150 tokens).
-
-**Reading the output.** ``build_messages`` turns ``k`` examples into the chat; ``final_number`` takes the last number of a reply; ``show`` prints one run as a labelled block (what this run changes, the exact messages sent, the reply, and a result line with the answer, whether it is correct and the tokens). ``compare`` runs all six and ends with a table. ``python shot_prompting.py few_shot`` runs one method (plain and CoT); no argument runs ``compare``.
-
-**Limits.** ``llm`` is ``qwen3.5-4b`` via the gateway at ``temperature=1``, as in the book, and each variant runs once, so the table is illustrative: it cannot show that one method is better. Compare ``best_of_n``, whose ``best_of_n_majority_vote`` samples many answers and votes.
+**Running it.** ``python compare.py`` runs all six. ``llm`` is ``qwen3.5-4b`` via the gateway at ``temperature=1``, as in the book, and each variant runs once, so the table is illustrative: it cannot show that one method is better. Each method also has its own script (``zero_shot``, ``one_shot``, ``few_shot``) that shows only that technique.
 """
 
 import re
-import sys
 import textwrap
 from pathlib import Path
 
@@ -22,7 +15,7 @@ from illustrated_agents.chapters.ch2 import LLM
 
 # Qwen 3.5 4B, served by the Docker stack (llama.cpp behind the gateway), not Ollama.
 # The key is read at runtime from the git-ignored Docker secret and never printed.
-api_key = (Path(__file__).parents[1] / "chat-app" / "secrets" / "llama_api_key").read_text().strip()
+api_key = (Path(__file__).parents[2] / "chat-app" / "secrets" / "llama_api_key").read_text().strip()
 llm = LLM(model="qwen3.5-4b", base_url="http://localhost:3200/v1", api_key=api_key, temperature=1)
 
 # The query we want to ask the model, and its answer (9 - 2 + 4)
@@ -67,6 +60,16 @@ def indent(text, prefix="    "):
     return textwrap.indent((text or "(empty)").strip(), prefix)
 
 
+def final_number(text):
+    """Return the last integer in a reply, or None if there is none.
+
+    A heuristic: it would misread a reply that mentions another number after its answer.
+    """
+    # The answer is the last number in the reply, whether bare ("11") or after the working ("... = 11.")
+    numbers = re.findall(r"-?\d+", text or "")
+    return int(numbers[-1]) if numbers else None
+
+
 def show(label, k, cot, messages, response):
     """Print one run as a block: what changed, the exact messages sent, the reply and a correct/wrong line.
 
@@ -92,21 +95,9 @@ def show(label, k, cot, messages, response):
         print(indent(response.reasoning))
     print("REPLY")
     print(indent(response.content))
-    if response.tool_call:
-        print(f"TOOL CALL  {response.tool_call}")
     print(f"RESULT  answer {answer} (expected {expected}) -> {verdict}   "
           f"tokens: {response.metadata['prompt_tokens']} prompt, {response.metadata['completion_tokens']} completion")
     print()
-
-
-def final_number(text):
-    """Return the last integer in a reply, or None if there is none.
-
-    A heuristic: it would misread a reply that mentions another number after its answer.
-    """
-    # The answer is the last number in the reply, whether bare ("11") or after the working ("... = 11.")
-    numbers = re.findall(r"-?\d+", text or "")
-    return int(numbers[-1]) if numbers else None
 
 
 def build_messages(k, cot):
@@ -130,38 +121,8 @@ def build_messages(k, cot):
     return messages
 
 
-def run(label, k, cot):
-    """Send one prompt variant to the model, print it with ``show`` and return the ``Response``."""
-    messages = build_messages(k, cot)
-    response = llm.generate(messages)
-    show(label, k, cot, messages, response)
-    return response
-
-
-def zero_shot(cot=False, label="zero_shot"):
-    """Zero-shot: no solved examples; with ``cot`` the trigger "Let's think step by step." is added."""
-    return run(label, 0, cot)
-
-
-def one_shot(cot=False, label="one_shot"):
-    """One-shot: one solved example (the flamingos) before the question."""
-    return run(label, 1, cot)
-
-
-def few_shot(cot=False, label="few_shot"):
-    """Few-shot: all three solved examples before the question."""
-    return run(label, len(examples), cot)
-
-
-methods = {
-    "zero_shot": zero_shot,
-    "one_shot": one_shot,
-    "few_shot": few_shot,
-}
-
-
 def compare():
-    """Run all six variants (three methods, plain and CoT) and print a table of answer, correctness and tokens.
+    """Run all six variants (zero, one and few shot, plain and CoT) and print a table of answer, correctness and tokens.
 
     Returns:
         One ``(name, answer, metadata)`` row per run. One sample each at temperature 1, so the table is
@@ -169,10 +130,13 @@ def compare():
     """
     # Run each method plain and with CoT, keep its reply, then print one table row per run
     rows = []
-    runs = [(name, method, cot) for name, method in methods.items() for cot in (False, True)]
-    for i, (name, method, cot) in enumerate(runs, 1):
+    methods = {"zero_shot": 0, "one_shot": 1, "few_shot": len(examples)}
+    runs = [(name, k, cot) for name, k in methods.items() for cot in (False, True)]
+    for i, (name, k, cot) in enumerate(runs, 1):
         label = f"RUN {i}/{len(runs)}: {name}{' + CoT' if cot else ''}"
-        response = method(cot=cot, label=label)
+        messages = build_messages(k, cot)
+        response = llm.generate(messages)
+        show(label, k, cot, messages, response)
         rows.append((f"{name}{' + CoT' if cot else ''}", final_number(response.content), response.metadata))
 
     # More examples cost more prompt tokens; CoT costs more completion tokens
@@ -188,10 +152,5 @@ def compare():
 
 
 if __name__ == "__main__":
-    # One method by name (plain, then CoT), or the full comparison (needs the Docker stack with qwen3.5-4b loaded).
-    # Via trigger_ias.py, argv[1] is the script name, which matches no method, so compare runs.
-    if len(sys.argv) > 1 and sys.argv[1] in methods:
-        for i, cot in enumerate((False, True), 1):
-            methods[sys.argv[1]](cot=cot, label=f"RUN {i}/2: {sys.argv[1]}{' + CoT' if cot else ''}")
-    else:
-        compare()
+    # The full comparison (needs the Docker stack with qwen3.5-4b loaded)
+    compare()
