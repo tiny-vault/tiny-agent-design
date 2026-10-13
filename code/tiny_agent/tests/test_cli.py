@@ -1,4 +1,10 @@
-"""Tests for tiny_agent.cli: the terminal chat and the ``tiny-agent`` command."""
+"""Tests for tiny_agent.cli: the terminal chat and the ``tiny-agent`` command.
+
+The chat reads lines with ``input`` and prints with ``print``; both are replaceable, so
+a test scripts a whole conversation as a list of lines and checks the printed output
+and the messages the fake server received. Model choice (``pick_model``), the ``/``
+commands, error handling and the exit codes of ``main`` are covered.
+"""
 
 import pytest
 

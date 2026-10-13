@@ -1,4 +1,9 @@
-"""Tests for llm_client.check: which models are loaded."""
+"""Tests for llm_client.check: which models are loaded.
+
+They cover the three kinds of server (a router that reports ``loaded``/``loading``/
+``unloaded``, a server that reports no status, and one that cannot be reached or sends
+bad data) and the exit codes of the ``python -m llm_client.check`` command line.
+"""
 
 import pytest
 

@@ -16,6 +16,13 @@ Settings (environment variables):
 
 Files rotate at 1 MB and keep 3 old copies (``cli.log.1`` and so on).
 
+Why files, and why this way: a terminal chat cannot also show log lines, so the
+tools write them to a file instead. Each tool gets its own named logger
+(``tiny_agent.cli``, ``tiny_agent.main``) that does not pass records to the root
+logger, which is why nothing leaks to the screen. Records are only written when
+a tool calls :func:`setup`; library code never configures logging. Logs name the
+settings used, never secret values.
+
 Example:
     >>> log = setup("cli")        # doctest: +SKIP
     >>> log.info("started")       # doctest: +SKIP

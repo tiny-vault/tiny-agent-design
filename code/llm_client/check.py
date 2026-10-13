@@ -5,6 +5,18 @@ keeps only one loaded at a time, and refuses to chat with a model that is not
 loaded. These helpers ask the server so the agent can fail early with a clear
 message instead of an HTTP error.
 
+Why it exists: a local GPU can hold only one big model at a time. If you ask the
+router for a model that is not loaded you get an error that does not say what to
+do; asking first lets us answer "load it with ``node execute.mjs load <model>``".
+
+How it works: ``GET <base_url>/models`` returns a list of models. A router adds a
+``status.value`` to each (``loaded``, ``loading`` or ``unloaded``). Servers that
+do not report a status (Ollama) get ``"unknown"``, and are never blocked. An
+unreachable server gives ``None``, which is different from "nothing is loaded".
+
+Functions: :func:`model_statuses` is the one request; :func:`loaded_models` and
+:func:`model_status` are small views of its answer; :func:`main` is the command line.
+
 Run it from the repo root to see the state::
 
     python -m llm_client.check                 # list every model and its status

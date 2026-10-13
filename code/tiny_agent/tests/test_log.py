@@ -1,4 +1,10 @@
-"""Tests for tiny_agent.log (the log files) and for what cli.py and main.py write to them."""
+"""Tests for tiny_agent.log (the log files) and for what cli.py and main.py write to them.
+
+They check where the files go, that ``setup`` can be called twice without duplicate
+lines, the log level setting, file rotation, UTF-8 text, and that a folder that cannot
+be created never stops a tool. They also check what ``cli.py`` and ``main.py`` log.
+Each test uses a temporary log folder, so the real logs are untouched.
+"""
 
 import logging
 from pathlib import Path

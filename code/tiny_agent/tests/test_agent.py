@@ -1,4 +1,14 @@
-"""Tests for the TinyAgent skeleton, the Response dataclass and the demo entry point."""
+"""Tests for the TinyAgent skeleton, the Response dataclass and the demo entry point.
+
+These tests never need a real model. ``EchoLLM`` replies "Received: <last message>",
+so a test can assert exactly what the agent sent and what it returned. The demo tests
+use the fake server from ``conftest.py`` instead, to cover the real HTTP path.
+
+NOTE: ``TinyAgent`` now takes a ``memory`` argument and sends the whole memory to the
+model, but the tests in the first section still build ``TinyAgent(llm)`` and expect
+``agent.memory`` to be ``None`` and a one-message request. They need updating with
+the new behaviour (not done in this documentation-only audit).
+"""
 
 import dataclasses
 

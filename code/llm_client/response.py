@@ -3,6 +3,15 @@
 A model server replies with nested JSON (``choices[0].message`` and more).
 :class:`Response` is the flat shape the rest of the harness works with, so the
 agent loop never has to know that format.
+
+Why it exists: different servers spell the same thing differently (llama.cpp
+sends the model's thinking as ``reasoning_content``, Ollama as ``reasoning``).
+Converting once, in :meth:`llm_client.llm.LLM.generate`, keeps that mess out of
+the agent. The key idea for agents is that one reply is either a final answer
+(``content``) or a request to run a tool (``tool_call``); the loop branches on
+which one it got.
+
+This file only defines the data container. It does no parsing and calls nothing.
 """
 
 from dataclasses import dataclass

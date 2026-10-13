@@ -14,17 +14,38 @@ from tiny_agent.shared.step import Step
 
 
 class Trajectory:
-    """Records agent execution as a sequence of runs."""
+    """Records agent execution as a sequence of runs.
+
+    Role: the agent's logbook. It is for the developer reading afterwards, not
+    for the model (what the model sees is ``tiny_agent.shared.memory.Memory``).
+
+    Attributes:
+        runs: One dict per call to ``TinyAgent.run``, oldest first, in the form
+            ``{"query": <task text>, "steps": [Step, ...]}``.
+    """
     def __init__(self) -> None:
         self.runs: list[dict] = []
 
     def initialize(self, query: str) -> None:
-        """Register a new run with the given query."""
+        """Register a new run with the given query.
+
+        Must be called before :meth:`add`, which writes to the latest run.
+        """
         self.runs.append({"query": query, "steps": []})
 
     def add(self, response: Response, observation: str | None = None) -> None:
-        """Record a step from a Response, optionally with an observation."""
-        # Add THOUGHT
+        """Record a step from a Response, optionally with an observation.
+
+        Args:
+            response: What the model returned for this step.
+            observation: What the tool returned, when the model's reply was a
+                tool call that has been run. ``None`` means no tool ran, so the
+                reply is treated as the final answer.
+
+        Raises:
+            IndexError: No run has been started with :meth:`initialize`.
+        """
+        # Add THOUGHT: the model's reasoning, or "" when it sent none
         step = Step(
             thought=response.reasoning or "",
             metadata=response.metadata,

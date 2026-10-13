@@ -16,6 +16,17 @@ loaded right now unless you name one with ``--model``.
 
 Inside the chat, lines starting with ``/`` are commands (``/help`` lists them).
 Standard library only.
+
+How the chat works: the model server keeps no memory between requests, so
+:func:`chat` keeps a ``messages`` list and sends all of it on every turn. Each turn
+appends the user's line, calls ``llm.generate``, and appends the model's reply. That
+growing list is what lets the model "remember" the conversation (the agent's
+``Memory`` class does the same job). :func:`main` picks a model, builds the ``LLM``
+and then either answers one question or starts the chat.
+
+Limitations: no streaming (a reply appears all at once), no history trimming (a very
+long chat will exceed the model's context window), and this chat does not use
+``TinyAgent``. Replies vary from run to run.
 """
 
 import argparse
@@ -95,6 +106,8 @@ def chat(llm: LLM, system: str | None = None, input_fn=None, output=print) -> No
         output: Prints one line; replaceable for the same reason.
     """
     input_fn = input_fn or input
+    # The conversation memory: resent in full on every turn because the server is stateless.
+    # A system message, when given, stays first so /clear can keep it.
     messages = [{"role": "system", "content": system}] if system else []
     output(f"TinyAgent chat. Model: {llm.model} at {llm.base_url}. Type /help for commands, /exit to quit.")
     log.info("chat started: model=%s url=%s think=%s system=%r", llm.model, llm.base_url, llm.think, system)

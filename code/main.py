@@ -8,8 +8,19 @@ changing this file.
 Harness: `TinyAgent` (in code/tiny_agent/shared/tiny_agent.py) is the harness, the non-model code that
 turns an LLM into an agent. This file only starts it: `main()` creates the
 harness and calls `run(task)`, which is where the loop, memory, tools and
-planning live. Keeping the entry point separate means the harness can be
+planning are meant to live as the chapters add them (today `run` makes one
+model call). Keeping the entry point separate means the harness can be
 reused unchanged by any front end.
+
+Settings come from ``code/.env`` or the environment: ``TINYAGENT_MODEL``
+(default ``gemma4-e4b``), ``TINYAGENT_LLM_URL`` (default the Docker gateway) and
+an optional API key. Start the stack and load the model first
+(``node execute.mjs up``); the reply varies from run to run.
+
+Run it with ``python code/main.py``. It logs to ``main.log`` and prints the answer.
+
+NOTE: ``TinyAgent`` now requires a ``memory`` argument, but ``main()`` still calls
+``TinyAgent(llm)``, so the demo raises ``TypeError`` until that call is updated.
 """
 
 import os

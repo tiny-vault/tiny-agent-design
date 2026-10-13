@@ -1,4 +1,10 @@
-"""Tests for llm_client.llm: the LLM client and the Response it returns."""
+"""Tests for llm_client.llm: the LLM client and the Response it returns.
+
+They check the request the client builds (model, messages, tools, reasoning setting),
+how the reply is turned into a ``Response``, the loaded-model check that runs before
+each chat request, and that every failure surfaces as one ``RuntimeError`` with a
+readable message. All against the fake server in ``conftest.py``, never a real model.
+"""
 
 import json
 

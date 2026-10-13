@@ -3,6 +3,11 @@
 Set ``fake_server.models`` to what ``GET /v1/models`` should return and
 ``fake_server.chat`` to what ``POST /v1/chat/completions`` should return. Every
 chat request body is recorded in ``fake_server.requests``.
+
+Why a fake server: ``llm_client`` talks HTTP to a model server. A real model is slow,
+needs a GPU and answers differently each time, so the tests start a tiny server on the
+local machine that returns exactly what the test sets. The tests then check what the
+client sent and how it handled the reply, deterministically and offline.
 """
 
 import json

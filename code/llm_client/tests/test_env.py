@@ -1,4 +1,10 @@
-"""Tests for llm_client.env: loading settings from a .env file."""
+"""Tests for llm_client.env: loading settings from a .env file.
+
+They pin down the small rules in the module docstring: real environment variables win
+over the file, bad lines are skipped, quotes and trailing comments are handled, and a
+missing or unreadable file is never an error. Each test writes its own file in a
+temporary folder.
+"""
 
 import os
 

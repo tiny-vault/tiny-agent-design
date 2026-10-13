@@ -5,6 +5,16 @@ reads ``code/.env`` (the file next to the ``llm_client`` and ``tiny_agent`` fold
 which is git-ignored), so settings such as the model name or the server address do
 not have to be typed on every command.
 
+Why it exists: the model name, server address and API key change per machine and
+must not be hard-coded or committed. Environment variables are the usual place for
+such settings; a ``.env`` file is a convenient way to set them without typing them
+each time. Real code would use the ``python-dotenv`` package; this is a few lines of
+standard library instead, so the project keeps zero dependencies.
+
+How it works: ``load_env`` reads the file, ``parse`` turns its text into a
+dict (using ``_parse_value`` for quotes and comments), and each name not already
+in ``os.environ`` is copied in. Other code then reads it with ``os.environ.get``.
+
 Rules, kept deliberately small:
 
 * A value that is already set in the real environment always wins. The file only

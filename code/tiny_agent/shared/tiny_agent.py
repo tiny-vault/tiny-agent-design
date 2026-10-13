@@ -6,6 +6,7 @@ all rights remain with the authors.
 """
 
 from llm_client.llm import LLM
+from tiny_agent.shared.memory import Memory
 from tiny_agent.shared.trajectory import Trajectory
 
 
@@ -30,14 +31,19 @@ class TinyAgent:
     * the attributes below - pluggable slots for memory, tools and planning.
 
     The model decides; the harness does. The agent now calls the model once
-    per task and records what happened; the loop, memory, tools and planning
-    are still placeholders.
+    per task, remembers the exchange in ``memory`` and records what happened
+    in ``trajectory``; the loop, tools and planning are still placeholders.
+
+    Memory vs trajectory: ``memory`` is what the model *sees* (the messages sent
+    on every call); ``trajectory`` is what *you* see afterwards (a debugging
+    record of each run). They hold similar facts for different readers.
 
     Attributes:
         llm: The "brain": reasons about the task and chooses the next step.
             Passed in when the agent is created.
         memory: The "context": remembers past messages and observations.
-            ``None`` until the memory step.
+            A ``Memory`` (``tiny_agent.shared.memory``), passed in when the
+            agent is created.
         tools: The "hands": functions the agent can call to affect the world.
             ``None`` until the tools step.
         planner: The "strategy": breaks a goal into ordered sub-steps.
@@ -46,12 +52,12 @@ class TinyAgent:
             every run and the steps taken in it, for debugging.
 
     Example:
-        >>> agent = TinyAgent(LLM(model="gemma4-e4b"))  # doctest: +SKIP
+        >>> agent = TinyAgent(LLM(model="gemma4-e4b"), Memory())  # doctest: +SKIP
         >>> agent.run("Hello, agent!")  # doctest: +SKIP
         'Hello! How can I help?'
     """
 
-    def __init__(self, llm: LLM):
+    def __init__(self, llm: LLM, memory: Memory):
         """Assemble the agent's components.
 
         Role: configuration and dependency wiring. Each attribute is a
@@ -60,9 +66,10 @@ class TinyAgent:
 
         Args:
             llm: The client the agent asks for each decision.
+            memory: The conversation history the agent reads and writes.
         """
         self.llm = llm
-        self.memory = None  # Chapter 4: Add Memory
+        self.memory = memory
         self.tools = None  # Chapter 5: Add Tools
         self.planner = None  # Chapter 6: Add Planning
 
@@ -82,6 +89,7 @@ class TinyAgent:
         Returns:
             The agent's result. Currently the model's reply to the task.
         """
+        self.memory.add("user", task)
         self.trajectory.initialize(task)
         return self._step(task)
 
@@ -89,19 +97,22 @@ class TinyAgent:
         """Perform a single step.
 
         Role: one iteration of the reason-act cycle (the "think" phase).
-        Builds the prompt from the task plus memory, asks the LLM what to do
-        next, and returns either a final answer or an action for
+        Sends the whole memory to the LLM, stores its reply back in memory, and
+        returns either a final answer or (later) an action for
         ``_execute_action`` to carry out.
 
         Args:
-            task: The current task text.
+            task: The current task text. Not used for now: :meth:`run` has
+                already put the task into memory, which is what the model sees.
 
         Returns:
             Currently the model's reply text. The call is recorded as a
             :class:`~tiny_agent.shared.step.Step` in ``self.trajectory``.
         """
-        messages = [{"role": "user", "content": task}]
-        response = self.llm.generate(messages)
+        # The model is stateless, so it gets the full history every time. Storing the
+        # reply afterwards is what lets the next call "remember" this one.
+        response = self.llm.generate(self.memory.get_messages())
+        self.memory.add("assistant", response.content)
         self.trajectory.add(response)
         return response.content
 

@@ -20,6 +20,19 @@ as JSON, then read ``result["choices"][0]``.
 
 Only the standard library is used, so TinyAgent keeps zero runtime dependencies.
 
+How a call works, step by step (all inside :meth:`LLM.generate`):
+
+1. Ask the server which models are loaded (:func:`llm_client.check.model_statuses`)
+   and fail early, with the fix, if this model is not.
+2. Build the JSON body: ``model`` and ``messages``, plus ``tools`` if given and
+   ``reasoning_effort: "none"`` when ``think`` is off.
+3. POST it and read the reply; turn every failure into one ``RuntimeError``.
+4. Pick out ``choices[0].message`` and return it as a ``Response``.
+
+Limitations: the client is blocking (no streaming), makes no retries, and keeps
+no history, so the caller owns the conversation. Only the first tool call of a
+reply is kept. The ``/models`` pre-check costs one extra request per call.
+
 Example:
     >>> llm = LLM(model="gemma4-e4b")                            # doctest: +SKIP
     >>> llm.generate([{"role": "user", "content": "Hi!"}]).content  # doctest: +SKIP
@@ -192,13 +205,16 @@ class LLM:
         if not messages:
             raise ValueError("messages must not be empty")
 
-        # Build the request body
+        # Build the request body: the model name plus the whole conversation. The
+        # server is stateless, so every request must carry all earlier turns.
         body = {
             "model": model,
             "messages": messages,
         }
 
-        # Tools and Reasoning
+        # Tools and reasoning are optional fields: leave them out unless needed, so a
+        # plain chat sends the smallest request every server understands.
+        # "none" asks the model to skip its thinking phase (faster, shorter answers).
         if tools:
             body["tools"] = tools
         if not self.think:
@@ -230,7 +246,8 @@ class LLM:
         except ValueError as error:  # a malformed URL, or a reply that is not JSON
             raise RuntimeError(f"Bad URL or a reply that is not JSON ({self.base_url}): {error}") from error
 
-        # Extract message, tool_call, and metadata
+        # Extract message, tool_call, and metadata. A server can answer 200 with JSON
+        # that is not a chat completion, so check the shape before trusting it.
         try:
             message = data["choices"][0]["message"]
             if not isinstance(message, dict):
@@ -238,7 +255,7 @@ class LLM:
         except (KeyError, IndexError, TypeError) as error:
             raise RuntimeError(f"Unexpected reply from the model server: {str(data)[:200]}") from error
         tool_calls = message.get("tool_calls")
-        tool_call = tool_calls[0] if tool_calls else None
+        tool_call = tool_calls[0] if tool_calls else None  # only the first call is kept (see Response)
         usage = data.get("usage") or {}  # some servers omit usage
         metadata = {
             "model": data.get("model", self.model),
@@ -246,7 +263,7 @@ class LLM:
             "completion_tokens": usage.get("completion_tokens"),
         }
 
-        # Format as Response dataclass
+        # Format as the flat Response dataclass, so the agent never sees raw server JSON.
         return Response(
             content=message.get("content"),
             # Ollama calls it "reasoning"; llama.cpp calls it "reasoning_content".
