@@ -6,7 +6,8 @@ it an agent. The pieces live here:
 * :mod:`~tiny_agent.shared.tiny_agent`: the ``TinyAgent`` control loop and the
   slots for the LLM, memory, tools and planner.
 * ``tiny_agent.shared.memory``: the ``Memory`` that stores the conversation sent
-  to the model on every call.
+  to the model on every call, and ``tiny_agent.shared.memory.trimming``, a
+  ``TrimmingMemory`` that keeps only the last two turns.
 * :mod:`~tiny_agent.shared.trajectory` and :mod:`~tiny_agent.shared.step`: the
   debugging record of what the agent did, one ``Step`` at a time.
 

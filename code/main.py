@@ -20,6 +20,10 @@ an optional API key. Start the stack and load the model first
 The demo tells the agent the authors' names, then asks for them in a second run. The second call
 sends the whole conversation, so the model can answer; without memory it could not.
 
+Set ``TINYAGENT_TRIM_MEMORY=1`` to give the agent a ``TrimmingMemory`` (it keeps only the last two
+turns) instead of the plain ``Memory``. The two tasks here fit in the window, so the demo's answer does not
+change; the flag matters in a longer conversation.
+
 Run it with ``python code/main.py``. It logs to ``main.log`` and prints the second answer.
 """
 
@@ -30,11 +34,23 @@ from llm_client import check, env
 from llm_client.llm import LLM
 from tiny_agent import log as logs
 from tiny_agent.shared.memory import Memory
+from tiny_agent.shared.memory.trimming import TrimmingMemory
 from tiny_agent.shared.tiny_agent import TinyAgent
 
 # The first task puts the names into memory; the second can only be answered from it.
 GREETING = "Hi! We are Maarten and Jay, authors of 'An Illustrated Guide to AI Agents'."
 QUESTION = "Hi! What are our names?"
+
+
+def memory_from_env() -> Memory:
+    """Pick the agent's memory: ``TrimmingMemory`` when ``TINYAGENT_TRIM_MEMORY`` is on, else ``Memory``.
+
+    The flag is off unless it is ``1``, ``true``, ``yes`` or ``on`` (any case), so the default behaviour is
+    unchanged. Trimming keeps only the last two turns, so a long chat stays within the model's context window
+    but the agent forgets what was said before that.
+    """
+    on = os.environ.get("TINYAGENT_TRIM_MEMORY", "").strip().lower() in ("1", "true", "yes", "on")
+    return TrimmingMemory() if on else Memory()
 
 
 def main() -> None:
@@ -53,7 +69,7 @@ def main() -> None:
         base_url=os.environ.get("TINYAGENT_LLM_URL", check.DEFAULT_URL),
         **key_setting,
     )
-    agent = TinyAgent(llm, Memory())
+    agent = TinyAgent(llm, memory_from_env())
     for task in (GREETING, QUESTION):
         log.info("running task: %s", task)
         result = agent.run(task)

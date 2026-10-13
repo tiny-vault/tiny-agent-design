@@ -11,7 +11,8 @@ records a tool call also carries ``tool_calls``.
 
 This file keeps the list in plain Python memory only. It is lost when the program
 ends, never shortened, and has no limit, so a long chat will eventually exceed the
-model's context window. Trimming, summarising and saving are left to later phases.
+model's context window. ``trimming.TrimmingMemory`` (next to this file) is the first
+fix: it keeps only the last two turns. Summarising and saving are left to later phases.
 """
 
 from typing import Any

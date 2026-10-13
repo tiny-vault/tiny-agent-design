@@ -14,7 +14,8 @@ Apply to everything in this folder (`shared/`, `tests/`, anything added); they o
 | File | State |
 |---|---|
 | `shared/tiny_agent.py` | `TinyAgent(llm, memory)`: `run` and `_step` make one model call per task with the whole memory; `_execute_action` is still a placeholder (no tools, planner or loop yet). |
-| `shared/memory.py`, `shared/trajectory.py`, `shared/step.py` | The conversation history sent to the model; the debugging record of each run, one `Step` at a time. |
+| `shared/memory/` | A package: `memory.py` is `Memory`, the conversation history sent to the model (also importable from the package, `from tiny_agent.shared.memory import Memory`); `trimming.py` is `TrimmingMemory`, which keeps only the last two turns (`main.py` uses it when `TINYAGENT_TRIM_MEMORY` is on). |
+| `shared/trajectory.py`, `shared/step.py` | The debugging record of each run, one `Step` at a time. |
 | `log.py` | The `cli.log` and `main.log` files (the only place that writes log files). |
 | `../llm_client/` | LLM client (`llm.py`, `response.py`, `check.py`), a self-contained top-level package with its own tests and README; same rules. |
 | `../main.py` | Demo: `python code/main.py` runs two tasks on one agent to show its memory. |

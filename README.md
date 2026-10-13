@@ -77,6 +77,7 @@ The Python code reads its settings from `code/.env` (git-ignored; `code/.env.exa
 | `TINYAGENT_MODEL` | The model to chat with (default: whichever is loaded) |
 | `TINYAGENT_LLM_URL` | The server address (default: the Docker gateway) |
 | `TINYAGENT_SYSTEM`, `TINYAGENT_THINK` | A system message; let the model think |
+| `TINYAGENT_TRIM_MEMORY` | `1` gives the `main.py` demo a `TrimmingMemory` that keeps only the last two turns (default: keep everything) |
 | `TINYAGENT_API_KEY_FILE` or `TINYAGENT_API_KEY` | A key for a hosted server (the Docker stack needs none) |
 | `TINYAGENT_LOG_DIR`, `TINYAGENT_LOG_LEVEL` | Where and how much `cli.log` and `main.log` log |
 
