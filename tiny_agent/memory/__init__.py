@@ -7,10 +7,11 @@ holds the variants built on it, one file each:
 * ``trimming.py``: ``TrimmingMemory``, which keeps only the last two turns.
 * ``summarization.py``: ``SummarizationMemory``, which keeps a running summary written by the model.
 * ``rag.py``: ``RAGMemory``, which puts the documents most similar to each question in front of it.
+* ``memory_bank.py``: ``MemoryBank``, which keeps event summaries and a user portrait that fade unless recalled.
 
 Import ``Memory`` from its file, ``from tiny_agent.agent.memory import Memory``; it is also re-exported here, so
 ``from tiny_agent.memory import Memory`` still works. ``TrimmingMemory``, ``SummarizationMemory`` and
-``RAGMemory`` are imported from their files (``tiny_agent.memory.trimming``, ``.summarization``, ``.rag``).
+``RAGMemory`` are imported from their files (``tiny_agent.memory.trimming``, ``.summarization``, ``.rag``, ``.memory_bank``).
 """
 
 from tiny_agent.agent.memory import Memory

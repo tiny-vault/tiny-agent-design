@@ -33,6 +33,11 @@ Set ``TINYAGENT_RAG_MEMORY=1`` to give it a ``RAGMemory`` instead: each user mes
 ``embeddinggemma-300m``) at ``TINYAGENT_EMBEDDING_URL`` (default ``http://127.0.0.1:3201/v1``, the
 ``llama-embed`` container of ``deploy/llm-client``). It wins over the other two flags.
 
+Set ``TINYAGENT_BANK_MEMORY=1`` to give it a ``MemoryBank`` instead: after each reply the model writes an event summary
+and updates a user portrait, and each user message gets the summaries it recalls (and the portrait) put in front of
+it; unused summaries fade over time. It needs the same embedding model as the RAG flag and costs two extra chat
+calls and one embedding request per task. It wins over all the other flags.
+
 Run it with ``python -m tiny_agent.main``. It logs to ``main.log`` and prints the second answer.
 """
 
@@ -45,6 +50,7 @@ from tiny_agent.agent.tiny_agent import TinyAgent
 from tiny_agent.llm_client import check, env
 from tiny_agent.llm_client.embedding import EmbeddingModel
 from tiny_agent.llm_client.llm import LLM
+from tiny_agent.memory.memory_bank import MemoryBank
 from tiny_agent.memory.rag import RAGMemory
 from tiny_agent.memory.summarization import SummarizationMemory
 from tiny_agent.memory.trimming import TrimmingMemory
@@ -69,35 +75,41 @@ DOCUMENTS = [
 
 
 def memory_from_env(llm: LLM | None = None) -> Memory:
-    """Pick the agent's memory: retrieving, summarizing, trimming or plain, depending on the environment.
+    """Pick the agent's memory: banking, retrieving, summarizing, trimming or plain, depending on the environment.
 
-    ``TINYAGENT_RAG_MEMORY`` gives a ``RAGMemory`` over ``DOCUMENTS``, ``TINYAGENT_SUMMARY_MEMORY`` a
+    ``TINYAGENT_BANK_MEMORY`` gives a ``MemoryBank``, ``TINYAGENT_RAG_MEMORY`` a ``RAGMemory`` over ``DOCUMENTS``, ``TINYAGENT_SUMMARY_MEMORY`` a
     ``SummarizationMemory``, ``TINYAGENT_TRIM_MEMORY`` a ``TrimmingMemory``, and with none it is the plain ``Memory``. A flag is off unless it is ``1``, ``true``, ``yes`` or ``on``
     (any case), so the default behaviour is unchanged. Trimming keeps only the last two turns, so the agent
     forgets what was said before that; summarizing keeps a model-written summary instead. If both flags are on,
     the summary wins. Retrieval wins over both; its embedding model is ``TINYAGENT_EMBEDDING_MODEL`` (default
     ``embeddinggemma-300m``) at ``TINYAGENT_EMBEDDING_URL``, with the key of ``llm``, and building the memory embeds every
-    document.
+    document. The bank wins over all the others and uses the same embedding model.
 
     Args:
         llm: The model that writes the summaries, or whose key the embedding model uses. Needed only
-            when ``TINYAGENT_SUMMARY_MEMORY`` or ``TINYAGENT_RAG_MEMORY`` is on.
+            when ``TINYAGENT_SUMMARY_MEMORY`` ``TINYAGENT_RAG_MEMORY`` or ``TINYAGENT_BANK_MEMORY`` is on.
 
     Raises:
-        ValueError: ``TINYAGENT_SUMMARY_MEMORY`` or ``TINYAGENT_RAG_MEMORY`` is on but no ``llm`` was given.
+        ValueError: ``TINYAGENT_SUMMARY_MEMORY``, ``TINYAGENT_RAG_MEMORY`` or ``TINYAGENT_BANK_MEMORY`` is on but no ``llm`` was given.
     """
     def is_on(name: str) -> bool:
         return os.environ.get(name, "").strip().lower() in ("1", "true", "yes", "on")
 
-    if is_on("TINYAGENT_RAG_MEMORY"):
-        if llm is None:
-            raise ValueError("TINYAGENT_RAG_MEMORY needs an llm for the embedding model's key")
-        embedding_model = EmbeddingModel(
+    def embedding_model_for(llm: LLM) -> EmbeddingModel:
+        return EmbeddingModel(
             model=os.environ.get("TINYAGENT_EMBEDDING_MODEL", "embeddinggemma-300m"),
             base_url=os.environ.get("TINYAGENT_EMBEDDING_URL", "http://127.0.0.1:3201/v1"),
             api_key=llm.api_key,
         )
-        return RAGMemory(embedding_model, DOCUMENTS)
+
+    if is_on("TINYAGENT_BANK_MEMORY"):
+        if llm is None:
+            raise ValueError("TINYAGENT_BANK_MEMORY needs an llm to write the summaries and the embedding model's key")
+        return MemoryBank(llm, embedding_model_for(llm))
+    if is_on("TINYAGENT_RAG_MEMORY"):
+        if llm is None:
+            raise ValueError("TINYAGENT_RAG_MEMORY needs an llm for the embedding model's key")
+        return RAGMemory(embedding_model_for(llm), DOCUMENTS)
     if is_on("TINYAGENT_SUMMARY_MEMORY"):
         if llm is None:
             raise ValueError("TINYAGENT_SUMMARY_MEMORY needs an llm to write the summaries")

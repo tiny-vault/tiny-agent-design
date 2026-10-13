@@ -80,6 +80,7 @@ The Python code reads its settings from `tiny_agent/.env` (git-ignored; `tiny_ag
 | `TINYAGENT_TRIM_MEMORY` | `1` gives the `main.py` demo a `TrimmingMemory` that keeps only the last two turns (default: keep everything) |
 | `TINYAGENT_SUMMARY_MEMORY` | `1` gives the `main.py` demo a `SummarizationMemory` that keeps a model-written running summary instead of the messages (one extra model call per task; wins over `TINYAGENT_TRIM_MEMORY`) |
 | `TINYAGENT_RAG_MEMORY`, `TINYAGENT_EMBEDDING_MODEL` | `1` gives the `main.py` demo a `RAGMemory` that puts the three documents most similar to each question in front of it, found with an embedding model (default `embeddinggemma-300m`, on the same server). The server needs both models loaded at once (`LLAMA_MODELS_MAX=2`). Wins over the two flags above |
+| `TINYAGENT_BANK_MEMORY` | `1` gives the `main.py` demo a `MemoryBank` (long-term memory after Zhong et al., 2023): a model-written summary per turn and a user portrait, both put in front of the next question when relevant; summaries fade unless recalled. Uses the same embedding model as the flag above and costs two extra chat calls per task. Wins over all the flags above |
 | `TINYAGENT_API_KEY_FILE` or `TINYAGENT_API_KEY` | A key for a hosted server (the Docker stack needs none) |
 | `TINYAGENT_LOG_DIR`, `TINYAGENT_LOG_LEVEL` | Where and how much `cli.log` and `main.log` log |
 

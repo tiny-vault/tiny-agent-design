@@ -7,6 +7,9 @@ key words it contains, and ``Clock`` is a time the tests move by hand.
 
 from typing import Any
 
+import pytest
+
+from tiny_agent import main as demo
 from tiny_agent.agent.memory import Memory
 from tiny_agent.agent.tiny_agent import TinyAgent
 from tiny_agent.llm_client.llm import LLM
@@ -198,3 +201,36 @@ def test_the_agent_gets_an_answer_call_then_two_memory_calls_per_task():
     assert agent.run("what pet do I have?") == "ok"
     # The second question reached the model with the first turn's summary in front of it.
     assert "Memories:\nsummary1" in answers[1][-1]["content"]
+
+
+# ---- the flag ----------------------------------------------------------------------------
+
+@pytest.mark.parametrize("value", ["1", "true", "TRUE", "yes", "on", " On "])
+def test_these_values_turn_the_bank_on(monkeypatch, value):
+    monkeypatch.setenv("TINYAGENT_BANK_MEMORY", value)
+    assert type(demo.memory_from_env(FakeLLM())) is MemoryBank
+
+
+@pytest.mark.parametrize("value", ["", "0", "false", "off", "no", "maybe"])
+def test_other_values_leave_the_bank_off(monkeypatch, value):
+    monkeypatch.setenv("TINYAGENT_BANK_MEMORY", value)
+    assert type(demo.memory_from_env(FakeLLM())) is Memory
+
+
+def test_the_bank_gets_the_llm_it_was_given(monkeypatch):
+    monkeypatch.setenv("TINYAGENT_BANK_MEMORY", "1")
+    llm = FakeLLM()
+    memory = demo.memory_from_env(llm)
+    assert isinstance(memory, MemoryBank) and memory.llm is llm
+
+
+def test_the_bank_needs_an_llm(monkeypatch):
+    monkeypatch.setenv("TINYAGENT_BANK_MEMORY", "1")
+    with pytest.raises(ValueError, match="llm"):
+        demo.memory_from_env()
+
+
+def test_the_bank_flag_wins_over_the_other_flags(monkeypatch):
+    for name in ("TINYAGENT_RAG_MEMORY", "TINYAGENT_SUMMARY_MEMORY", "TINYAGENT_TRIM_MEMORY", "TINYAGENT_BANK_MEMORY"):
+        monkeypatch.setenv(name, "1")
+    assert type(demo.memory_from_env(FakeLLM())) is MemoryBank

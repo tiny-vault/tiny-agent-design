@@ -207,14 +207,14 @@ def test_the_embedding_server_defaults_to_the_llama_embed_container(monkeypatch)
     monkeypatch.setenv("TINYAGENT_RAG_MEMORY", "1")
     monkeypatch.delenv("TINYAGENT_EMBEDDING_URL", raising=False)
     monkeypatch.setattr(demo, "RAGMemory", lambda embedding_model, documents: embedding_model)
-    assert demo.memory_from_env(LLM(model="m")).base_url == "http://127.0.0.1:3201/v1"
+    assert demo.memory_from_env(LLM(model="m")).base_url == "http://127.0.0.1:3201/v1"  # pyright: ignore[reportAttributeAccessIssue]
 
 
 def test_the_embedding_model_can_be_chosen(monkeypatch):
     monkeypatch.setenv("TINYAGENT_RAG_MEMORY", "1")
     monkeypatch.setenv("TINYAGENT_EMBEDDING_MODEL", "other-embedder")
     monkeypatch.setattr(demo, "RAGMemory", lambda embedding_model, documents: embedding_model)
-    assert demo.memory_from_env(LLM(model="m")).model == "other-embedder"
+    assert demo.memory_from_env(LLM(model="m")).model == "other-embedder"  # pyright: ignore[reportAttributeAccessIssue]
 
 
 def test_retrieval_needs_an_llm(monkeypatch):

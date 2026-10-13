@@ -24,7 +24,8 @@ running program (retrieved context included, as in ``RAGMemory``); the bank is w
 retrieve from, but it lives in Python memory only and is lost when the program ends. Every completed turn costs
 two chat calls and one embedding request, made by the memory itself and not recorded in the trajectory; a failing
 server raises to the caller. The paper also builds a summary per day and a global one; here it is per turn.
-The time comes from ``clock`` (seconds, ``time.time`` by default) so tests can move it.
+Switch it on in the demo with ``TINYAGENT_BANK_MEMORY=1`` (see ``main.memory_from_env``); the harness itself takes
+whichever memory it is given. The time comes from ``clock`` (seconds, ``time.time`` by default) so tests can move it.
 """
 
 import math
