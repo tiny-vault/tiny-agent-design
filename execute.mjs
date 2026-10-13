@@ -1,42 +1,64 @@
 #!/usr/bin/env node
-// Control the chat app's Docker deployment.  Usage: node execute.mjs <command> [args]
+// Control the Docker deployment: four independent parts, each a folder in deploy/ with its own compose file:
+// the chat app, the llm client, the tiny agent and the Sphinx docs.  Usage: node execute.mjs <command> [args]
 // No dependencies; needs Node 18+ and Docker with the compose plugin.
 
 import { spawnSync } from "node:child_process";
-import { randomBytes } from "node:crypto";
 import { existsSync, mkdirSync, readFileSync, readdirSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { request as httpRequest } from "node:http";
 import { dirname, join } from "node:path";
 import { createInterface } from "node:readline/promises";
 import { fileURLToPath } from "node:url";
 
+import { SECRET_PASSWORD, SECRET_USER, SECRETS_DIR, ensureSecrets } from "./deploy/chat-app/init-secrets.mjs";
+
 const ROOT = dirname(fileURLToPath(import.meta.url));
-// ROOT is the repo root. The compose file is in experimentation/, next to .env and logs/.
-const DEPLOY = join(ROOT, "experimentation");
-const CHAT_APP = join(DEPLOY, "chat-app");
-const COMPOSE_FILE = join(DEPLOY, "docker-compose.yaml");
+// ROOT is the repo root. The compose files, Dockerfiles, nginx and Vector configs and the optional .env
+// are in deploy/. The chat app's source, models, logs and secrets stay in experimentation/chat-app/.
+const DEPLOY = join(ROOT, "deploy");
+const CHAT_APP = join(ROOT, "experimentation", "chat-app");
+// Four independent compose projects. Most commands act on the chat app; see TARGETS for `up` and `down`.
+const COMPOSE_FILES = {
+  "chat-app": join(DEPLOY, "chat-app", "docker-compose.yaml"),
+  "llm-client": join(DEPLOY, "llm-client", "docker-compose.yaml"),
+  "tiny-agent": join(DEPLOY, "tiny-agent", "docker-compose.yaml"),
+  docs: join(DEPLOY, "docs", "docker-compose.yaml"),
+};
+const TARGETS = [...Object.keys(COMPOSE_FILES), "all"];
 const PORT = process.env.GATEWAY_PORT || "3200";
 const URL_BASE = `http://localhost:${PORT}`;
+// The Sphinx docs are served on this port (127.0.0.1 only). 3000, 8000, 8080 and 3001 belong to other projects.
+const DOCS_PORT = process.env.DOCS_PORT || "3300";
 // OpenObserve (log search) and the folder that holds its data and the tiny-agent/main.py logs.
 const OBSERVE_URL = `http://localhost:${process.env.OPENOBSERVE_PORT || "5080"}`;
 const LOG_DIR = join(CHAT_APP, "logs");
 // Models llama.cpp downloaded from Hugging Face (git-ignored). prune never touches this folder.
 const MODELS_DIR = join(CHAT_APP, "models", "cache");
-// The OpenObserve login is a Docker secret: two files that are not in git (secrets/ is ignored).
-const SECRETS_DIR = join(CHAT_APP, "secrets");
-const SECRET_USER = join(SECRETS_DIR, "openobserve_user");
-const SECRET_PASSWORD = join(SECRETS_DIR, "openobserve_password");
-const SECRET_LLAMA_KEY = join(SECRETS_DIR, "llama_api_key");
+// The secrets (OpenObserve login, llama.cpp key) are Docker secrets: files that are not in git. They are
+// created by deploy/chat-app/init-secrets.mjs, which this file imports.
 
 const HELP = `
-TinyAgent chat deployment
+TinyAgent Docker deployment
 
   node execute.mjs <command> [args]
 
+Four parts, a folder each in deploy/ with its own compose file, each deployed on its own:
+  chat-app    llama.cpp, backend, frontend, gateway and the log pipeline   http://localhost:3200
+  llm-client  the LLM client (run on demand)                               node execute.mjs llm-client
+  tiny-agent  the TinyAgent terminal chat (run on demand)                  node execute.mjs tiny-agent
+  docs        the Sphinx docs                                              http://localhost:3300
+
 Lifecycle
-  up [--no-build]     Start the COMPLETE stack: app, backend, llama.cpp and the log pipeline
-                      (OpenObserve + Vector). Models download on first load; see "download"
-  down                Stop and remove the containers (models and images are kept)
+  up [target] [--no-build]
+                      target is chat-app (the default), llm-client, tiny-agent, docs or all.
+                      chat-app: app, backend, llama.cpp and the log pipeline (OpenObserve + Vector).
+                      Models download on first load; see "download".
+                      docs: build the Sphinx docs into an image and serve them.
+                      llm-client: start its own model server (llama.cpp) on http://localhost:3200/v1,
+                      the one the experimentation scripts use. Same port and GPU as the chat app, so
+                      use one or the other; "all" leaves it out.
+                      tiny-agent: only build the image (it runs on demand, see below).
+  down [target]       Stop and remove the containers of one target or all (models and images are kept)
   restart [service]   Restart one service or all of them
   rebuild [service]   Rebuild images and recreate containers
   clean               Stop, remove containers, volumes and locally built images
@@ -81,11 +103,34 @@ Tests  (extra arguments after "--" go to the test runner)
     node execute.mjs test mocked -- --grep Stop     mocked tests whose title has "Stop"
     node execute.mjs test mocked -- --headed        watch the browser
 
+LLM client and tiny agent (run in Docker, each on its own). llm-client has its own model server (up
+llm-client); tiny-agent uses whatever answers on http://localhost:3200/v1: that server or the chat
+app's gateway (or set TINYAGENT_LLM_URL)
+  llm-client          Which models are loaded
+  llm-client MODEL    Exit code 0 if MODEL is loaded, 1 if not
+  llm-client load MODEL
+                      Load a model into the llm-client model server and wait (the first time it is
+                      downloaded: minutes)
+  llm-client ask [--model NAME] "question"
+                      Send the question to the loaded model and print its answer. It never loads a
+                      model itself (see: llm-client load)
+  tiny-agent ["question"]
+                      The interactive chat, or one question and its answer
+
+Docs
+  docs                Build the Sphinx docs into an image and serve them on http://localhost:3300
+                      (same as: up docs). A docs warning fails the build
+  docs --local [--no-build] [--port N]
+                      No Docker: build with sphinx on this machine (warnings are errors) and serve
+                      the result. --no-build serves the last build. Stop with Ctrl-C
+
   open                Print the app URL
   help                Show this text
 
-Settings come from experimentation/.env or the environment: GATEWAY_PORT,
-OPENOBSERVE_PORT, LLAMA_MODELS_MAX (see experimentation/.env.example).
+Each folder in deploy/ may have a .env (see its .env.example). GATEWAY_PORT, OPENOBSERVE_PORT and
+LLAMA_MODELS_MAX belong to deploy/chat-app, DOCS_PORT to deploy/docs, TINYAGENT_LLM_URL to deploy/llm-client
+and deploy/tiny-agent. The environment works too;
+"docs --local" reads DOCS_PORT from the environment only.
 `;
 
 function run(cmd, args, options = {}) {
@@ -97,37 +142,24 @@ function run(cmd, args, options = {}) {
   return result.status ?? 1;
 }
 
-/* Create the secrets if they do not exist yet: the OpenObserve login and the llama.cpp API key. The user defaults to
-   admin@example.com (or $OPENOBSERVE_USER); the password is random and never printed
-   here: read it with `node execute.mjs observe --password`. Existing files are kept, except an
-   OpenObserve password that breaks its policy (it refuses to start with one). */
-
-/* OpenObserve refuses to start unless the root password is 8-128 characters with a lowercase
-   letter, an uppercase letter, a digit and a special character. */
-const passwordIsStrong = (p) => p.length >= 8 && p.length <= 128 && /[a-z]/.test(p) && /[A-Z]/.test(p) && /\d/.test(p) && /[^A-Za-z0-9]/.test(p);
-
-/* Random, and always meets that policy: alphanumeric random part plus one of each class. */
-const generatePassword = () => randomBytes(18).toString("base64url").replace(/[-_]/g, "x") + "Aa9!";
-
-function ensureSecrets() {
-  mkdirSync(SECRETS_DIR, { recursive: true });
-  if (!existsSync(SECRET_USER)) writeFileSync(SECRET_USER, process.env.OPENOBSERVE_USER || "admin@example.com", { mode: 0o600 });
-  if (!existsSync(SECRET_PASSWORD) || !passwordIsStrong(readFileSync(SECRET_PASSWORD, "utf8").trim())) {
-    writeFileSync(SECRET_PASSWORD, generatePassword(), { mode: 0o600 });
-    console.log(`Created the OpenObserve login in ${SECRETS_DIR} (not in git).`);
-  }
-  if (!existsSync(SECRET_LLAMA_KEY)) {
-    writeFileSync(SECRET_LLAMA_KEY, randomBytes(24).toString("hex"), { mode: 0o600 });
-    console.log(`Created the llama.cpp API key in ${SECRETS_DIR} (not in git).`);
-  }
-}
-
 const readSecret = (file) => readFileSync(file, "utf8").trim();
 
-const compose = (...args) => {
-  ensureSecrets(); // the compose file refers to these files, so they must exist for every command
-  return run("docker", ["compose", "-f", COMPOSE_FILE, "--project-directory", DEPLOY, ...args]);
+/* Run `docker compose <args>` for one of the four projects. Each project's folder is its
+   --project-directory, so it reads its own .env. */
+const composeFor = (target, ...args) => {
+  if (target === "chat-app") ensureSecrets(); // only the chat app's compose file refers to the secret files
+  const file = COMPOSE_FILES[target];
+  return run("docker", ["compose", "-f", file, "--project-directory", dirname(file), ...args]);
 };
+
+const compose = (...args) => composeFor("chat-app", ...args);
+
+/* The target named in a command's arguments (`up docs`, `down all`), or the chat app when there is none. */
+function targetFrom(args) {
+  const target = args.find((a) => !a.startsWith("--")) ?? "chat-app";
+  if (!TARGETS.includes(target)) fail(`Unknown target '${target}'. Use one of: ${TARGETS.join(", ")}`);
+  return target;
+}
 
 function fail(message, code = 1) {
   console.error(`\nError: ${message}`);
@@ -357,6 +389,8 @@ async function prune(args) {
   // Docker first: the containers hold the secrets and the OpenObserve data folder open.
   console.log("\nRemoving the Docker setup...");
   const code = compose("down", "--remove-orphans", "--volumes"); // no --rmi: images stay
+  // The other three projects have no volumes, only containers and networks.
+  for (const other of ["docs", "llm-client", "tiny-agent"]) composeFor(other, "down", "--remove-orphans");
   if (code) console.log("Warning: docker compose down reported a problem (is Docker running?). Continuing with the files.");
   // `down --volumes` removes the named volumes in the compose file. Sweep up any other volume
   // compose labelled for this project (for example an anonymous volume from an old container).
@@ -377,19 +411,79 @@ async function prune(args) {
   console.log("Start again with: node execute.mjs up   (the models are not downloaded again)");
 }
 
-const [command = "help", ...args] = process.argv.slice(2);
-
-switch (command) {
-  case "up": {
+/* Start one of the four parts. Each is its own compose project, so starting one never touches the others. */
+async function up(target, noBuild) {
+  const build = noBuild ? [] : ["--build"];
+  if (target === "chat-app") {
     // OpenObserve's data folder must exist and be yours before Docker mounts it.
     mkdirSync(join(LOG_DIR, "openobserve"), { recursive: true });
     mkdirSync(MODELS_DIR, { recursive: true });
-    const code = compose("up", "-d", ...(args.includes("--no-build") ? [] : ["--build"]), "--remove-orphans");
+    const code = composeFor("chat-app", "up", "-d", ...build, "--remove-orphans");
     if (code) process.exit(code);
     await waitUntilHealthy();
     await waitForObserve();
     await printModels();
     printUrls();
+  } else if (target === "docs") {
+    // The build runs sphinx with -W inside the image, so a docs warning stops here with its message.
+    const code = composeFor("docs", "up", "-d", ...build, "--remove-orphans");
+    if (code) process.exit(code);
+    console.log(`\nSphinx docs:  http://localhost:${DOCS_PORT}`);
+  } else if (target === "llm-client") {
+    // Starts the folder's own model server (llama.cpp); the client itself runs on demand.
+    const code = composeFor("llm-client", "up", "-d", ...build, "--remove-orphans");
+    if (code) process.exit(code);
+    console.log(`\nModel server:  http://localhost:${process.env.LLAMA_PORT || "3200"}/v1  (the first request for a model downloads and loads it)`);
+    console.log("Load a model:  node execute.mjs llm-client load qwen3.5-4b");
+    console.log('Ask it:        node execute.mjs llm-client ask "Why is the sky blue?"');
+    console.log("The experimentation scripts use it as they are: .venv/Scripts/python experimentation/trigger_ias.py");
+  } else {
+    // tiny-agent is not long-running: "up" only builds its image.
+    const code = composeFor(target, "build");
+    if (code) process.exit(code);
+    console.log(`\nBuilt the ${target} image. Run it with: node execute.mjs ${target}`);
+  }
+}
+
+const [command = "help", ...args] = process.argv.slice(2);
+
+switch (command) {
+  case "up": {
+    const target = targetFrom(args);
+    // "all" leaves out llm-client's model server: it uses the same port (3200) and GPU as the chat app's llama.
+    for (const part of target === "all" ? ["chat-app", "docs", "tiny-agent"] : [target]) await up(part, args.includes("--no-build"));
+    break;
+  }
+  case "llm-client": {
+    // `run --build` so the image always matches the code; Docker's layer cache makes that fast. Words after the
+    // service name replace its default command, so the whole command is repeated here.
+    // `ask "question"` really talks to the loaded model (ask.py), `load MODEL` loads one and waits (load.py);
+    // anything else is the model check (llm_client.check).
+    const [first, ...rest] = args;
+    const cmd =
+      first === "ask" ? ["python", "ask.py", ...rest] : first === "load" ? ["python", "load.py", ...rest] : ["python", "-m", "llm_client.check", ...args];
+    process.exit(composeFor("llm-client", "run", "--rm", "--build", "llm-client", ...cmd));
+  }
+  case "tiny-agent":
+    process.exit(composeFor("tiny-agent", "run", "--rm", "--build", "tiny-agent", "python", "-m", "tiny_agent", ...args));
+  case "docs": {
+    if (!args.includes("--local")) {
+      await up("docs", args.includes("--no-build"));
+      break;
+    }
+    const html = join(ROOT, "docs", "_build", "html");
+    const portFlag = args.indexOf("--port");
+    const port = portFlag >= 0 ? args[portFlag + 1] : DOCS_PORT;
+    if (!/^\d+$/.test(port || "")) fail("Usage: node execute.mjs docs --local [--no-build] [--port N]");
+    if (!args.includes("--no-build")) {
+      // The same command as the docs check in AGENTS.md: -n checks cross-references, -W turns warnings into errors.
+      const code = run("python", ["-m", "sphinx", "-b", "html", "-n", "-W", "--keep-going", "docs", "docs/_build/html"], { cwd: ROOT });
+      if (code) fail("The docs build failed (warnings count as errors). Fix them, or serve the last build with: node execute.mjs docs --local --no-build");
+    }
+    if (!existsSync(join(html, "index.html"))) fail("There is no docs build yet. Run: node execute.mjs docs --local");
+    console.log(`\nServing the docs at http://localhost:${port}  (Ctrl-C to stop)`);
+    // python's built-in file server, bound to 127.0.0.1 so only this machine can reach it.
+    process.exitCode = run("python", ["-m", "http.server", port, "--bind", "127.0.0.1", "--directory", html], { cwd: ROOT });
     break;
   }
   case "observe":
@@ -403,8 +497,12 @@ switch (command) {
     console.log("  tiny_agent  tiny-agent (service tiny-agent-cli) and main.py (service tiny-agent-main)");
     console.log(`Files: ${join(LOG_DIR, "cli.log")}, ${join(LOG_DIR, "main.log")}; OpenObserve data: ${join(LOG_DIR, "openobserve")}`);
     break;
-  case "down":
-    process.exit(compose("down", "--remove-orphans"));
+  case "down": {
+    const target = targetFrom(args);
+    let status = 0;
+    for (const part of target === "all" ? Object.keys(COMPOSE_FILES) : [target]) status ||= composeFor(part, "down", "--remove-orphans");
+    process.exit(status);
+  }
   case "restart":
     process.exit(compose("restart", ...args));
   case "rebuild": {

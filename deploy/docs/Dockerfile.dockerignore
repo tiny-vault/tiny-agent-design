@@ -1,0 +1,16 @@
+# Docker reads this file for docs.Dockerfile. The context is the whole repo, so send only what the docs import.
+*
+!docs
+!code
+!experimentation/illustrated_agents
+!experimentation/trigger_ias.py
+!experimentation/chat-app/backend/server.py
+!experimentation/chat-app/backend/llama_client.py
+# ...without build output, caches and generated pages (the build regenerates them)
+docs/_build
+docs/api/generated
+code/.educational-audit
+code/*.egg-info
+code/.env
+**/__pycache__
+**/*.pyc

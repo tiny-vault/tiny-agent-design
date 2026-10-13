@@ -1,6 +1,6 @@
 # llama.cpp models
 
-Everything that decides *which models llama.cpp serves and how* lives here. The Docker setup (`../../docker-compose.yaml`) only mounts these files.
+Everything that decides *which models llama.cpp serves and how* lives here. The Docker setup (`../../../deploy/chat-app/docker-compose.yaml`) only mounts these files.
 
 | Path | What it is |
 |---|---|

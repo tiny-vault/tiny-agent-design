@@ -10,8 +10,7 @@ browser -> gateway (nginx, the only published port, :3200)
 
 ```
 experimentation/
-├── docker-compose.yaml   The whole stack (and .env.example, the optional settings: ports)
-└── chat-app/
+└── chat-app/             The app's source and state; its Docker files are in deploy/chat-app/
     ├── frontend/         React + Vite + Tailwind chat page (see frontend/README.md)
     ├── backend/          FastAPI service in front of llama.cpp
     │   ├── server.py     API: /health, /api/models, /api/models/load, streamed /v1/*
@@ -21,11 +20,6 @@ experimentation/
     │   ├── models.ini    Model names -> Hugging Face repos, plus ctx-size and GPU layers
     │   ├── cache/        The downloaded models (git-ignored, never removed by prune)
     │   └── README.md     How to add or change a model
-    ├── deploy/           Dockerfiles and nginx configs
-    │   ├── backend.Dockerfile, frontend.Dockerfile
-    │   ├── gateway.nginx.conf    Single entry point (routes / and /api, /v1)
-    │   └── frontend.nginx.conf   Static file server for the React build
-    ├── observability/    OpenObserve image wrapper, auto-login proxy, Vector config
     ├── logs/             Generated, git-ignored: cli.log, main.log and OpenObserve's data
     └── secrets/          Generated, git-ignored: the Docker secrets (random values)
 ```
@@ -65,7 +59,7 @@ curl http://localhost:3200/api/chat -d '{"model":"gemma4-e4b","messages":[{"role
 
 ## llama.cpp server
 
-`experimentation/docker-compose.yaml` runs `llama-server` (CUDA build) in router mode. It downloads each model from Hugging Face the first time the model is loaded and keeps it in `chat-app/models/cache`; `models.ini` maps the names clients use to the Hugging Face repos.
+`deploy/chat-app/docker-compose.yaml` runs `llama-server` (CUDA build) in router mode. It downloads each model from Hugging Face the first time the model is loaded and keeps it in `chat-app/models/cache`; `models.ini` maps the names clients use to the Hugging Face repos.
 
 ```powershell
 cd experimentation

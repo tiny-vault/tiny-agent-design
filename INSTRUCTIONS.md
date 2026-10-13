@@ -35,6 +35,8 @@ pip install -r docs/requirements.txt
 sphinx-build -b html -n -W --keep-going docs docs/_build/html
 ```
 
+To read them on a local web server, run `node execute.mjs docs`: it builds them into a Docker image (a documentation warning fails the build) and serves them at <http://localhost:3300> (this machine only; `node execute.mjs down docs` stops them, `DOCS_PORT` changes the port). Without Docker, `node execute.mjs docs --local` builds with the Sphinx above and serves the result (Ctrl-C stops it).
+
 Open `docs/_build/html/index.html`.
 
 ## 3. Chat app (experiment)

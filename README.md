@@ -127,10 +127,13 @@ tiny-agent-design/
 │   ├── .env.example     # settings template (copy to code/.env)
 │   ├── tiny_agent/      # the TinyAgent harness and the log files
 │   └── llm_client/      # self-contained LLM client, model check, .env loader (own README and tests)
+├── deploy/              # Docker, four independent parts, each with its own compose file and README:
+│   ├── chat-app/        #   llama.cpp, backend, frontend, gateway, logs (OpenObserve, Vector)
+│   ├── llm-client/      #   the LLM client, run on demand
+│   ├── tiny-agent/      #   the TinyAgent terminal chat, run on demand
+│   └── docs/            #   the Sphinx docs
 ├── experimentation/
-│   ├── docker-compose.yaml   # the whole Docker stack
-│   └── chat-app/        # the app: frontend, backend, models/, plus the generated
-│                        # logs/, secrets/ and observability/ (OpenObserve, Vector)
+│   └── chat-app/        # the app's source and state: frontend, backend, models/, logs/, secrets/
 ├── execute.mjs          # start, stop, test and clean up the whole stack
 ├── pyproject.toml       # packaging: the tiny-agent command
 └── docs/                # Sphinx documentation

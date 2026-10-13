@@ -7,7 +7,7 @@ pip install -r docs/requirements.txt
 python -m sphinx -b html -n -W --keep-going docs docs/_build/html
 ```
 
-Open `docs/_build/html/index.html` in a browser. The command treats warnings as errors and checks cross-references (`-n`). In this repository's virtual environment the `sphinx-build` launcher exits silently, so `python -m sphinx` is the reliable form.
+Open `docs/_build/html/index.html` in a browser, or run `node execute.mjs docs` from the repository root to build the docs into a Docker image and serve them at <http://localhost:3300> (`DOCS_PORT` changes the port; `node execute.mjs down docs` stops them). Without Docker, `node execute.mjs docs --local` builds with the Sphinx on this machine and serves the result (Ctrl-C stops it; `--no-build` serves the last build; `--port N` changes the port). The command treats warnings as errors and checks cross-references (`-n`). In this repository's virtual environment the `sphinx-build` launcher exits silently, so `python -m sphinx` is the reliable form.
 
 ## Run the tests
 

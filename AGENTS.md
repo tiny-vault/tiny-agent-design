@@ -7,7 +7,7 @@ Guidance for AI agents. `code/tiny_agent/` and `code/llm_client/` have stricter 
 1. **TinyAgent** (`code/tiny_agent/`, `docs/`): minimal educational agent harness; one model call per task, loop/memory/tools/planning are placeholders. Also: LLM client (`code/llm_client/`: `llm.py`, `response.py`, `check.py`), `tiny-agent` terminal chat (`code/cli.py`), demo `python code/main.py`.
 2. **Chat app** (`experimentation/chat-app/`): local chat UI for llama.cpp models, all in Docker; does not use `code/tiny_agent/`.
 
-Key paths: `execute.mjs` (Docker + tests, start here), `INSTRUCTIONS.md` (how to run everything), `experimentation/docker-compose.yaml` (stack; optional `.env` beside it), `chat-app/{frontend (React 19, Vite, Tailwind v4), backend (FastAPI), models (models.ini, cache/), deploy (Dockerfiles, nginx), observability, logs/, secrets/}`.
+Key paths: `execute.mjs` (Docker + tests, start here), `INSTRUCTIONS.md` (how to run everything), `deploy/` (everything Docker, four independent parts, each folder with its own `docker-compose.yaml`, Dockerfiles, `.env.example` and README: `chat-app/` (llama.cpp, backend, frontend, gateway, `observability/`, `init-secrets.mjs`), `llm-client/`, `tiny-agent/` (both run on demand), `docs/` (Sphinx)), `experimentation/chat-app/{frontend (React 19, Vite, Tailwind v4), backend (FastAPI), models (models.ini, cache/), logs/, secrets/}` (source and state; the Docker files are in `deploy/chat-app/`).
 
 ## Architecture
 
@@ -17,7 +17,7 @@ browser -> gateway (nginx, ONLY published port, 3200)
              `-- /api, /v1  -> backend (FastAPI) -> llama.cpp (router mode, internal)
 ```
 
-- No `ports:` on other services; add routes in `chat-app/deploy/gateway.nginx.conf`.
+- No `ports:` on other services; add routes in `deploy/chat-app/gateway.nginx.conf`.
 - Only the backend talks to llama.cpp: `/api/models`, `/api/models/load`, `/api/chat`, streamed `/v1/*` passthrough; `POST /v1/chat/completions` is **409** unless the model is loaded.
 - Frontend allows chat only when the selected model is `loaded` and no switch is in progress.
 - Backend errors are always `{"error": {"message", "code"}}`; the frontend reads `message`.
@@ -26,16 +26,34 @@ browser -> gateway (nginx, ONLY published port, 3200)
 
 | Task | Command |
 |---|---|
-| Start / stop | `node execute.mjs up` / `down` |
+| Start / stop | `node execute.mjs up [chat-app\|llm-client\|tiny-agent\|docs\|all]` / `down [target]` (default `chat-app`; each target is its own compose project in `deploy/<target>/`) |
+| LLM client / tiny agent in Docker | `up llm-client` starts the client folder's **own model server** on `localhost:3200` (same port and GPU as the chat app: run one or the other; the `illustrated_agents` scripts run against it as they are). Then `node execute.mjs llm-client [model]` (which models are loaded) / `llm-client load <model>` / `llm-client ask "question"` (really talks to the model), and `tiny-agent ["question"]`, which uses whatever answers on port 3200 (that server or the chat app's gateway), or `TINYAGENT_LLM_URL` |
 | Status, health, logs | `node execute.mjs status` / `health` / `logs [service]` |
 | Switch model / rebuild | `node execute.mjs load <model>` / `rebuild` |
 | Notebook-cell scripts | `.venv/Scripts/python experimentation/trigger_ias.py [name]` (no name opens a popup REPL to pick and run; `--list` prints them; stack up, model loaded) |
 | Tests | `node execute.mjs test [backend\|agent\|llm\|mocked\|live\|e2e\|ias\|all\|list]`, runner args after `--` (e.g. `test backend -- -k load`) |
 | Frontend | `cd experimentation/chat-app/frontend; npm run dev` (stack up) / `npm run build` |
-| Docs | `sphinx-build -b html -n -W --keep-going docs docs/_build/html` |
+| Docs | `node execute.mjs docs` builds them into an image and serves them on <http://localhost:3300> (`DOCS_PORT`); without Docker: `docs --local [--no-build] [--port N]`; build only: `sphinx-build -b html -n -W --keep-going docs docs/_build/html` |
 | Educational audit (Claude skill) | `/edu-audit <folder>` (`.claude/skills/edu-audit/`, git-ignored, local) |
 
 Python: `.venv/Scripts/python` (3.12). Backend deps: `backend/requirements*.txt`.
+
+## Bringing parts up individually
+
+Four parts, each a folder in `deploy/` with its own compose file, README and `.env.example`; start only what the task needs (`node execute.mjs help` lists everything). Each can also be run by hand from its folder with `docker compose`.
+
+| Need | Bring up | Reach it at |
+|---|---|---|
+| Just a model to talk to (run the `illustrated_agents` scripts, `llm-client ask`, `tiny-agent`) | `node execute.mjs up llm-client`, then `llm-client load qwen3.5-4b` (about 35 s from the cache; first time it downloads) | `http://localhost:3200/v1` |
+| The chat UI, backend and log search | `node execute.mjs up` (= `up chat-app`), then `load <model>` | <http://localhost:3200>, logs <http://localhost:5080> |
+| The Sphinx docs | `node execute.mjs up docs` | <http://localhost:3300> |
+| The tiny agent in Docker | `node execute.mjs tiny-agent ["question"]` (needs something answering on port 3200) | the terminal |
+
+- **`llm-client` and `chat-app` use the same port (3200) and the same GPU: run one, never both.** Stop the other first with `node execute.mjs down <target>`; `up all` leaves `llm-client` out for this reason.
+- Check what is up with `docker ps`; stop a part with `down <target>` (`down all` stops all four). Nothing in one part's `down` touches another part's containers.
+- After starting a model server, confirm the model: `node execute.mjs llm-client` (status list, `* name loaded`) and `llm-client ask "…"` (a real answer).
+- **If a model container will not start with `WSL environment detected but no adapters were found`**: Docker lost GPU passthrough (Windows still sees the GPU in `nvidia-smi`). Make sure no container you care about is running, then `wsl --shutdown`, `docker desktop start`, and check with `docker run --rm --gpus all nvidia/cuda:12.4.1-base-ubuntu22.04 nvidia-smi -L` before retrying. `docker compose --profile cpu up -d llama-cpu` in `deploy/llm-client` is a slow CPU fallback.
+- `llm-client` reuses the chat app's downloaded models through `deploy/llm-client/.env` (`MODELS_CACHE=../../experimentation/chat-app/models/cache`, git-ignored). On a fresh clone create it from `.env.example`, or the first load downloads the model again.
 
 ## Tests
 
@@ -64,7 +82,7 @@ Behaviour change = test change in the same commit. The fake router (`backend/tes
 
 ## Secrets and logs
 
-- Credentials are Docker secrets: git-ignored files in `chat-app/secrets/`, generated by `up`, mounted at `/run/secrets/<name>` (OpenObserve login, `llama_api_key`). Never put a secret in compose, env vars, `.env`, an image or a log line. Services read files (`LLAMA_ARG_API_KEY_FILE`, `LLAMA_API_KEY_FILE`, Vector `SECRET[docker.<name>]`); OpenObserve cannot, so `observability/openobserve.Dockerfile` wraps its entrypoint.
+- Credentials are Docker secrets: git-ignored files in `chat-app/secrets/`, generated by `up`, mounted at `/run/secrets/<name>` (OpenObserve login, `llama_api_key`). Never put a secret in compose, env vars, `.env`, an image or a log line. Services read files (`LLAMA_ARG_API_KEY_FILE`, `LLAMA_API_KEY_FILE`, Vector `SECRET[docker.<name>]`); OpenObserve cannot, so `deploy/chat-app/observability/openobserve.Dockerfile` wraps its entrypoint. The docs image needs no secret: it writes a placeholder key file for the build (the scripts only read it on import) and deletes it.
 - OpenObserve UI (<http://localhost:5080>) opens logged in via the `observe` nginx proxy; anyone reaching `127.0.0.1:5080` is admin. Keep redirects relative (`absolute_redirect off`).
 - All logs go to OpenObserve (containers via Vector). Only `code/tiny_agent/log.py` writes log files (`chat-app/logs/cli.log`, `main.log`).
 - `node execute.mjs prune` removes the stack's containers, networks, `chat-app` volumes, secrets, logs, build output; keeps models and images. Never `docker system prune` (other projects live here).
@@ -75,7 +93,7 @@ Behaviour change = test change in the same commit. The fake router (`backend/tes
 - **Model files:** first load downloads from Hugging Face (`hf-repo` in `models.ini`) into git-ignored `models/cache/` (6 to 20 min; `prune` keeps it). Timeouts: backend `LLAMA_LOAD_TIMEOUT` 1800 s, gateway 2000 s; keep in step.
 - **GPU:** 6 GB VRAM; `gemma4-e4b` uses 5.3 GB, so one model at a time, each switch a full reload (35 to 69 s). Lower `n-gpu-layers` in `models.ini` if a model does not fit.
 - **Ports:** 3000, 8000, 8080, 3001 belong to other projects; gateway is **3200** (`GATEWAY_PORT`). Check `netstat` before picking one.
-- **Compose:** project name pinned to `chat-app`; `~` is not expanded (use `USERPROFILE`/`HOME`).
+- **Compose:** four projects, never merged into one file: `chat-app` (name pinned; the folder is `deploy/chat-app`), `tiny-agent-llm-client`, `tiny-agent`, `tiny-agent-docs`. Separate names keep `up`/`down --remove-orphans` of one from removing another's containers. The llm client and the tiny agent reach the model through the published gateway (`host.docker.internal:3200`, or `TINYAGENT_LLM_URL`), so they need no shared network. Each folder must stay self-sufficient: no file in it refers to another `deploy/` folder. `~` is not expanded (use `USERPROFILE`/`HOME`).
 - **Node on Windows:** `process.exit()` right after a timed `fetch` can crash (libuv); set `process.exitCode`. `fetch` times out after 5 min waiting for headers; long calls use `node:http`.
 - **Past breakages:** OpenObserve root password needs lower, upper, digit, special (`execute.mjs` ensures it); the Hugging Face cache has symlinks Windows cannot read (size counters skip them).
 - **Browser automation** (Claude in Chrome) needs the extension; otherwise API checks and Playwright.
@@ -84,6 +102,6 @@ Behaviour change = test change in the same commit. The fake router (`backend/tes
 
 1. `node execute.mjs test`.
 2. Frontend touched: `npm run build` in `frontend/`.
-3. Docker or nginx touched: `docker compose -f experimentation/docker-compose.yaml config -q`, then `node execute.mjs up` and `health`.
+3. Docker or nginx touched: `docker compose config -q` inside each touched folder of `deploy/` (`chat-app`, `code`, `docs`), then `node execute.mjs up <target>` and, for the chat app, `health`.
 4. Python touched: `uvx ruff check --select I code experimentation` and `uvx basedpyright code` (errors only; the repo has a backlog, so report any error you added, not the whole list).
 5. Update docs; check `git status`.

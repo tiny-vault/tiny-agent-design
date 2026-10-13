@@ -1,0 +1,84 @@
+# The LLM client and its own model server, on their own: no chat app, no other folder in deploy/.
+#
+#   llama        llama.cpp in router mode serving the models in models.ini, on http://localhost:3200/v1
+#   llm-client   the client (code/llm_client) in a container, run on demand
+#
+# Start the model server and talk to it (from this folder, or from the repo root with `node execute.mjs`):
+#
+#   docker compose up -d --build                                  node execute.mjs up llm-client
+#   docker compose run --rm llm-client                            node execute.mjs llm-client            which models are loaded
+#   docker compose run --rm llm-client python load.py qwen3.5-4b  node execute.mjs llm-client load qwen3.5-4b
+#   docker compose run --rm llm-client python ask.py "Why is the sky blue?"
+#                                                                 node execute.mjs llm-client ask "..."  the model answers
+#   docker compose down                                           node execute.mjs down llm-client
+#
+# The model server is also what the experimentation scripts in experimentation/illustrated_agents talk to
+# (base_url http://localhost:3200/v1), so with it up they run as they are:
+#   .venv/Scripts/python experimentation/trigger_ias.py shot_prompting/zero_shot
+#
+# It uses the same port as the chat app's gateway, 3200, and the same GPU, so run this folder OR the chat
+# app, not both at once. Change the port with LLAMA_PORT (see .env.example). The server is published on
+# 127.0.0.1 only, so it needs no API key.
+name: tiny-agent-llm-client
+
+# The model server's settings, described once and used by both variants below with `<<: *llama`.
+x-llama: &llama
+  image: ghcr.io/ggml-org/llama.cpp:server-cuda
+  ports:
+    - "${LLAMA_BIND:-127.0.0.1}:${LLAMA_PORT:-3200}:8080"
+  volumes:
+    # Models are downloaded from Hugging Face the first time one is used (minutes, several GB) and kept
+    # here. Set MODELS_CACHE in .env to reuse an existing download folder (see .env.example).
+    - ${MODELS_CACHE:-./models/cache}:/models
+    - ./models.ini:/models.ini:ro
+  environment:
+    LLAMA_ARG_MODELS_PRESET: /models.ini
+    LLAMA_CACHE: /models   # where Hugging Face downloads are kept
+    LLAMA_ARG_MODELS_MAX: ${LLAMA_MODELS_MAX:-1}   # models kept loaded at once (VRAM is tight)
+    LLAMA_ARG_HOST: 0.0.0.0
+    LLAMA_ARG_PORT: 8080
+    LLAMA_ARG_WEBUI: "0"   # no built-in chat page; this folder is for the client and the scripts
+  healthcheck:
+    test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
+    interval: 15s
+    timeout: 5s
+    retries: 20
+    start_period: 60s
+
+services:
+  # A copy of the chat app's llama service (deploy/chat-app/docker-compose.yaml) without the API key,
+  # because this one is reachable from this machine only. Needs an NVIDIA GPU that Docker can see.
+  llama:
+    <<: *llama
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
+
+  # The same server on the CPU, for when Docker cannot see the GPU (or there is none): slow, but it loads
+  # the same models. Start it instead of `llama` with `node execute.mjs up llm-client --cpu`, or
+  # `docker compose up -d llama-cpu`. The client reaches either one as http://llama:8080, hence the alias.
+  llama-cpu:
+    <<: *llama
+    profiles: ["cpu"]
+    networks:
+      default:
+        aliases:
+          - llama
+
+  llm-client:
+    build:
+      context: ../..   # the repo root; Dockerfile.dockerignore sends only code/llm_client and the two scripts
+      dockerfile: deploy/llm-client/Dockerfile
+    image: tiny-agent-llm-client
+    environment:
+      # This folder's own model server by default. Point it at another server, for example the chat app's
+      # gateway, with TINYAGENT_LLM_URL=http://host.docker.internal:3200/v1 (see .env.example).
+      TINYAGENT_LLM_URL: ${TINYAGENT_LLM_URL:-http://llama:8080/v1}
+    extra_hosts:
+      - "host.docker.internal:host-gateway"   # built in on Docker Desktop; this line makes it work on Linux too
+    command: ["python", "-m", "llm_client.check"]
+    profiles: ["tools"]   # run on demand; `docker compose up` starts only the model server

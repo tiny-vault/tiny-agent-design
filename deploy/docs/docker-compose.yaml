@@ -1,0 +1,20 @@
+# The Sphinx docs, built inside the image and served by nginx on http://localhost:3300 (this machine
+# only). Deployed on its own: no chat app, no model, no secrets. Run it from this folder:
+#
+#   docker compose up -d --build
+#   docker compose down
+#
+# or from the repo root: `node execute.mjs up docs` / `node execute.mjs down docs`.
+#
+# The image builds the docs with the same command as the repo's docs check (-n -W: any warning fails
+# the build), so a docs warning stops the build with its message.
+name: tiny-agent-docs
+
+services:
+  docs:
+    build:
+      context: ../..   # the repo root; Dockerfile.dockerignore sends only what the docs import
+      dockerfile: deploy/docs/Dockerfile
+    image: tiny-agent-docs
+    ports:
+      - "127.0.0.1:${DOCS_PORT:-3300}:80"

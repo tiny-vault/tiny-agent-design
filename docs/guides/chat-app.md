@@ -100,4 +100,4 @@ All from the repository root.
 * **OpenObserve exits at start-up:** its root password breaks the policy. `node execute.mjs up` replaces a weak password automatically.
 * **`node execute.mjs load` fails after 5 minutes:** older versions used `fetch`, which gives up waiting for response headers after 5 minutes. The command now uses `node:http`.
 * **A model switch is refused with "model limit reached":** llama.cpp is still finishing a generation you stopped. The backend retries until it clears.
-* **Port 3200 or 5080 is taken:** set `GATEWAY_PORT` or `OPENOBSERVE_PORT` in `experimentation/.env`.
+* **Port 3200 or 5080 is taken:** set `GATEWAY_PORT` or `OPENOBSERVE_PORT` in `deploy/chat-app/.env` (see `deploy/chat-app/.env.example`).
