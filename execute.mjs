@@ -366,7 +366,7 @@ async function prune(args) {
     ...(keepSecrets ? [] : [SECRETS_DIR]),
     join(frontend, "node_modules"), join(frontend, "dist"), join(frontend, "test-results"),
     join(frontend, "playwright-report"), join(ROOT, "docs", "_build"), join(ROOT, "docs", "api", "generated"),
-    join(ROOT, ".pytest_cache"), join(CHAT_APP, "backend", ".pytest_cache"), join(ROOT, "tiny_agent.egg-info"), join(ROOT, "code", "tiny_agent.egg-info"),
+    join(ROOT, ".pytest_cache"), join(CHAT_APP, "backend", ".pytest_cache"), join(ROOT, "tiny_agent.egg-info"),
     ...findPycache(ROOT),
   ].filter((p) => existsSync(p));
 
@@ -460,10 +460,10 @@ switch (command) {
     // `run --build` so the image always matches the code; Docker's layer cache makes that fast. Words after the
     // service name replace its default command, so the whole command is repeated here.
     // `ask "question"` really talks to the loaded model (ask.py), `load MODEL` loads one and waits (load.py);
-    // anything else is the model check (llm_client.check).
+    // anything else is the model check (tiny_agent.llm_client.check).
     const [first, ...rest] = args;
     const cmd =
-      first === "ask" ? ["python", "ask.py", ...rest] : first === "load" ? ["python", "load.py", ...rest] : ["python", "-m", "llm_client.check", ...args];
+      first === "ask" ? ["python", "ask.py", ...rest] : first === "load" ? ["python", "load.py", ...rest] : ["python", "-m", "tiny_agent.llm_client.check", ...args];
     process.exit(composeFor("llm-client", "run", "--rm", "--build", "llm-client", ...cmd));
   }
   case "tiny-agent":
@@ -560,8 +560,11 @@ switch (command) {
     const known = ["all", "backend", "agent", "llm", "mocked", "live", "e2e", "ias", "list"];
     if (!known.includes(which)) fail(`Unknown test target '${which}'. Use one of: ${known.join(", ")}`);
 
-    const agent = (more = []) => run("python", ["-m", "pytest", "-q", "code/tiny_agent/tests", ...more], { cwd: ROOT });
-    const llm = (more = []) => run("python", ["-m", "pytest", "-q", "code/llm_client/tests", ...more], { cwd: ROOT });
+    // The LLM client's tests live in tiny_agent/tests too; "llm" runs only them and "agent" everything else.
+    const llmTests = ["test_llm.py", "test_check.py", "test_env.py", "test_embedding.py"].map((f) => `tiny_agent/tests/${f}`);
+    const agent = (more = []) =>
+      run("python", ["-m", "pytest", "-q", "tiny_agent/tests", ...llmTests.map((f) => `--ignore=${f}`), ...more], { cwd: ROOT });
+    const llm = (more = []) => run("python", ["-m", "pytest", "-q", ...llmTests, ...more], { cwd: ROOT });
     const backend = (more = []) => run("python", ["-m", "pytest", "-q", ...more], { cwd: join(CHAT_APP, "backend") });
     // -rs lists why model tests were skipped (stack down, model not loaded).
     const ias = (more = []) =>

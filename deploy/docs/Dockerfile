@@ -11,7 +11,7 @@ COPY docs/requirements.txt docs/requirements.txt
 RUN pip install -r docs/requirements.txt illustrated-agents==0.1.1
 
 # The code the docs document. docs/conf.py finds these folders relative to itself.
-COPY code code
+COPY tiny_agent tiny_agent
 COPY experimentation/illustrated_agents experimentation/illustrated_agents
 COPY experimentation/trigger_ias.py experimentation/trigger_ias.py
 COPY experimentation/chat-app/backend/server.py experimentation/chat-app/backend/llama_client.py experimentation/chat-app/backend/

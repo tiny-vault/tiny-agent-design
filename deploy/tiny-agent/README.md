@@ -1,12 +1,12 @@
 # deploy/tiny-agent
 
-The TinyAgent terminal chat (`code/tiny_agent`, with the `code/llm_client` it uses) in a container, deployed on its own. No chat app and no other part of the repo's Docker setup is needed to build or run it.
+The TinyAgent terminal chat (`tiny_agent`, with the `tiny_agent/llm_client` it uses) in a container, deployed on its own. No chat app and no other part of the repo's Docker setup is needed to build or run it.
 
 ```
 cd deploy/tiny-agent
 docker compose run --rm --build tiny-agent                                      # the interactive chat
 docker compose run --rm --build tiny-agent python -m tiny_agent "Why is the sky blue?"   # one question
-docker compose run --rm --build tiny-agent python code/main.py                  # the two-turn memory demo
+docker compose run --rm --build tiny-agent python -m tiny_agent.main                  # the two-turn memory demo
 ```
 
 From the repo root the same thing is `node execute.mjs tiny-agent ["question"]`, and `node execute.mjs up tiny-agent` only builds the image.
@@ -16,6 +16,6 @@ The agent needs a model server to talk to. By default that is whatever answers o
 | File | What it is |
 |---|---|
 | `docker-compose.yaml` | The service. Project name `tiny-agent`. |
-| `Dockerfile` | Copies `code/` (standard library only, nothing to install). |
-| `Dockerfile.dockerignore` | Keeps the repo-root build context down to `code/`, without tests. |
+| `Dockerfile` | Copies `tiny_agent/` (standard library only, nothing to install). |
+| `Dockerfile.dockerignore` | Keeps the repo-root build context down to `tiny_agent/`, without tests. |
 | `.env.example` | The optional settings. |

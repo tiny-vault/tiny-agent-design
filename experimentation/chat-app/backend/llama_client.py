@@ -19,7 +19,7 @@ Agents* by Maarten Grootendorst and Jay Alammar (O'Reilly): POST ``model`` and
 Failures become the exceptions below (``LlamaUnreachable``, ``LlamaError``,
 ``ModelNotFound``, ``LoadFailed``, ``LoadTimeout``), so ``server.py`` can map each
 to one HTTP status without parsing httpx errors. This client belongs to the chat
-app and is not used by ``code/tiny_agent``; that package has its own client.
+app and is not used by ``tiny_agent``; that package has its own client.
 """
 
 import asyncio

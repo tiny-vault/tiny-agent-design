@@ -1,10 +1,11 @@
 # deploy/llm-client
 
-The LLM client (`code/llm_client`) and its own model server, deployed on their own. No chat app and no other folder in `deploy/` is needed.
+The LLM client (`tiny_agent/llm_client`) and its own model server, deployed on their own. No chat app and no other folder in `deploy/` is needed.
 
 | Service | What it is |
 |---|---|
 | `llama` | llama.cpp in router mode serving the models in `models.ini` (a copy of the chat app's). Published on <http://localhost:3200/v1>, this machine only, no API key. |
+| `llama-embed` | A second llama.cpp that serves only EmbeddingGemma (`embeddinggemma-300m`, 308 M parameters, about 0.3 GB) for `/v1/embeddings`, on <http://localhost:3201/v1>. It runs on the CPU, so it needs no VRAM and loading it never unloads the chat model. The first start downloads the model into the same cache folder. |
 | `llm-client` | The client in a container, run on demand. |
 
 ```
@@ -22,7 +23,7 @@ From the repo root: `node execute.mjs up llm-client`, `llm-client`, `llm-client 
 
 - **The experimentation scripts** (`experimentation/illustrated_agents`) talk to `http://localhost:3200/v1` with the model names in `models.ini`, so with the model server up they run as they are: `.venv/Scripts/python experimentation/trigger_ias.py` (a popup lists them). The first request for a model loads it, which takes a while the first time.
 - **The tiny agent** (`deploy/tiny-agent`, or the `tiny-agent` command) reaches the same server through `host.docker.internal:3200`, its default, so `node execute.mjs tiny-agent` chats with the model this folder serves.
-- The server uses the **same port and the same GPU as the chat app**, so run this folder or the chat app, not both. Change the port with `LLAMA_PORT`.
+- The server uses the **same port and the same GPU as the chat app**, so run this folder or the chat app, not both. Change the port with `LLAMA_PORT`. The embedding server has its own port, `EMBED_PORT` (3201), and does not compete for the GPU. `TINYAGENT_RAG_MEMORY=1` (see the main README) embeds through it.
 
 ## Settings and files
 
@@ -30,8 +31,8 @@ Copy `.env.example` to `.env` to change the port, the models folder or the serve
 
 | File | What it is |
 |---|---|
-| `docker-compose.yaml` | The two services. Project name `tiny-agent-llm-client`. |
+| `docker-compose.yaml` | The three services. Project name `tiny-agent-llm-client`. |
 | `models.ini` | The models llama.cpp serves, a copy of `experimentation/chat-app/models/models.ini`. Keep the two in step. |
-| `Dockerfile`, `Dockerfile.dockerignore` | The client image: `code/llm_client` plus `ask.py` and `load.py`, nothing installed. |
+| `Dockerfile`, `Dockerfile.dockerignore` | The client image: `tiny_agent/llm_client` plus `ask.py` and `load.py`, nothing installed. |
 | `ask.py`, `load.py` | Send one question to a model; load a model and wait. |
 | `.env.example` | The optional settings. |

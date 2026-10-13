@@ -1,7 +1,7 @@
 """Send one question to a model through the LLM client and print the answer.
 
-This is the llm-client container's way to really talk to a model (``python -m llm_client.check``, its
-default command, only lists which models are loaded). It uses ``llm_client.llm.LLM``, the same client the
+This is the llm-client container's way to really talk to a model (``python -m tiny_agent.llm_client.check``, its
+default command, only lists which models are loaded). It uses ``tiny_agent.llm_client.llm.LLM``, the same client the
 TinyAgent uses, against the same server the chat app talks to: ``TINYAGENT_LLM_URL``, which defaults to
 the chat app's gateway on this machine. So the model that answers is the model loaded in the chat app.
 
@@ -21,8 +21,8 @@ loaded to ask.
 import os
 import sys
 
-from llm_client import check
-from llm_client.llm import LLM
+from tiny_agent.llm_client import check
+from tiny_agent.llm_client.llm import LLM
 
 USAGE = 'usage: python ask.py [--model NAME] "question"'
 

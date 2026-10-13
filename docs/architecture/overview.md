@@ -4,14 +4,14 @@
 
 | Component | Source | Responsibility |
 |---|---|---|
-| Entry point | `code/main.py` (`main`) | Creates the agent, runs two tasks on it (the authors' names, then "what are our names?") to show memory, prints the second result. Holds no agent logic. |
-| Harness | `code/tiny_agent/shared/tiny_agent.py` (`TinyAgent`) | Control loop and the slots for LLM, memory, tools and planner. |
-| Memory | `code/tiny_agent/shared/memory/` (`memory.Memory`; `trimming.TrimmingMemory`) | The conversation history sent to the model on every call. `TrimmingMemory` keeps only the last two turns; `main.py` uses it when `TINYAGENT_TRIM_MEMORY` is on. |
-| Trajectory | `code/tiny_agent/shared/trajectory.py` (`Trajectory`, `Step`) | A debugging record of each run, one step at a time. |
-| LLM client | `code/llm_client/llm.py` (`LLM`) | Sends a conversation to an OpenAI-compatible server and returns a `Response`. Checks the model is loaded first and turns every failure into a clear `RuntimeError`. |
-| Reply type | `code/llm_client/response.py` (`Response`) | The answer text, the reasoning, the first tool call and metadata. |
-| Model check | `code/llm_client/check.py` | Asks the server which models are loaded (`python -m llm_client.check`). |
-| Terminal chat | `code/cli.py` | The `tiny-agent` command: interactive chat or one question. Writes `logs/cli.log`. |
+| Entry point | `main.py` (`main`) | Creates the agent, runs two tasks on it (the authors' names, then "what are our names?") to show memory, prints the second result. Holds no agent logic. |
+| Harness | `tiny_agent/agent/tiny_agent.py` (`TinyAgent`) | Control loop and the slots for LLM, memory, tools and planner. |
+| Memory | `tiny_agent/agent/memory.py` (`Memory`) and `tiny_agent/memory/` (`trimming.TrimmingMemory`; `summarization.SummarizationMemory`; `rag.RAGMemory`) | The conversation history sent to the model on every call. `TrimmingMemory` keeps only the last two turns; `SummarizationMemory` keeps a model-written running summary instead of the messages; `RAGMemory` puts the documents most similar to each question in front of it (found with the embedding client `tiny_agent/llm_client/embedding.py`). `main.py` uses them when `TINYAGENT_TRIM_MEMORY`, `TINYAGENT_SUMMARY_MEMORY` or `TINYAGENT_RAG_MEMORY` is on. |
+| Trajectory | `tiny_agent/agent/trajectory.py` (`Trajectory`, `Step`) | A debugging record of each run, one step at a time. |
+| LLM client | `tiny_agent/llm_client/llm.py` (`LLM`) | Sends a conversation to an OpenAI-compatible server and returns a `Response`. Checks the model is loaded first and turns every failure into a clear `RuntimeError`. |
+| Reply type | `tiny_agent/llm_client/response.py` (`Response`) | The answer text, the reasoning, the first tool call and metadata. |
+| Model check | `tiny_agent/llm_client/check.py` | Asks the server which models are loaded (`python -m tiny_agent.llm_client.check`). |
+| Terminal chat | `cli.py` | The `tiny-agent` command: interactive chat or one question. Writes `logs/cli.log`. |
 | Docker deployment | `deploy/` | Four independent parts, each with its own compose file: the chat app, the llm client with its own model server, the tiny agent, the docs. `execute.mjs` starts and stops them. |
 
 `TinyAgent` has five attributes. `llm` and `memory` are passed in when it is created, `trajectory` is created inside it, and `tools` and `planner` are `None` until their phases. `_step` calls the LLM client with the whole memory, so the harness already talks to a model. The terminal chat does not use `TinyAgent`: it keeps its own message list.
@@ -56,4 +56,4 @@ Tool dispatch, planning, the multi-step loop, trimming the memory and
 configuration. None of these exist in `TinyAgent` yet.
 ```
 
-Besides the Python package there is a separate Docker chat app, described in {doc}`../guides/chat-app`. The Python code reads these settings from the environment: `TINYAGENT_MODEL` and `TINYAGENT_LLM_URL` (defaults for the chat command and the demo), `TINYAGENT_TRIM_MEMORY` (the demo's memory keeps only the last two turns), `TINYAGENT_API_KEY` or `TINYAGENT_API_KEY_FILE` (for a server that needs a key), and `TINYAGENT_LOG_DIR` and `TINYAGENT_LOG_LEVEL` (the log files). The `LLM` client itself reads nothing from the environment.
+Besides the Python package there is a separate Docker chat app, described in {doc}`../guides/chat-app`. The Python code reads these settings from the environment: `TINYAGENT_MODEL` and `TINYAGENT_LLM_URL` (defaults for the chat command and the demo), `TINYAGENT_TRIM_MEMORY` (the demo's memory keeps only the last two turns), `TINYAGENT_SUMMARY_MEMORY` (the demo's memory keeps a running summary), `TINYAGENT_API_KEY` or `TINYAGENT_API_KEY_FILE` (for a server that needs a key), and `TINYAGENT_LOG_DIR` and `TINYAGENT_LOG_LEVEL` (the log files). The `LLM` client itself reads nothing from the environment.

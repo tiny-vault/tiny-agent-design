@@ -54,8 +54,14 @@ Each of ``zero_shot``, ``one_shot`` and ``few_shot`` runs its technique plain an
    experimentation.illustrated_agents.best_of_n.majority_vote
    experimentation.illustrated_agents.best_of_n.weighted_prm
    experimentation.illustrated_agents.best_of_n.compare
+   experimentation.illustrated_agents.embedding_model
+   experimentation.illustrated_agents.embed_dolphins
+   experimentation.illustrated_agents.embedding_similarity
    experimentation.illustrated_agents.agent_without_memory
    experimentation.illustrated_agents.agent_with_memory
    experimentation.illustrated_agents.agent_with_trimming_memory
+   experimentation.illustrated_agents.agent_with_summarization_memory
+   experimentation.illustrated_agents.summarization_memory_first_turn
+   experimentation.illustrated_agents.trajectory_viewer_summarization
    experimentation.illustrated_agents.trajectory_viewer
    experimentation.trigger_ias

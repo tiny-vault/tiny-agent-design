@@ -10,7 +10,7 @@ No runtime dependencies, Python 3.12.
 python -m venv .venv
 .\.venv\Scripts\Activate.ps1
 Set-Content .venv\Lib\site-packages\sitecustomize.py "import sys; sys.dont_write_bytecode = True"   # optional: no __pycache__ folders in the repo
-python code/main.py
+python -m tiny_agent.main
 ```
 
 The demo tells the agent the authors' names and then asks for them in a second run on the same agent, so memory is what answers; it prints the second reply. It needs a running model server with a model loaded: the chat app (`node execute.mjs up`, section 3) or only the llm client's model server (`node execute.mjs up llm-client`, section 4). It reads the same `TINYAGENT_MODEL` (default `gemma4-e4b`), `TINYAGENT_LLM_URL` and `TINYAGENT_API_KEY_FILE` settings as the `tiny-agent` command below. Neither server needs a key from you: the chat app's backend holds the llama.cpp key, and the llm client's server listens on this machine only.
@@ -67,7 +67,7 @@ The compose file is `deploy/chat-app/docker-compose.yaml`. By hand: `node deploy
 `node execute.mjs up` starts the complete stack, including the log pipeline: OpenObserve stores and searches the logs and Vector collects them. Everything is in one place, <http://localhost:5080>, which opens already logged in (no login screen):
 
 * stream `docker`: the chat-app containers (gateway, frontend, backend, llama.cpp), field `service` tells them apart;
-* stream `tiny_agent`: `tiny-agent` (service `tiny-agent-cli`) and `python code/main.py` (service `tiny-agent-main`), which also write `experimentation/chat-app/logs/cli.log` and `main.log`.
+* stream `tiny_agent`: `tiny-agent` (service `tiny-agent-cli`) and `python -m tiny_agent.main` (service `tiny-agent-main`), which also write `experimentation/chat-app/logs/cli.log` and `main.log`.
 
 ```powershell
 node execute.mjs observe              # URL and what is collected
@@ -131,11 +131,12 @@ Markdown is kept unwrapped (one paragraph per line). Enable the commit hook that
 
 ```
 tiny-agent-design/
-├── code/
-│   ├── main.py        # the two-turn memory demo
-│   ├── cli.py         # the tiny-agent terminal chat
-│   ├── tiny_agent/    # the TinyAgent harness (shared/), logs, tests
-│   └── llm_client/    # the LLM client, model check, .env loader, tests
+├── tiny_agent/      # the TinyAgent package, self-contained
+│   ├── main.py      #   the two-turn memory demo
+│   ├── cli.py       #   the tiny-agent terminal chat
+│   ├── agent/       #   the harness (TinyAgent, trajectory, step), tests/ beside it
+│   ├── memory/      #   Memory and its variants (trimming, summarization, RAG)
+│   └── llm_client/  #   the LLM client, model check, .env loader, tests
 ├── deploy/            # Docker: chat-app/, llm-client/, tiny-agent/, docs/ (a compose file each)
 ├── docs/              # Sphinx documentation
 ├── execute.mjs        # the one entry point for Docker and tests

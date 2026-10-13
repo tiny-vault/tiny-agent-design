@@ -1,10 +1,11 @@
-# Docker reads this file for Dockerfile in this folder. The context is the whole repo, so send only code/.
+# Docker reads this file for Dockerfile in this folder. The context is the whole repo, so send only tiny_agent/.
 *
-!code
+!tiny_agent
 # ...without the tests, caches, the audit's backups and the editable-install metadata
-code/**/tests
-code/.educational-audit
-code/*.egg-info
+tiny_agent/**/tests
+tiny_agent/.educational-audit
+.educational-audit/code
+*.egg-info
 **/__pycache__
 **/*.pyc
-code/.env
+.env

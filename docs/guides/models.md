@@ -21,12 +21,13 @@ There are two ways to run them, and the project works with either.
 | Model names | the names in `models.ini`: `gemma4-e4b`, `qwen3.5-4b` | Ollama tags such as `gemma4:e4b-it-qat` |
 | Needed by the chat app | yes | no, it was removed |
 
-The Docker stack serves these two models:
+The Docker stack serves these models (`LLAMA_MODELS_MAX=1`, so loading `embeddinggemma-300m` unloads the chat model):
 
 | Name | Hugging Face source | On disk |
 |---|---|---|
 | `gemma4-e4b` | `google/gemma-4-E4B-it-qat-q4_0-gguf` (Google's quantisation-aware 4-bit build, the same QAT build as Ollama's `gemma4:e4b-it-qat`) | 5.9 GB |
 | `qwen3.5-4b` | `unsloth/Qwen3.5-4B-GGUF`, `Q4_K_M` | 3.4 GB |
+| `embeddinggemma-300m` | `ggml-org/embeddinggemma-300M-GGUF` (an embedding model: use `/v1/embeddings`, not chat) | 0.3 GB |
 
 The sizes include a small vision file in each repository. Downloads go into `experimentation/chat-app/models/cache`. The llm client's own model server (`node execute.mjs up llm-client`) serves the same two models from a copy of `models.ini` and can reuse the same download folder. See {doc}`chat-app` for the measured download and switching times.
 
@@ -41,7 +42,7 @@ ollama list
 ```
 
 ```python
-from llm_client.llm import LLM
+from tiny_agent.llm_client.llm import LLM
 
 llm = LLM(model="gemma3:4b", base_url="http://localhost:11434/v1")
 ```

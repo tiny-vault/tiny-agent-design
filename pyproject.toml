@@ -11,16 +11,13 @@ requires-python = ">=3.10"
 dependencies = []  # standard library only
 
 [project.scripts]
-tiny-agent = "cli:main"
-
-[tool.setuptools]
-py-modules = ["cli", "main"]   # code/cli.py and code/main.py, which sit beside the packages
+tiny-agent = "tiny_agent.cli:main"
 
 [tool.setuptools.packages.find]
-where = ["code"]   # the packages live in code/ (code/tiny_agent, code/llm_client)
-include = ["tiny_agent*", "llm_client*"]
-exclude = ["tiny_agent.tests*", "llm_client.tests*"]
-namespaces = true  # code/tiny_agent/ has no __init__.py; the harness is in code/tiny_agent/shared/
+where = ["."]   # tiny_agent, with tiny_agent/llm_client inside it
+include = ["tiny_agent*"]
+exclude = ["tiny_agent.tests*"]
+namespaces = true  # tiny_agent/ has no __init__.py; the harness is in tiny_agent/agent/
 
 [tool.ruff]
-src = ["code", "experimentation/chat-app/backend"]   # first-party code: tiny_agent, llm_client, main, cli and the backend modules, so imports sort as pytest, blank line, then these
+src = [".", "experimentation/chat-app/backend"]   # first-party code: tiny_agent (with llm_client, main and cli inside) and the backend modules, so imports sort as pytest, blank line, then these

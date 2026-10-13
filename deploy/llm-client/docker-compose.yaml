@@ -1,7 +1,8 @@
 # The LLM client and its own model server, on their own: no chat app, no other folder in deploy/.
 #
 #   llama        llama.cpp in router mode serving the models in models.ini, on http://localhost:3200/v1
-#   llm-client   the client (code/llm_client) in a container, run on demand
+#   llama-embed  a second llama.cpp that serves only the embedding model (EmbeddingGemma), on http://localhost:3201/v1
+#   llm-client   the client (tiny_agent/llm_client) in a container, run on demand
 #
 # Start the model server and talk to it (from this folder, or from the repo root with `node execute.mjs`):
 #
@@ -69,16 +70,45 @@ services:
         aliases:
           - llama
 
+  # EmbeddingGemma (308 M parameters, about 0.3 GB) in a container of its own, so embedding does not unload the
+  # chat model (the router above keeps one model loaded) and needs no VRAM: it runs on the CPU, which is fast
+  # enough for a model this small. POST /v1/embeddings {"model": "embeddinggemma-300m", "input": "..."}.
+  # The model is downloaded from Hugging Face on the first start and kept in the same cache folder.
+  llama-embed:
+    image: ghcr.io/ggml-org/llama.cpp:server
+    ports:
+      - "${LLAMA_BIND:-127.0.0.1}:${EMBED_PORT:-3201}:8080"
+    volumes:
+      - ${MODELS_CACHE:-./models/cache}:/models
+    environment:
+      LLAMA_CACHE: /models
+      LLAMA_ARG_HF_REPO: ggml-org/embeddinggemma-300M-GGUF
+      LLAMA_ARG_ALIAS: embeddinggemma-300m   # the model name clients send
+      LLAMA_ARG_EMBEDDINGS: "1"
+      LLAMA_ARG_POOLING: mean
+      LLAMA_ARG_CTX_SIZE: "2048"
+      LLAMA_ARG_N_GPU_LAYERS: "0"
+      LLAMA_ARG_HOST: 0.0.0.0
+      LLAMA_ARG_PORT: 8080
+      LLAMA_ARG_WEBUI: "0"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 20
+      start_period: 60s
+
   llm-client:
     build:
-      context: ../..   # the repo root; Dockerfile.dockerignore sends only code/llm_client and the two scripts
+      context: ../..   # the repo root; Dockerfile.dockerignore sends only tiny_agent/llm_client and the two scripts
       dockerfile: deploy/llm-client/Dockerfile
     image: tiny-agent-llm-client
     environment:
       # This folder's own model server by default. Point it at another server, for example the chat app's
       # gateway, with TINYAGENT_LLM_URL=http://host.docker.internal:3200/v1 (see .env.example).
       TINYAGENT_LLM_URL: ${TINYAGENT_LLM_URL:-http://llama:8080/v1}
+      TINYAGENT_EMBEDDING_URL: ${TINYAGENT_EMBEDDING_URL:-http://llama-embed:8080/v1}
     extra_hosts:
       - "host.docker.internal:host-gateway"   # built in on Docker Desktop; this line makes it work on Linux too
-    command: ["python", "-m", "llm_client.check"]
+    command: ["python", "-m", "tiny_agent.llm_client.check"]
     profiles: ["tools"]   # run on demand; `docker compose up` starts only the model server

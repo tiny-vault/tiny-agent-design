@@ -42,7 +42,7 @@ task ─▶ [memory] ─▶ LLM decides ─▶ action ─▶ tool ─▶ observa
 ```powershell
 python -m venv .venv
 .\.venv\Scripts\Activate.ps1
-python code/main.py
+python -m tiny_agent.main
 ```
 
 The demo tells the agent the authors' names and then asks for them in a second run on the same agent, so memory is what answers; it prints the second reply. It calls a model, so a model server must be running first: the chat app (`node execute.mjs up`) or just the llm client's model server (`node execute.mjs up llm-client`, then `node execute.mjs llm-client load qwen3.5-4b`). See [INSTRUCTIONS.md](INSTRUCTIONS.md) for the settings it reads.
@@ -66,11 +66,11 @@ python -m pip install -e .
 tiny-agent
 ```
 
-This gives you a `tiny-agent` command: an interactive chat with the model, or `tiny-agent "your question"` for a single answer. It uses the chat app stack and whichever model is loaded, and writes `experimentation/chat-app/logs/cli.log`. Without installing, `python code/cli.py` does the same. See `INSTRUCTIONS.md` for the options.
+This gives you a `tiny-agent` command: an interactive chat with the model, or `tiny-agent "your question"` for a single answer. It uses the chat app stack and whichever model is loaded, and writes `experimentation/chat-app/logs/cli.log`. Without installing, `python -m tiny_agent.cli` does the same. See `INSTRUCTIONS.md` for the options.
 
-### Settings: `code/.env`
+### Settings: `tiny_agent/.env`
 
-The Python code reads its settings from `code/.env` (git-ignored; `code/.env.example` is the template), so you do not have to repeat them on every command. A value set in your shell or given as an option always wins over the file. An empty or missing file is fine.
+The Python code reads its settings from `tiny_agent/.env` (git-ignored; `tiny_agent/.env.example` is the template), so you do not have to repeat them on every command. A value set in your shell or given as an option always wins over the file. An empty or missing file is fine.
 
 | Setting | What it does |
 |---|---|
@@ -78,15 +78,17 @@ The Python code reads its settings from `code/.env` (git-ignored; `code/.env.exa
 | `TINYAGENT_LLM_URL` | The server address (default: the Docker gateway) |
 | `TINYAGENT_SYSTEM`, `TINYAGENT_THINK` | A system message; let the model think |
 | `TINYAGENT_TRIM_MEMORY` | `1` gives the `main.py` demo a `TrimmingMemory` that keeps only the last two turns (default: keep everything) |
+| `TINYAGENT_SUMMARY_MEMORY` | `1` gives the `main.py` demo a `SummarizationMemory` that keeps a model-written running summary instead of the messages (one extra model call per task; wins over `TINYAGENT_TRIM_MEMORY`) |
+| `TINYAGENT_RAG_MEMORY`, `TINYAGENT_EMBEDDING_MODEL` | `1` gives the `main.py` demo a `RAGMemory` that puts the three documents most similar to each question in front of it, found with an embedding model (default `embeddinggemma-300m`, on the same server). The server needs both models loaded at once (`LLAMA_MODELS_MAX=2`). Wins over the two flags above |
 | `TINYAGENT_API_KEY_FILE` or `TINYAGENT_API_KEY` | A key for a hosted server (the Docker stack needs none) |
 | `TINYAGENT_LOG_DIR`, `TINYAGENT_LOG_LEVEL` | Where and how much `cli.log` and `main.log` log |
 
 Or from code:
 
 ```python
-from tiny_agent.shared.memory import Memory
-from tiny_agent.shared.tiny_agent import TinyAgent
-from llm_client.llm import LLM
+from tiny_agent.agent.memory import Memory
+from tiny_agent.agent.tiny_agent import TinyAgent
+from tiny_agent.llm_client.llm import LLM
 
 llm = LLM(model="gemma4-e4b")              # the LLM client: talks to a real model
 print(llm.generate([{"role": "user", "content": "Hi!"}]).content)
@@ -124,12 +126,14 @@ Only one model fits in GPU memory at a time, so every switch is a full reload. T
 
 ```
 tiny-agent-design/
-├── code/
-│   ├── main.py          # entry point: creates the agent and runs a task
-│   ├── cli.py           # the tiny-agent terminal chat
-│   ├── .env.example     # settings template (copy to code/.env)
-│   ├── tiny_agent/      # the TinyAgent harness and the log files
-│   └── llm_client/      # self-contained LLM client, model check, .env loader (own README and tests)
+├── tiny_agent/          # the TinyAgent package, self-contained:
+│   ├── main.py          #   entry point: creates the agent and runs a task
+│   ├── cli.py           #   the tiny-agent terminal chat
+│   ├── .env.example     #   settings template (copy to .env in this folder)
+│   ├── agent/           #   the harness: TinyAgent, trajectory, step
+│   ├── memory/          #   Memory and its variants (trimming, summarization, RAG)
+│   ├── llm_client/      #   LLM client, model check, .env loader (own README and tests)
+│   └── tests/           #   pytest suite
 ├── deploy/              # Docker, four independent parts, each with its own compose file and README:
 │   ├── chat-app/        #   llama.cpp, backend, frontend, gateway, logs (OpenObserve, Vector)
 │   ├── llm-client/      #   the LLM client, run on demand

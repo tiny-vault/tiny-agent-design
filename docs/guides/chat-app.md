@@ -60,7 +60,7 @@ The backend allows 30 minutes for a load (`LLAMA_LOAD_TIMEOUT`) and the gateway 
 Everything is searchable in one place, OpenObserve at <http://localhost:5080>, which opens already logged in.
 
 * Stream `docker`: the gateway, frontend, backend and llama.cpp containers (field `service`).
-* Stream `tiny_agent`: the `tiny-agent` command (service `tiny-agent-cli`) and `python code/main.py` (service `tiny-agent-main`). They write `experimentation/chat-app/logs/cli.log` and `main.log`, and Vector ships those files to OpenObserve. The Python code itself never talks to OpenObserve.
+* Stream `tiny_agent`: the `tiny-agent` command (service `tiny-agent-cli`) and `python -m tiny_agent.main` (service `tiny-agent-main`). They write `experimentation/chat-app/logs/cli.log` and `main.log`, and Vector ships those files to OpenObserve. The Python code itself never talks to OpenObserve.
 
 ```powershell
 node execute.mjs observe              # the URL and what is collected

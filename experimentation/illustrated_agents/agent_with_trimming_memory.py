@@ -18,7 +18,7 @@ moment of the third and fourth ``run`` the model is sent a window that starts wi
 local model used here accepts that, but a stricter chat template might not. Nothing is summarised: what leaves
 the window is forgotten. ``llm`` is ``qwen3.5-4b`` via the gateway with ``temperature=None`` (the server's
 default). Compare ``agent_with_memory``, which keeps every message, and the repo's own ``TrimmingMemory`` in
-``code/tiny_agent/shared/memory/trimming.py``.
+``tiny_agent/memory/trimming.py``.
 """
 
 from pathlib import Path

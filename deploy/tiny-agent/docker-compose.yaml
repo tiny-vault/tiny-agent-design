@@ -1,10 +1,10 @@
-# The TinyAgent terminal chat (code/tiny_agent, code/llm_client, code/cli.py, code/main.py) in a
+# The TinyAgent terminal chat (tiny_agent, with llm_client, cli.py and main.py inside it) in a
 # container, on its own: no chat app, no other service. Run it from this folder:
 #
 #   docker compose run --rm --build tiny-agent                       the interactive chat
 #   docker compose run --rm --build tiny-agent python -m tiny_agent "Why is the sky blue?"
 #                                                                    one question, one answer
-#   docker compose run --rm --build tiny-agent python code/main.py  the two-turn memory demo
+#   docker compose run --rm --build tiny-agent python -m tiny_agent.main  the two-turn memory demo
 #
 # or from the repo root: `node execute.mjs tiny-agent ["question"]` (and `node execute.mjs up tiny-agent`
 # to only build the image).
@@ -18,7 +18,7 @@ name: tiny-agent
 services:
   tiny-agent:
     build:
-      context: ../..   # the repo root; Dockerfile.dockerignore sends only code/
+      context: ../..   # the repo root; Dockerfile.dockerignore sends only tiny_agent/
       dockerfile: deploy/tiny-agent/Dockerfile
     image: tiny-agent
     environment:
