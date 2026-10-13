@@ -1,5 +1,16 @@
 """The TinyAgent harness: the code that turns an LLM into an agent.
 
+What is it? A language model only turns text into text. An *agent* is that model
+plus the code around it (the *harness*): something that keeps the conversation,
+decides what to send, and (in later phases) runs tools and plans. ``TinyAgent``
+is that harness, built up one phase at a time.
+
+What this file does today: ``run`` puts the task into ``memory``, ``_step`` sends
+the whole memory to the model once and stores the reply, and the call is
+recorded in ``trajectory``. Because the history is resent every time, a second
+``run`` on the same agent can use what the first one said; with a fresh
+``Memory`` it cannot. There is no loop, no tool use and no planning yet.
+
 Based on *An Illustrated Guide to AI Agents* by Maarten Grootendorst and
 Jay Alammar (O'Reilly). The book's companion repository has no license, so
 all rights remain with the authors.
@@ -105,8 +116,10 @@ class TinyAgent:
         which is what the model sees.
 
         Returns:
-            Currently the model's reply text. The call is recorded as a
-            :class:`~tiny_agent.shared.step.Step` in ``self.trajectory``.
+            Currently the model's reply text; a reply with no text (a tool call
+            only, ``content`` is ``None``) comes back, and is stored, as ``""``.
+            The call is recorded as a :class:`~tiny_agent.shared.step.Step` in
+            ``self.trajectory``.
         """
         # The model is stateless, so it gets the full history every time. Storing the
         # reply afterwards is what lets the next call "remember" this one.

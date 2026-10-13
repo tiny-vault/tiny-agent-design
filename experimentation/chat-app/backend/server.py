@@ -3,6 +3,14 @@
 The browser never talks to llama-server directly; it calls this service (through
 the frontend's nginx), which calls llama-server over HTTP with httpx.
 
+Why a backend at all? llama-server holds one model in GPU memory at a time, so a
+model switch is slow and a chat sent to an unloaded model would silently trigger one.
+This service is the single place that (1) adds the llama-server API key, which the
+browser never sees, (2) loads a model on request and waits until it is ready, one
+switch at a time, and (3) refuses chats to a model that is not loaded. The model
+calls themselves are made by ``LlamaClient`` in ``llama_client.py``; this file is
+only the HTTP layer and its error format.
+
 Environment:
     LLAMA_URL  Base URL of llama-server (default http://llama:8080).
 
@@ -68,21 +76,31 @@ def read_secret(path: str | None) -> str | None:
 
 
 class ApiError(Exception):
+    """An error this backend raises itself, turned into ``{"error": {"message", "code"}}`` by a handler in ``create_app``."""
+
     def __init__(self, status: int, message: str, code: str):
         self.status, self.message, self.code = status, message, code
 
 
 class LoadRequest(BaseModel):
+    """Body of ``POST /api/models/load``: the model to load. An empty name is rejected with 400."""
+
     model: str = Field(min_length=1)
 
 
 class ChatRequest(BaseModel):
+    """Body of ``POST /api/chat``: a model name and the whole conversation (the server keeps no history)."""
+
     model: str = Field(min_length=1)
     messages: list[dict]
 
 
 def create_app(llama_url: str | None = None, **client_options) -> FastAPI:
-    """Build the app. ``client_options`` go to LlamaClient (timeouts, polling)."""
+    """Build the app. ``client_options`` go to LlamaClient (timeouts, polling).
+
+    A function rather than module-level code so tests can build an app against a fake
+    llama-server (``create_app(fake_url)``); the module's own ``app`` at the bottom is the real one.
+    """
     url = llama_url or os.environ.get("LLAMA_URL", "http://llama:8080")
     # The key comes from a file (a Docker secret), never from an environment variable or the image.
     client_options.setdefault("api_key", read_secret(os.environ.get("LLAMA_API_KEY_FILE")))
@@ -100,6 +118,7 @@ def create_app(llama_url: str | None = None, **client_options) -> FastAPI:
 
     # ---- errors ------------------------------------------------------------
 
+    # Every handler below returns the same body shape, {"error": {"message", "code"}}, which is what the frontend reads.
     @app.exception_handler(ApiError)
     async def api_error(_: Request, error: ApiError):
         return JSONResponse({"error": {"message": error.message, "code": error.code}}, status_code=error.status)
@@ -124,21 +143,25 @@ def create_app(llama_url: str | None = None, **client_options) -> FastAPI:
         return JSONResponse({"error": {"message": "Not found", "code": "not_found"}}, status_code=404)
 
     def llama(request: Request) -> LlamaClient:
+        """The shared client created in ``lifespan``."""
         return request.app.state.llama
 
     # ---- endpoints ---------------------------------------------------------
 
     @app.get("/health")
     async def health(request: Request):
+        """Always 200 if this service runs; ``llama`` says whether llama-server answers."""
         return {"status": "ok", "llama": "up" if await llama(request).is_up() else "down"}
 
     @app.get("/api/models")
     async def models(request: Request):
+        """Each offered model with its status; the frontend allows chat only for ``loaded``."""
         statuses = await llama(request).model_statuses()
         return {"models": [{"id": m, "status": s} for m, s in statuses.items()]}
 
     @app.post("/api/models/load")
     async def load(body: LoadRequest, request: Request):
+        """Switch models and wait. The lock lets only one switch run at a time, because loading one model unloads the other."""
         try:
             async with request.app.state.switch_lock:
                 await llama(request).load_model(body.model)
@@ -152,6 +175,7 @@ def create_app(llama_url: str | None = None, **client_options) -> FastAPI:
 
     @app.post("/api/chat")
     async def chat(body: ChatRequest, request: Request):
+        """A non-streamed chat: send the messages, return the first choice of the reply."""
         return await llama(request).chat(body.model, body.messages)
 
     async def forward(request: Request, path: str, body: bytes | None = None) -> StreamingResponse:
@@ -175,6 +199,7 @@ def create_app(llama_url: str | None = None, **client_options) -> FastAPI:
 
     @app.post("/v1/chat/completions")
     async def completions(request: Request):
+        """Streamed chat for the browser, with a guard: only a model that is already loaded is allowed through."""
         raw = await request.body()
         try:
             model = json.loads(raw or b"{}").get("model")
@@ -196,6 +221,7 @@ def create_app(llama_url: str | None = None, **client_options) -> FastAPI:
 
     @app.api_route("/v1/{path:path}", methods=["GET", "POST"])
     async def passthrough(path: str, request: Request):
+        """Any other ``/v1/...`` call is streamed to llama-server unchanged (with the key added)."""
         return await forward(request, f"/v1/{path}")
 
     return app

@@ -33,6 +33,10 @@ Supported syntax::
 
 Set ``TINYAGENT_ENV_FILE`` in the real environment to read a different file.
 
+The module also holds ``api_key_from_env``, which reads the API key a server may
+need. It lives here, not in ``cli.py``, so that ``main.py`` and ``cli.py`` can both use
+it without importing each other (that would be a circular import).
+
 Standard library only.
 """
 

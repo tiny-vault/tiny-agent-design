@@ -55,4 +55,5 @@ Each of ``zero_shot``, ``one_shot`` and ``few_shot`` runs its technique plain an
    experimentation.illustrated_agents.best_of_n.weighted_prm
    experimentation.illustrated_agents.best_of_n.compare
    experimentation.illustrated_agents.agent_without_memory
+   experimentation.illustrated_agents.agent_with_memory
    experimentation.trigger_ias

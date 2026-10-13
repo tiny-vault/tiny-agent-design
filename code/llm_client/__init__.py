@@ -14,7 +14,8 @@ only maps text to text, and everything else is the harness around it.
 The modules, in the order a request passes through them:
 
 * ``llm_client.env``: loads settings (model name, server address) from a
-  ``.env`` file into the environment.
+  ``.env`` file into the environment, and reads the API key
+  (``api_key_from_env``) from ``TINYAGENT_API_KEY_FILE`` or ``TINYAGENT_API_KEY``.
 * :mod:`llm_client.check`: asks the server which models are loaded
   (``python -m llm_client.check``), so a request can fail early with a clear message.
 * :mod:`llm_client.llm`: the ``LLM`` class, which sends a conversation to a model.

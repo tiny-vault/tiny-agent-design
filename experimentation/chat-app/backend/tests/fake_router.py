@@ -13,9 +13,18 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 
 class FakeRouter:
-    LOAD_SECONDS = 0.2
+    """A llama-server look-alike a test can inspect and steer.
+
+    Attributes a test can read or set (all put back by :meth:`reset`): ``status`` (model
+    to "loaded"/"loading"/"unloaded"), ``chat_calls`` and ``load_calls`` (what the backend
+    sent), ``api_key`` (require a bearer token), ``auth_seen`` (every ``Authorization``
+    header received), ``health_code``, ``cache_models`` and ``busy_until``.
+    """
+
+    LOAD_SECONDS = 0.2  # how long a fake load takes: short, so tests stay fast, but long enough to see "loading"
 
     def __init__(self):
+        """Start the fake server on a free local port in a background thread."""
         self.reset()
         fake = self
 
@@ -96,6 +105,7 @@ class FakeRouter:
         threading.Thread(target=self.httpd.serve_forever, kwargs={"poll_interval": 0.05}, daemon=True).start()
 
     def reset(self):
+        """Back to the starting state: gemma loaded, the others unloaded, no key, no recorded calls."""
         self.status = {"gemma": "loaded", "qwen": "unloaded", "broken": "unloaded", "slow": "unloaded"}
         self.chat_calls = []
         self.load_calls = []
@@ -107,6 +117,7 @@ class FakeRouter:
         self.busy_until = 0  # monotonic time until which loads are refused as "model limit reached"
 
     def _begin_load(self, model):
+        """Start a fake load: unload the others at once, show "loading", and finish after ``LOAD_SECONDS``."""
         for other in self.status:
             if other != model and self.status[other] == "loaded":
                 self.status[other] = "unloaded"
@@ -121,5 +132,6 @@ class FakeRouter:
         threading.Thread(target=finish, daemon=True).start()
 
     def close(self):
+        """Stop the server and free its port."""
         self.httpd.shutdown()
         self.httpd.server_close()

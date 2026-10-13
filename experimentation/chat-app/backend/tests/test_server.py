@@ -1,4 +1,17 @@
-"""Backend tests, run against a fake llama.cpp router.  Run:  pytest"""
+"""Backend tests, run against a fake llama.cpp router.  Run:  pytest
+
+From the repo root use ``node execute.mjs test backend`` (``-- -k load`` picks tests by name).
+
+What is tested: the backend's HTTP behaviour, not the models. The sections, in file
+order, are: health and listing; model switching (load and wait, fail, time out); the
+chat guard on ``/v1/chat/completions``; ``/api/chat``; edge cases; a busy router;
+the llama.cpp API key (a Docker secret) and reading it from a secret file; models the
+router only found in its download cache; and pooled connections. The ``client`` and
+``offline_client`` fixtures come from ``conftest.py``; the fake llama-server is in
+``fake_router.py``. The tests pin status codes and the error ``code`` in the
+``{"error": {"message", "code"}}`` body, which the frontend reads, so changing either
+makes a test fail.
+"""
 
 import json
 import threading
@@ -12,15 +25,18 @@ from server import create_app
 
 
 def statuses(client):
+    """The backend's model list as a plain ``{model: status}`` dict."""
     return {m["id"]: m["status"] for m in client.get("/api/models").json()["models"]}
 
 
 def completion(client, model, **extra):
+    """POST a one-message chat to ``/v1/chat/completions``; ``extra`` adds body fields such as ``stream=True``."""
     return client.post("/v1/chat/completions",
                        json={"model": model, "messages": [{"role": "user", "content": "hi"}], **extra})
 
 
 def code(response):
+    """The machine-readable ``error.code`` of an error response."""
     return response.json()["error"]["code"]
 
 

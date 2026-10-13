@@ -1,8 +1,25 @@
 """Async client for llama-server's HTTP API (router mode), built on httpx.
 
+What is it? ``llama-server`` (llama.cpp) runs language models on the GPU and
+exposes them over HTTP. In *router mode* it knows several models but keeps only
+one in memory at a time: asking for another one makes it unload the first and load
+the new one, which takes tens of seconds (and minutes on the first download).
+``LlamaClient`` is the backend's only way to talk to it.
+
+Why a client class? The rest of the backend (``server.py``) should not know about
+loading states, retries or timeouts. This file hides three things behind plain
+async methods: listing models with a status (``loaded``, ``loading``, ``unloaded``),
+sending one chat request, and ``load_model``, which asks the router to switch and
+then polls until the model is really loaded (or fails, or times out).
+
 The request shape for chat follows the example in *An Illustrated Guide to AI
 Agents* by Maarten Grootendorst and Jay Alammar (O'Reilly): POST ``model`` and
 ``messages`` to ``/v1/chat/completions`` and read ``choices[0]``.
+
+Failures become the exceptions below (``LlamaUnreachable``, ``LlamaError``,
+``ModelNotFound``, ``LoadFailed``, ``LoadTimeout``), so ``server.py`` can map each
+to one HTTP status without parsing httpx errors. This client belongs to the chat
+app and is not used by ``code/tiny_agent``; that package has its own client.
 """
 
 import asyncio
@@ -19,7 +36,12 @@ class LlamaUnreachable(Exception):
 
 
 class LlamaError(Exception):
-    """llama-server answered with an error status."""
+    """llama-server answered with an error status.
+
+    Attributes:
+        status: The HTTP status code llama-server sent.
+        message: The text from its error body (see ``_error_message``).
+    """
 
     def __init__(self, status: int, message: str):
         super().__init__(message)
@@ -43,6 +65,19 @@ class LlamaClient:
 
     def __init__(self, base_url: str, *, api_key: str | None = None, timeout: float = 600,
                  load_timeout: float = 300, poll_interval: float = 1, start_grace: float = 15):
+        """Create the HTTP connection pool; nothing is sent yet.
+
+        Args:
+            base_url: Where llama-server listens, for example ``http://llama:8080``.
+            api_key: Sent as a bearer token on every request when llama-server was
+                started with a key; ``None`` sends no ``Authorization`` header.
+            timeout: Seconds to wait for a reply to one request. Long, because a chat
+                answer from a local model can take minutes.
+            load_timeout: Seconds ``load_model`` waits for a model to reach "loaded".
+            poll_interval: Seconds between status checks while a model loads.
+            start_grace: Seconds a model may still show "unloaded" after the load
+                request before ``load_model`` decides it never started.
+        """
         self.base_url = base_url.rstrip("/")
         # llama-server may require a key (--api-key-file). It is sent as a bearer token on every request.
         headers = {"Authorization": f"Bearer {api_key}"} if api_key else {}
@@ -58,9 +93,16 @@ class LlamaClient:
         self.start_grace = start_grace
 
     async def aclose(self) -> None:
+        """Close the connection pool; call once when the app shuts down."""
         await self.http.aclose()
 
     async def _json(self, method: str, path: str, **kwargs) -> dict:
+        """Send one request and return its JSON body.
+
+        Raises:
+            LlamaUnreachable: The connection failed or timed out.
+            LlamaError: llama-server answered with an error status.
+        """
         try:
             response = await self.http.request(method, path, **kwargs)
         except httpx.HTTPError as error:
@@ -70,6 +112,7 @@ class LlamaClient:
         return response.json()
 
     async def is_up(self) -> bool:
+        """True if llama-server answers ``/health`` with 200; never raises (used by the backend's own health check)."""
         try:
             return (await self.http.get("/health", timeout=3)).status_code == 200
         except httpx.HTTPError:
@@ -116,6 +159,7 @@ class LlamaClient:
         if statuses[model] == "loaded":
             return
         started = time.monotonic()
+        # Step 1: request the load. The router answers at once; the model loads in the background.
         # With one model allowed at a time, llama.cpp refuses a switch while the
         # current model is still busy (for example finishing a generation that
         # was just stopped). That clears by itself, so retry until it does.
@@ -130,6 +174,8 @@ class LlamaClient:
                     raise LoadTimeout(model) from error
                 await asyncio.sleep(self.poll_interval)
 
+        # Step 2: poll the status. "loading" then "loaded" is the normal path. "unloaded" after we
+        # saw "loading" means the load failed; "unloaded" for longer than start_grace means it never began.
         saw_loading = False
         while True:
             status = (await self.model_statuses()).get(model, "unloaded")
@@ -145,7 +191,11 @@ class LlamaClient:
 
 
 def _error_message(response: httpx.Response) -> str:
-    """The message in llama-server's error body, else the raw text."""
+    """The message in llama-server's error body, else the raw text.
+
+    llama-server normally sends ``{"error": {"message": ...}}``; this also copes with a
+    body that is not JSON or has another shape, so a ``LlamaError`` always carries readable text.
+    """
     try:
         error = response.json().get("error", {})
         return error.get("message") or str(error) if isinstance(error, dict) else str(error)
