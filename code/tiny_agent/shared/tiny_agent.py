@@ -70,8 +70,8 @@ class TinyAgent:
         """
         self.llm = llm
         self.memory = memory
-        self.tools = None  # Chapter 5: Add Tools
-        self.planner = None  # Chapter 6: Add Planning
+        self.tools = None  # Phase 5: Add Tools
+        self.planner = None  # Phase 6: Add Planning
 
         self.trajectory = Trajectory()
 

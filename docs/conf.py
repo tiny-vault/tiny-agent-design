@@ -11,8 +11,6 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "code"))
 # guard their model calls, but importing them reads the llama_api_key secret: run
 # `node execute.mjs up` once before building the docs.
 sys.path.append(str(Path(__file__).resolve().parent.parent))
-# Those scripts import their shared pieces as `from common import ...` (their own folder).
-sys.path.append(str(Path(__file__).resolve().parent.parent / "experimentation" / "illustrated_agents"))
 
 project = "TinyAgent"
 copyright = "2026, TinyAgent contributors"

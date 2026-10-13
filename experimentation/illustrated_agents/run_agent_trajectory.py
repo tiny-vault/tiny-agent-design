@@ -1,19 +1,23 @@
-"""Run the chapter 2 ``TinyAgent`` on "What is 2 + 2?" and print its trajectory.
+"""Run the phase 2 ``TinyAgent`` on "What is 2 + 2?" and print its trajectory.
 
-Prints the answer, the raw ``agent.trajectory.runs``, then a plain-text version of what ``TrajectoryViewer`` renders in Jupyter. Expect one run with one ``Final answer`` step. ``llm`` is ``qwen3.5-4b`` via the gateway, which accepts the call without an API key.
+**What it is.** A trajectory is the agent's record of what happened during a run: the user's query, then each step it took (a thought, an action or a final answer). It lets you inspect how the agent got its answer, not just the answer.
+
+**How it works here.** The phase 2 agent makes one LLM call, so a run has one step. The script prints the answer, the raw ``agent.trajectory.runs`` (a list of runs, each with its ``query`` and ``steps``), then a plain-text version of what ``TrajectoryViewer`` renders as HTML in Jupyter: each step's kind and its non-empty fields.
+
+**What to expect.** One run with one ``Final answer`` step; the reply text varies between runs. ``llm`` is ``qwen3.5-4b`` via the gateway, which accepts the call without an API key here because the backend adds the key to ``/v1`` requests.
+
+Compare ``agent_greeting``, which runs the same agent and prints only the reply.
 """
 
 from illustrated_agents.chapters.ch2 import LLM, TinyAgent
 from illustrated_agents.utils import TrajectoryViewer
-
-from common import agent_query
 
 # The chat-app gateway forwards /v1 to llama.cpp and adds the API key itself.
 llm = LLM(model="qwen3.5-4b", base_url="http://localhost:3200/v1")
 
 if __name__ == "__main__":
     agent = TinyAgent(llm=llm)
-    response = agent.run(agent_query)
+    response = agent.run("What is 2 + 2?")
     print(response)
     print(agent.trajectory.runs)
 

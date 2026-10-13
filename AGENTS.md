@@ -1,13 +1,13 @@
 # AGENTS.md
 
-Guidance for AI agents in this repo. `code/tiny_agent/` and `code/llm_client/` have stricter rules in their own `AGENTS.md` (fix methods only, never restructure, flag what is missing, re-read before every edit); read them before touching those folders.
+Guidance for AI agents. `code/tiny_agent/` and `code/llm_client/` have stricter `AGENTS.md` files (fix methods only, never restructure, flag what is missing, re-read before every edit); read them before touching those folders.
 
 ## What this is
 
-1. **TinyAgent** (`code/tiny_agent/`, `docs/`): minimal educational agent harness. `TinyAgent` calls the model once per task; loop, memory, tools and planning are placeholders. Beside it: the LLM client (`code/llm_client/`: `llm.py`, `response.py`, `check.py`), the `tiny-agent` terminal chat (`code/cli.py`), demo `python code/main.py`.
+1. **TinyAgent** (`code/tiny_agent/`, `docs/`): minimal educational agent harness; one model call per task, loop/memory/tools/planning are placeholders. Also: LLM client (`code/llm_client/`: `llm.py`, `response.py`, `check.py`), `tiny-agent` terminal chat (`code/cli.py`), demo `python code/main.py`.
 2. **Chat app** (`experimentation/chat-app/`): local chat UI for llama.cpp models, all in Docker; does not use `code/tiny_agent/`.
 
-Key paths: `execute.mjs` (Docker + tests, start here), `INSTRUCTIONS.md` (how to run everything), `experimentation/docker-compose.yaml` (the stack; optional `.env` beside it), `chat-app/{frontend (React 19, Vite, Tailwind v4), backend (FastAPI), models (models.ini, cache/), deploy (Dockerfiles, nginx), observability, logs/, secrets/}`.
+Key paths: `execute.mjs` (Docker + tests, start here), `INSTRUCTIONS.md` (how to run everything), `experimentation/docker-compose.yaml` (stack; optional `.env` beside it), `chat-app/{frontend (React 19, Vite, Tailwind v4), backend (FastAPI), models (models.ini, cache/), deploy (Dockerfiles, nginx), observability, logs/, secrets/}`.
 
 ## Architecture
 
@@ -17,9 +17,9 @@ browser -> gateway (nginx, ONLY published port, 3200)
              `-- /api, /v1  -> backend (FastAPI) -> llama.cpp (router mode, internal)
 ```
 
-- Never add `ports:` to other services; add routes in `chat-app/deploy/gateway.nginx.conf`.
-- Only the backend talks to llama.cpp: `/api/models`, `/api/models/load`, `/api/chat`, streamed `/v1/*` passthrough; `POST /v1/chat/completions` returns **409** unless the model is loaded.
-- The frontend allows chat only when the selected model is `loaded` and no switch is in progress.
+- No `ports:` on other services; add routes in `chat-app/deploy/gateway.nginx.conf`.
+- Only the backend talks to llama.cpp: `/api/models`, `/api/models/load`, `/api/chat`, streamed `/v1/*` passthrough; `POST /v1/chat/completions` is **409** unless the model is loaded.
+- Frontend allows chat only when the selected model is `loaded` and no switch is in progress.
 - Backend errors are always `{"error": {"message", "code"}}`; the frontend reads `message`.
 
 ## Commands (repo root)
@@ -29,55 +29,55 @@ browser -> gateway (nginx, ONLY published port, 3200)
 | Start / stop | `node execute.mjs up` / `down` |
 | Status, health, logs | `node execute.mjs status` / `health` / `logs [service]` |
 | Switch model / rebuild | `node execute.mjs load <model>` / `rebuild` |
-| Notebook-cell scripts | `.venv/Scripts/python trigger_ias.py [name]` (no name lists them; needs the stack up, model loaded) |
+| Notebook-cell scripts | `.venv/Scripts/python trigger_ias.py [name]` (no name lists them; stack up, model loaded) |
 | Tests | `node execute.mjs test [backend\|agent\|llm\|mocked\|live\|e2e\|all\|list]`, runner args after `--` (e.g. `test backend -- -k load`) |
 | Frontend | `cd experimentation/chat-app/frontend; npm run dev` (stack up) / `npm run build` |
 | Docs | `sphinx-build -b html -n -W --keep-going docs docs/_build/html` |
+| Educational audit (Claude skill) | `/edu-audit <folder>` (`.claude/skills/edu-audit/`, git-ignored, local) |
 
 Python: `.venv/Scripts/python` (3.12). Backend deps: `backend/requirements*.txt`.
 
 ## Tests
 
-`node execute.mjs test` is the only entry point; never hand-roll runners. `backend`, `agent`, `llm`: pytest against fake servers. `mocked`: Playwright, API stubbed. `live`: Playwright through the gateway, real models (stack up). `all` (default) = backend + mocked (+ live if the stack is up); `e2e` = mocked + live.
+`node execute.mjs test` is the only entry point; never hand-roll runners. `backend`, `agent`, `llm`: pytest against fake servers. `mocked`: Playwright, API stubbed. `live`: Playwright via the gateway, real models (stack up). `all` (default) = backend + mocked (+ live if stack up); `e2e` = mocked + live.
 
-Behaviour change means a test change in the same commit. The fake router (`backend/tests/fake_router.py`) and browser stubs (`frontend/e2e/helpers.js`) mimic real llama.cpp; if reality differs, fix the fake. Live tests rebuild nothing: `node execute.mjs rebuild` after frontend or backend changes.
+Behaviour change = test change in the same commit. The fake router (`backend/tests/fake_router.py`) and browser stubs (`frontend/e2e/helpers.js`) mimic real llama.cpp; if reality differs, fix the fake. Live tests rebuild nothing: `node execute.mjs rebuild` after frontend/backend changes.
 
 ## Conventions
 
-- **Windows scripting:** beyond a one-liner, write a Node `.mjs` script (outside the repo) and run `node file.mjs`; heredocs and here-strings break here.
+- **Windows scripting:** beyond a one-liner, write a Node `.mjs` script (outside the repo) and run `node file.mjs`; heredocs and here-strings break.
 - **LF line endings** (`.gitattributes`); never commit CRLF `*.sh`.
-- **Match surrounding code:** short comments explaining *why*, for a reader new to agents. Python stdlib-light, typed where it helps; frontend plain JS, function components, Tailwind (tokens in `frontend/src/index.css`).
-- **Markdown is never hard-wrapped** (one paragraph or list item per line). Pre-commit hook unwraps staged `.md`; `node tools/unwrap-md.mjs --check|--write`. Enable once: `git config core.hooksPath .githooks`.
+- **Match surrounding code:** short *why* comments for a reader new to agents. Python stdlib-light, typed where it helps; frontend plain JS, function components, Tailwind (tokens in `frontend/src/index.css`).
+- **Markdown is never hard-wrapped** (one paragraph or list item per line); pre-commit hook unwraps staged `.md`; `node tools/unwrap-md.mjs --check|--write`; enable once: `git config core.hooksPath .githooks`.
 - **Docs move with code:** a changed command, port, path or endpoint updates `INSTRUCTIONS.md` and the relevant README in the same change.
-- **Do not commit:** `.env`, model files, `node_modules`, `dist`, `.venv`, `docs/_build` (git-ignored; check `git status`).
+- **Do not commit** (git-ignored; check `git status`): `.env`, model files, `node_modules`, `dist`, `.venv`, `docs/_build`, `.educational-audit/`.
 
 ## Pasted model code (`experimentation/illustrated_agents/`)
 
-- Every pasted snippet becomes a **new** file there (descriptive snake_case name), unless it is another variant of a technique that already has a file: then it is one more function in that file (e.g. each Best-of-N verifier is a `best_of_n_<type>` function in `best_of_n.py`, picked by name from the command line). Otherwise never edit existing scripts.
-- The folder has **no `__init__.py`** (a namespace folder), so it never shadows the installed `illustrated_agents` package; never add one.
-- **Shared pieces live in `common/`** and scripts import them with `from common import ...`: `common/llm.py` (`llm`, `make_llm(temperature)`, the key from the Docker secret), `common/prompts.py` (**every prompt**, including judge prompts; import under the script's local name, e.g. `seating_query as query`), `common/output.py` (`show`, `print_diff`). Anything a second script would copy goes there, never into a script. Scripts never import each other. Copy the header of `one_shot.py`.
-- `from common import` resolves because the script's folder is on `sys.path`: automatically when run as a file; `trigger_ias.py` and `docs/conf.py` add it. Keep it that way if either changes.
-- It runs on the **existing Docker stack**, never Ollama (`localhost:11434`) or a new server: use `common.llm` (gateway `http://localhost:3200/v1`, the stack's model names `qwen3.5-4b`, `gemma4-e4b`, not Ollama tags, key read at runtime from `experimentation/chat-app/secrets/llama_api_key`, never printed or hardcoded). A model not in `chat-app/models/models.ini`: say so and ask.
-- **One short docstring, at the top** (match `one_shot.py`): a summary line plus one paragraph covering the technique, the key names (``query``, ``llm`` settings, helpers), the expected answer and a "Compare <script>" pointer. No docstrings on variables or functions; no `Run:`/`Requires:`/`Messages sent:` sections (`trigger_ias.py` and `docs/api/illustrated-agents-scripts.rst` cover running). Add a `Warning:` only for a real hazard (e.g. `exec` of model code).
-- Before running: `node execute.mjs status`; `up` if down, `load <model>` if not loaded. It must run both as a file and via `trigger_ias.py <name>`.
+- Each pasted snippet is a **new** file (descriptive snake_case), unless it is a variant of a technique that has a file: then one more function there (e.g. `best_of_n_<type>` in `best_of_n.py`, picked by name on the command line). Never edit existing scripts' code; documentation-only edits via `edu-audit` are fine.
+- **No `__init__.py`** (namespace folder, so it never shadows the installed `illustrated_agents` package).
+- Each file is **self-sufficient**: own imports, `LLM(...)`, key reading, prompts (`query`, judge prompts), printing helpers (`show`). No shared module (no `common/`), no imports between scripts; duplicated setup is intended. Copy the header of `shot_prompting.py`.
+- Runs on the **existing Docker stack**, never Ollama (`localhost:11434`) or a new server: `base_url="http://localhost:3200/v1"`, stack model names (`qwen3.5-4b`, `gemma4-e4b`), key read at runtime from `experimentation/chat-app/secrets/llama_api_key` via `Path(__file__).parents[1]` (never print or hardcode it). Model not in `chat-app/models/models.ini`: say so and ask.
+- **Documentation follows the `edu-audit` skill** (rules: its `references/style-guide.md`), for new snippets too. Repo specifics: the module docstring names the key names (``query``, ``llm`` settings, helpers), the expected answer and a "Compare <script>" pointer; Google-style docstrings that pass `sphinx-build -W` (napoleon); no `Run:`/`Requires:`/`Messages sent:` sections (`trigger_ias.py` and `docs/api/illustrated-agents-scripts.rst` cover running); `Warning:` only for a real hazard (e.g. `exec` of model code); logging goes to stderr, never to files.
+- Before running: `node execute.mjs status`; `up` if down, `load <model>` if not loaded. Must run as a file and via `trigger_ias.py <name>`.
 
 ## Secrets and logs
 
 - Credentials are Docker secrets: git-ignored files in `chat-app/secrets/`, generated by `up`, mounted at `/run/secrets/<name>` (OpenObserve login, `llama_api_key`). Never put a secret in compose, env vars, `.env`, an image or a log line. Services read files (`LLAMA_ARG_API_KEY_FILE`, `LLAMA_API_KEY_FILE`, Vector `SECRET[docker.<name>]`); OpenObserve cannot, so `observability/openobserve.Dockerfile` wraps its entrypoint.
 - OpenObserve UI (<http://localhost:5080>) opens logged in via the `observe` nginx proxy; anyone reaching `127.0.0.1:5080` is admin. Keep redirects relative (`absolute_redirect off`).
-- All logs go to OpenObserve (containers via Vector). Only `code/tiny_agent/log.py` writes files (`chat-app/logs/cli.log`, `main.log`); add no file logging elsewhere.
-- `node execute.mjs prune` removes the stack's containers, networks, `chat-app` volumes, secrets, logs and build output; keeps models and images. Never `docker system prune` (other projects live here).
+- All logs go to OpenObserve (containers via Vector). Only `code/tiny_agent/log.py` writes log files (`chat-app/logs/cli.log`, `main.log`).
+- `node execute.mjs prune` removes the stack's containers, networks, `chat-app` volumes, secrets, logs, build output; keeps models and images. Never `docker system prune` (other projects live here).
 
 ## Gotchas
 
-- **Router:** `POST /models/load` returns `{"success":true}` at once; then `loading` → `loaded` in `GET /v1/models` (`status.value`). `LLAMA_MODELS_MAX=1`: loading one unloads the other. Unknown model: 404. Web UI off.
+- **Router:** `POST /models/load` returns `{"success":true}` at once, then `loading` → `loaded` in `GET /v1/models` (`status.value`). `LLAMA_MODELS_MAX=1`: loading one unloads the other. Unknown model: 404. Web UI off.
 - **Model files:** first load downloads from Hugging Face (`hf-repo` in `models.ini`) into git-ignored `models/cache/` (6 to 20 min; `prune` keeps it). Timeouts: backend `LLAMA_LOAD_TIMEOUT` 1800 s, gateway 2000 s; keep in step.
-- **GPU:** 6 GB VRAM; `gemma4-e4b` uses 5.3 GB, so one model at a time, every switch a full reload (35 to 69 s). Lower `n-gpu-layers` in `models.ini` if a model does not fit.
+- **GPU:** 6 GB VRAM; `gemma4-e4b` uses 5.3 GB, so one model at a time, each switch a full reload (35 to 69 s). Lower `n-gpu-layers` in `models.ini` if a model does not fit.
 - **Ports:** 3000, 8000, 8080, 3001 belong to other projects; gateway is **3200** (`GATEWAY_PORT`). Check `netstat` before picking one.
 - **Compose:** project name pinned to `chat-app`; `~` is not expanded (use `USERPROFILE`/`HOME`).
 - **Node on Windows:** `process.exit()` right after a timed `fetch` can crash (libuv); set `process.exitCode`. `fetch` times out after 5 min waiting for headers; long calls use `node:http`.
-- **Past breakages:** OpenObserve root password needs lower, upper, digit, special (`execute.mjs` guarantees it); the Hugging Face cache has symlinks Windows cannot read (size counters skip them).
-- **Browser automation** (Claude in Chrome) needs the extension; otherwise use API checks and Playwright.
+- **Past breakages:** OpenObserve root password needs lower, upper, digit, special (`execute.mjs` ensures it); the Hugging Face cache has symlinks Windows cannot read (size counters skip them).
+- **Browser automation** (Claude in Chrome) needs the extension; otherwise API checks and Playwright.
 
 ## Before you finish
 

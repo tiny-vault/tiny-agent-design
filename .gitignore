@@ -1116,5 +1116,7 @@ nohup.out
 /tiny_agent.egg-info/
 /training-notes/
 /.claude/skills/
+# edu-audit skill output (backups, AUDIT_REPORT.md) in any audited folder
+.educational-audit/
 /.agents/skills/
 notes-site/

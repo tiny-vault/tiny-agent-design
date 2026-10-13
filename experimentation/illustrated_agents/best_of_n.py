@@ -1,6 +1,17 @@
 """Best-of-N four ways: generate 10 ``roman_to_int`` candidates and pick one with unit tests, an ORM, a PRM or a weighted PRM vote.
 
-Every method samples ``n`` answers to the book's coding ``query`` from ``llm`` (``qwen3.5-4b`` via the gateway, ``temperature=1`` so candidates differ) and differs only in how it picks. ``best_of_n_unit_tests`` keeps the candidate passing most ``test_cases`` (``verify``, a fraction 0.0 to 1.0; a crash or Markdown-fenced reply scores 0.0). ``best_of_n_orm`` asks an outcome reward model to rate each finished answer 0 to 10 (``orm_score`` with ``ORM_PROMPT``). ``best_of_n_prm`` asks a process reward model to rate every non-empty code line (``split_steps``, ``prm_scores`` with ``PRM_PROMPT``) and keeps the candidate with the best weakest step (``min``). ``best_of_n_weighted_prm`` groups candidates that return the same outputs on the test inputs (``behaviour``), sums their PRM rewards and keeps the heaviest group, so an answer many good samples agree on beats one lucky outlier. With no trained reward model in the stack, ``judge`` (the same model at ``temperature=0``) stands in for both; the reward methods still run ``verify`` afterwards to show whether their pick really is the best. ``python best_of_n.py orm`` runs one method (``unit_tests``, ``orm``, ``prm``, ``weighted_prm``); no argument runs all four. Compare ``self_consistency``, which votes without a verifier.
+**What it is.** Best-of-N draws N answers from a model and keeps the best one according to a verifier. The model never improves; the selection does. Everything depends on how good the verifier is.
+
+**The four verifiers.**
+
+- ``best_of_n_unit_tests``: runs the candidate on ``test_cases`` (``verify``, a fraction 0.0 to 1.0; a crash or Markdown-fenced reply scores 0.0). Real ground truth.
+- ``best_of_n_orm``: an outcome reward model rates each finished answer 0 to 10 (``orm_score`` with ``ORM_PROMPT``).
+- ``best_of_n_prm``: a process reward model rates every non-empty code line (``split_steps``, ``prm_scores`` with ``PRM_PROMPT``) and the candidate with the best weakest step wins (``min``).
+- ``best_of_n_weighted_prm``: groups candidates that return the same outputs on the test inputs (``behaviour``), sums their PRM rewards and keeps the heaviest group, so an answer many good samples agree on beats one lucky outlier.
+
+**How it works here.** Every method samples ``n`` answers to the book's coding ``query`` from ``llm`` (``qwen3.5-4b`` via the gateway, ``temperature=1`` so candidates differ) and differs only in how it picks. No trained reward model is in the stack, so ``judge`` (the same model at ``temperature=0``) stands in for both; its scores are the model's opinion, not a measured quality. The reward methods still run ``verify`` afterwards to show whether their pick really is the best.
+
+**Running it.** ``python best_of_n.py orm`` runs one method (``unit_tests``, ``orm``, ``prm``, ``weighted_prm``); no argument runs all four. Scores vary between runs, so one run does not rank the verifiers. Compare ``self_consistency``, which votes without a verifier.
 
 Warning:
     ``verify`` and ``behaviour`` run model-written code with ``exec`` on this machine; a real system would sandbox it.
@@ -9,12 +20,48 @@ Warning:
 import re
 import sys
 from collections import defaultdict
+from pathlib import Path
 
-# qwen3.5-4b on the Docker stack (key from the Docker secret); temperature=1 makes candidates differ
-from common import ORM_PROMPT, PRM_PROMPT, llm, make_llm, roman_to_int_query as query
+from illustrated_agents.chapters.ch2 import LLM
 
+# Qwen 3.5 4B, served by the Docker stack (llama.cpp behind the gateway), not Ollama.
+# The key is read at runtime from the git-ignored Docker secret and never printed.
+api_key = (Path(__file__).parents[1] / "chat-app" / "secrets" / "llama_api_key").read_text().strip()
+llm = LLM(model="qwen3.5-4b", base_url="http://localhost:3200/v1", api_key=api_key, temperature=1)
 # The reward model: same model, greedy, so one candidate always gets the same score.
-judge = make_llm(temperature=0)
+judge = LLM(model="qwen3.5-4b", base_url="http://localhost:3200/v1", api_key=api_key, temperature=0)
+
+query = """Write a Python function `roman_to_int(s)` that converts a Roman
+    numeral
+string to an integer. The function should:
+- Handle standard Roman numerals from 1 to 3999.
+- Correctly handle subtractive notation (e.g., IV=4, IX=9, XL=40, XC=90, CD=400,
+CM=900).
+- Return 0 for invalid inputs (empty string, non-Roman characters, or invalid
+patterns
+  like "IIII" or "VV").
+
+Give only the function definition, no explanation or markdown formatting."""
+
+ORM_PROMPT = """You are an outcome reward model. Judge only whether the final solution fully solves the task.
+
+Task:
+{task}
+
+Solution:
+{solution}
+
+Rate how likely the solution is completely correct on a scale from 0 to 10. Reply with only the number."""
+
+PRM_PROMPT = """You are a process reward model. Judge each step of a partial solution, in order.
+
+Task:
+{task}
+
+Solution, one numbered step per line:
+{steps}
+
+For every step, rate from 0 to 1 how likely it is correct and moves toward a correct solution, given the steps before it. Reply with exactly one line per step in the form `<step number>: <score>` and nothing else."""
 
 # Ground truth for verify; the reward models never see it, and behaviour uses only the inputs
 test_cases = [
@@ -34,6 +81,19 @@ test_cases = [
 
 
 def verify(answer):
+    """Score a candidate by the fraction of ``test_cases`` it passes.
+
+    This is the ground-truth verifier of Best-of-N: unlike the reward models it checks real behaviour.
+
+    Args:
+        answer: The model's reply, expected to be plain Python defining ``roman_to_int``.
+
+    Returns:
+        A score from 0.0 to 1.0; 0.0 if the code does not run, lacks ``roman_to_int`` or crashes.
+
+    Warning:
+        Runs model-written code with ``exec`` and no sandbox.
+    """
     try:
         # Extract the function
         namespace = {}
@@ -50,6 +110,14 @@ def verify(answer):
 
 
 def orm_score(answer):
+    """Ask the judge for an outcome reward: one 0 to 10 rating of the whole answer, scaled to 0.0 to 1.0.
+
+    Args:
+        answer: A finished candidate solution.
+
+    Returns:
+        The first number in the judge's reply, capped at 10 and divided by 10; 0.0 if there is none.
+    """
     # One judge call per candidate: the whole answer in, a single score out (unparseable scores 0)
     reply = judge.generate([{"role": "user", "content": ORM_PROMPT.format(task=query, solution=answer)}]).content or ""
     match = re.search(r"\d+(?:\.\d+)?", reply)
@@ -57,11 +125,20 @@ def orm_score(answer):
 
 
 def split_steps(answer):
+    """Split a candidate into the "steps" the process reward model scores: its non-empty code lines."""
     # A step is one non-empty line of the candidate's code
     return [line for line in answer.splitlines() if line.strip()]
 
 
 def prm_scores(steps):
+    """Ask the judge for a process reward: one 0 to 1 score per step, from a single call.
+
+    Args:
+        steps: Lines of code from ``split_steps``.
+
+    Returns:
+        One score per step, in order; a step the judge did not score gets 0.0.
+    """
     # One judge call per candidate: all numbered steps in, one score per step out (a missing step scores 0)
     numbered = "\n".join(f"{i}. {step}" for i, step in enumerate(steps, start=1))
     reply = judge.generate([{"role": "user", "content": PRM_PROMPT.format(task=query, steps=numbered)}]).content or ""
@@ -70,6 +147,17 @@ def prm_scores(steps):
 
 
 def behaviour(answer):
+    """Fingerprint a candidate by its outputs on the test inputs, so equivalent answers can be grouped.
+
+    Args:
+        answer: The model's reply, expected to define ``roman_to_int``.
+
+    Returns:
+        A string of the outputs (``error`` for an input that raises), or ``does not run`` if the code fails to load.
+
+    Warning:
+        Runs model-written code with ``exec`` and no sandbox.
+    """
     # The candidate's outputs on the inputs; two candidates with the same outputs count as the same answer
     try:
         namespace = {}
@@ -87,10 +175,19 @@ def behaviour(answer):
 
 
 def sample():
+    """Draw one candidate: a fresh reply to ``query`` from the temperature-1 ``llm``."""
     return llm.generate([{"role": "user", "content": query}]).content
 
 
 def best_of_n_unit_tests(n=10):
+    """Best-of-N where the unit tests are the verifier.
+
+    Args:
+        n: Number of candidates to sample.
+
+    Returns:
+        The candidate with the highest ``verify`` score (the first one if several tie).
+    """
     # The verifier is the unit tests themselves: the most tests passed wins
     responses = []
     for i in range(n):
@@ -106,6 +203,14 @@ def best_of_n_unit_tests(n=10):
 
 
 def best_of_n_orm(n=10):
+    """Best-of-N where an outcome reward model picks; ``verify`` only reports how good the pick was.
+
+    Args:
+        n: Number of candidates to sample.
+
+    Returns:
+        The candidate with the highest ORM score.
+    """
     # The ORM scores each finished answer as a whole; the top score wins
     candidates = []
     for i in range(n):
@@ -121,6 +226,14 @@ def best_of_n_orm(n=10):
 
 
 def best_of_n_prm(n=10):
+    """Best-of-N where a process reward model picks by each candidate's weakest step.
+
+    Args:
+        n: Number of candidates to sample.
+
+    Returns:
+        The candidate whose lowest step score is highest. Also prints that pick's step scores.
+    """
     # The PRM scores every step; a solution is only as good as its weakest step (min; the product is another choice)
     candidates = []
     for i in range(n):
@@ -141,6 +254,14 @@ def best_of_n_prm(n=10):
 
 
 def best_of_n_weighted_prm(n=10):
+    """Weighted Best-of-N: candidates with identical behaviour pool their PRM rewards and the heaviest group wins.
+
+    Args:
+        n: Number of candidates to sample.
+
+    Returns:
+        The best-scored candidate of the heaviest behaviour group.
+    """
     # Score each candidate with the PRM (weakest step) and group candidates by behaviour
     candidates = []
     for i in range(n):

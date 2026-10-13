@@ -63,13 +63,17 @@ Models (through the gateway)
   load <model>        Load a model through the router and wait until it is loaded
 
 Tests  (extra arguments after "--" go to the test runner)
-  test                Everything that can run: backend + mocked (+ live if the stack is up)
+  test                Everything that can run: backend + agent + llm + mocked
+                      (+ live and the quick ias tests if the stack is up)
   test backend        Backend pytest suite (fake llama router; no Docker needed)
   test agent          tiny_agent pytest suite (fake model server; no Docker needed)
   test llm            llm_client pytest suite (fake model server; no Docker needed)
   test mocked         Playwright, API stubbed in the browser (current source; no Docker needed)
   test live           Playwright against the REAL stack: switches real models (slow; needs "up")
   test e2e            mocked + live
+  test ias            Run every experimentation/illustrated_agents script for real against
+                      the stack (qwen3.5-4b loaded); slow ones take many minutes. Quick
+                      subset: test ias -- -m "not slow"
   test list           List every test without running it
 
   Examples
@@ -453,12 +457,15 @@ switch (command) {
     const own = split < 0 ? args : args.slice(0, split);
     const extra = split < 0 ? [] : args.slice(split + 1);
     const which = own[0] || "all";
-    const known = ["all", "backend", "agent", "llm", "mocked", "live", "e2e", "list"];
+    const known = ["all", "backend", "agent", "llm", "mocked", "live", "e2e", "ias", "list"];
     if (!known.includes(which)) fail(`Unknown test target '${which}'. Use one of: ${known.join(", ")}`);
 
     const agent = (more = []) => run("python", ["-m", "pytest", "-q", "code/tiny_agent/tests", ...more], { cwd: ROOT });
     const llm = (more = []) => run("python", ["-m", "pytest", "-q", "code/llm_client/tests", ...more], { cwd: ROOT });
     const backend = (more = []) => run("python", ["-m", "pytest", "-q", ...more], { cwd: join(CHAT_APP, "backend") });
+    // -rs lists why model tests were skipped (stack down, model not loaded).
+    const ias = (more = []) =>
+      run("python", ["-m", "pytest", "-q", "-rs", "experimentation/illustrated_agents/tests", ...more], { cwd: ROOT });
     const playwright = (project, more = []) =>
       run("npx", ["playwright", "test", ...(project ? ["--project", project] : []), ...more], {
         cwd: join(CHAT_APP, "frontend"),
@@ -469,6 +476,7 @@ switch (command) {
       backend(["--collect-only", "-q"]);
       agent(["--collect-only", "-q"]);
       llm(["--collect-only", "-q"]);
+      ias(["--collect-only", "-q"]);
       process.exitCode = playwright(null, ["--list"]);
       break;
     }
@@ -491,6 +499,9 @@ switch (command) {
       else if (which === "all") console.log("\nSkipping live tests: the stack is not running (node execute.mjs up).");
       else fail(`The live tests need the running stack at ${URL_BASE}. Start it with: node execute.mjs up`);
     }
+    // The scripts call the real model, so "all" runs only the quick ones; "test ias" runs every one.
+    if (which === "ias") results.push(["ias", ias(extra)]);
+    else if (which === "all" && (await stackIsUp())) results.push(["ias (quick)", ias(["-m", "not slow", ...extra])]);
 
     console.log("\nTest summary");
     for (const [name, code] of results) console.log(`  ${code === 0 ? "PASS" : "FAIL"}  ${name}`);

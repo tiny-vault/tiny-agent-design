@@ -3,7 +3,7 @@
 Usage, from the repo root::
 
     python trigger_ias.py            list the scripts
-    python trigger_ias.py one_shot   run one (the .py suffix is optional)
+    python trigger_ias.py shot_prompting   run one (the .py suffix is optional)
 
 Any ``.py`` file added to that folder is picked up automatically; only ``__init__`` is skipped. A script runs exactly as ``python -m experimentation.illustrated_agents.<name>`` would, so its ``if __name__ == "__main__":`` block executes.
 
@@ -34,7 +34,7 @@ def scripts() -> list[str]:
     """List the runnable script names.
 
     Returns:
-        The stems of the ``.py`` files in :data:`FOLDER`, minus :data:`HELPERS`, sorted alphabetically (for example ``["cot_one_shot", "diff_ch1_ch2", ...]``).
+        The stems of the ``.py`` files in :data:`FOLDER`, minus :data:`HELPERS`, sorted alphabetically (for example ``["best_of_n", "diff_agent_adds_llm", ...]``).
     """
     return sorted(p.stem for p in FOLDER.glob("*.py") if p.stem not in HELPERS)
 
@@ -56,9 +56,6 @@ def main(argv: list[str]) -> int:
     if name not in names:
         print(f"Unknown script '{name}'. Scripts:\n  " + "\n  ".join(names))
         return 2
-    # Scripts import their shared pieces as ``from common import ...``, which resolves when run as a file
-    # (the script's folder is sys.path[0]); add that folder so it resolves here too.
-    sys.path.insert(0, str(FOLDER))
     runpy.run_module(f"{PACKAGE}.{name}", run_name="__main__")
     return 0
 

@@ -8,7 +8,7 @@ changing this file.
 Harness: `TinyAgent` (in code/tiny_agent/shared/tiny_agent.py) is the harness, the non-model code that
 turns an LLM into an agent. This file only starts it: `main()` creates the
 harness and calls `run(task)`, which is where the loop, memory, tools and
-planning are meant to live as the chapters add them (today `run` makes one
+planning are meant to live as the phases add them (today `run` makes one
 model call). Keeping the entry point separate means the harness can be
 reused unchanged by any front end.
 
