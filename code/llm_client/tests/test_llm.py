@@ -108,6 +108,7 @@ def test_a_tool_call_is_returned(fake_server):
     fake_server.reply(None, tool_calls=[call])
     response = llm(fake_server).generate(MESSAGES)
     assert response.tool_call == call
+    assert response.tool_call is not None
     assert json.loads(response.tool_call["function"]["arguments"]) == {"city": "Paris"}
 
 
@@ -116,7 +117,7 @@ def test_only_the_first_of_several_tool_calls_is_returned(fake_server):
     fake_server.router(a="loaded")
     calls = [{"id": "1", "function": {"name": "f", "arguments": "{}"}}, {"id": "2", "function": {"name": "g", "arguments": "{}"}}]
     fake_server.reply(None, tool_calls=calls)
-    assert llm(fake_server).generate(MESSAGES).tool_call["id"] == "1"
+    assert llm(fake_server).generate(MESSAGES).tool_call["id"] == "1"  # pyright: ignore[reportOptionalSubscript]
 
 
 def test_empty_tool_calls_list_means_no_tool_call(fake_server):
@@ -222,7 +223,7 @@ def test_metadata_reports_the_model_that_really_answered(fake_server):
     fake_server.router(other="loaded")
     fake_server.chat = {"model": "other", "usage": {}, "choices": [{"message": {"content": "ok"}}]}
     with pytest.warns(UserWarning):
-        assert llm(fake_server).generate(MESSAGES).metadata["model"] == "other"
+        assert llm(fake_server).generate(MESSAGES).metadata["model"] == "other"  # pyright: ignore[reportOptionalSubscript]
 
 
 # ---- failures: every one becomes a RuntimeError that says what happened ----------------

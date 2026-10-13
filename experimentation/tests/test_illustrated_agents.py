@@ -17,7 +17,7 @@ KEY_FILE = ROOT / "experimentation" / "chat-app" / "secrets" / "llama_api_key"
 MODEL = "qwen3.5-4b"
 
 sys.path.insert(0, str(TRIGGER.parent))
-import trigger_ias  # noqa: E402
+import trigger_ias  # noqa: E402  # pyright: ignore[reportImplicitRelativeImport]
 
 # Scripts that sample many answers (10 candidates plus judge calls) or run six prompts
 SLOW = {name for name in trigger_ias.scripts() if name.startswith("best_of_n/") or name.endswith("/compare")}

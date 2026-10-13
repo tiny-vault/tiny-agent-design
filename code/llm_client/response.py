@@ -15,6 +15,7 @@ This file only defines the data container. It does no parsing and calls nothing.
 """
 
 from dataclasses import dataclass
+from typing import Any
 
 
 @dataclass
@@ -50,5 +51,5 @@ class Response:
 
     content: str = ""
     reasoning: str | None = None
-    tool_call: dict | None = None
-    metadata: dict | None = None
+    tool_call: dict[str, Any] | None = None
+    metadata: dict[str, Any] | None = None

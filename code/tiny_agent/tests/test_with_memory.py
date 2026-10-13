@@ -3,6 +3,8 @@
 One ``Memory`` is shared by both runs, as in ``main.py``. ``NamesLLM`` answers the way a real model would: it can only name the authors if their names appear somewhere in the messages it is sent. Compare ``test_without_memory.py``, which runs the same two tasks with a fresh ``Memory`` each time.
 """
 
+from typing import Any
+
 from llm_client.llm import LLM
 from llm_client.response import Response
 from tiny_agent.shared.memory import Memory
@@ -19,7 +21,7 @@ class NamesLLM(LLM):
         super().__init__(model="names")
         self.calls = []
 
-    def generate(self, messages: list[dict], tools: list | None = None) -> Response:
+    def generate(self, messages: list[dict[str, Any]], tools: list[Any] | None = None) -> Response:
         # A copy: memory hands out its live list, which grows after the call returns.
         self.calls.append(list(messages))
         if messages[-1]["content"] == QUESTION:

@@ -7,6 +7,7 @@ Apply to everything in this folder (`shared/`, `tests/`, anything added); they o
 3. **Read the file immediately before every edit.** The owner edits while you work. Use `Edit` on existing files, never `Write` over them; if an edit is refused because the file changed, re-read and work from what is there.
 4. **Stay inside the request.** Do not touch, commit or "tidy" other files, including empty placeholders; mention them instead.
 5. **Report:** the methods you touched, what you left alone on purpose, and what you could not verify.
+6. **Type-checker and ruff errors are in scope** when asked to "fix errors" (`uvx basedpyright code`, `uvx ruff check --select I code`). Limit the fix to annotations (`dict[str, Any]` for a bare `dict`, a local variable annotation), imports and `# pyright: ignore[rule]` comments. No change to behavior, to a signature's parameters or defaults, or to what a function returns. If the only fix would change behavior or a public type (for example making `Response.content` optional), flag it under rule 2 and wait for a yes.
 
 ## Current files
 

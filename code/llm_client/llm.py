@@ -44,6 +44,7 @@ import json
 import urllib.error
 import urllib.request
 import warnings
+from typing import Any
 
 from llm_client import check
 from llm_client.response import Response
@@ -111,7 +112,7 @@ class LLM:
         self.think = think
 
     def generate(
-        self, messages: list[dict], tools: list | None = None
+        self, messages: list[dict[str, Any]], tools: list[Any] | None = None
     ) -> Response:
         """Generate a response from the LLM given a list of messages.
 

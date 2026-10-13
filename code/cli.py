@@ -253,7 +253,7 @@ def main(argv: list[str] | None = None) -> int:
         log.info("settings loaded from the .env file: %s", ", ".join(sorted(loaded)))  # names only, never values
     # Model replies often contain emoji; Windows consoles default to cp1252.
     if hasattr(sys.stdout, "reconfigure"):
-        sys.stdout.reconfigure(encoding="utf-8")
+        sys.stdout.reconfigure(encoding="utf-8")  # pyright: ignore[reportAttributeAccessIssue] (the hasattr check above guards it)
     try:  # arrow keys and history in the prompt, where the platform has readline
         import readline  # noqa: F401
     except ImportError:

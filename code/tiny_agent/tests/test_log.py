@@ -124,7 +124,7 @@ def test_non_ascii_text_is_written_as_utf8(log_folder):
 def test_files_rotate_instead_of_growing_forever(log_folder):
     logger = log.setup("probe")
     handler = next(h for h in logger.handlers if getattr(h, "_tiny_agent_file_handler", False))
-    assert (handler.maxBytes, handler.backupCount) == (1_000_000, 3)
+    assert (handler.maxBytes, handler.backupCount) == (1_000_000, 3)  # pyright: ignore[reportAttributeAccessIssue]
 
 
 # ---- what cli.py writes ---------------------------------------------------------------

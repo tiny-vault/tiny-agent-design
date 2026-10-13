@@ -24,6 +24,7 @@ Run it with ``python code/main.py``. It logs to ``main.log`` and prints the seco
 """
 
 import os
+from typing import Any
 
 from cli import api_key_from_env
 from llm_client import check, env
@@ -47,10 +48,11 @@ def main() -> None:
     log = logs.setup("main")  # writes to logs/main.log (see code/tiny_agent/log.py)
     # The same settings as the tiny-agent CLI: TINYAGENT_MODEL, TINYAGENT_LLM_URL, TINYAGENT_API_KEY(_FILE).
     api_key = api_key_from_env()
+    key_setting: dict[str, Any] = {"api_key": api_key} if api_key else {}
     llm = LLM(
         model=os.environ.get("TINYAGENT_MODEL", "gemma4-e4b"),
         base_url=os.environ.get("TINYAGENT_LLM_URL", check.DEFAULT_URL),
-        **({"api_key": api_key} if api_key else {}),
+        **key_setting,
     )
     agent = TinyAgent(llm, Memory())
     for task in (GREETING, QUESTION):

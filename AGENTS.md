@@ -85,4 +85,5 @@ Behaviour change = test change in the same commit. The fake router (`backend/tes
 1. `node execute.mjs test`.
 2. Frontend touched: `npm run build` in `frontend/`.
 3. Docker or nginx touched: `docker compose -f experimentation/docker-compose.yaml config -q`, then `node execute.mjs up` and `health`.
-4. Update docs; check `git status`.
+4. Python touched: `uvx ruff check --select I code experimentation` and `uvx basedpyright code` (errors only; the repo has a backlog, so report any error you added, not the whole list).
+5. Update docs; check `git status`.

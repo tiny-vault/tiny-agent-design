@@ -14,6 +14,8 @@ ends, never shortened, and has no limit, so a long chat will eventually exceed t
 model's context window. Trimming, summarising and saving are left to later phases.
 """
 
+from typing import Any
+
 
 class Memory:
     """Simple memory module to store conversation history.
@@ -30,7 +32,7 @@ class Memory:
         self.messages = []
 
     def add(
-        self, role: str, content: str, tool_call: dict | None = None, **kwargs
+        self, role: str, content: str, tool_call: dict[str, Any] | None = None, **kwargs
     ) -> None:
         """Add a message to memory.
 
@@ -42,7 +44,7 @@ class Memory:
                 chat servers expect.
             **kwargs: Accepted and ignored, so callers may pass extra details.
         """
-        message = {"role": role, "content": content}
+        message: dict[str, Any] = {"role": role, "content": content}
 
         # Tool call: the server expects a list, even for a single call
         if tool_call:
@@ -51,7 +53,7 @@ class Memory:
         # Append message to memory
         self.messages.append(message)
 
-    def get_messages(self) -> list[dict]:
+    def get_messages(self) -> list[dict[str, Any]]:
         """Get all messages.
 
         Returns:

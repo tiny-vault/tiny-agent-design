@@ -67,7 +67,7 @@ class FakeServer:
         class Handler(BaseHTTPRequestHandler):
             """Answers requests from the FakeServer's current state."""
 
-            def log_message(self, *args):
+            def log_message(self, format, *args):
                 """Stay quiet: do not print a line per request."""
 
             def _send(self, code, body):

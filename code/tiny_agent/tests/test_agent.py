@@ -6,6 +6,7 @@ use the fake server from ``conftest.py`` instead, to cover the real HTTP path.
 """
 
 import dataclasses
+from typing import Any
 
 import pytest
 
@@ -26,7 +27,7 @@ class EchoLLM(LLM):
         super().__init__(model="echo")
         self.calls = []
 
-    def generate(self, messages: list[dict], tools: list | None = None) -> Response:
+    def generate(self, messages: list[dict[str, Any]], tools: list[Any] | None = None) -> Response:
         # A copy: memory hands out its live list, which grows after the call returns.
         self.calls.append(list(messages))
         return Response(content=f"Received: {messages[-1]['content']}")

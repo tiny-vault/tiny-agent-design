@@ -9,6 +9,8 @@ related to the TinyAgent. It is tracked because it makes the sequence easy to
 debug: you can see where, and why, an agent failed.
 """
 
+from typing import Any
+
 from llm_client.response import Response
 from tiny_agent.shared.step import Step
 
@@ -24,7 +26,7 @@ class Trajectory:
             ``{"query": <task text>, "steps": [Step, ...]}``.
     """
     def __init__(self) -> None:
-        self.runs: list[dict] = []
+        self.runs: list[dict[str, Any]] = []
 
     def initialize(self, query: str) -> None:
         """Register a new run with the given query.

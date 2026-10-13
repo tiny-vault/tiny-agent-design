@@ -6,6 +6,7 @@ at a time, including what each tool returned.
 """
 
 from dataclasses import dataclass
+from typing import Any
 
 
 @dataclass
@@ -29,7 +30,7 @@ class Step:
     """
 
     thought: str = ""
-    action: dict | None = None
+    action: dict[str, Any] | None = None
     observation: str | None = None
     answer: str | None = None
-    metadata: dict | None = None
+    metadata: dict[str, Any] | None = None
