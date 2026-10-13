@@ -2,29 +2,51 @@
 
 import dataclasses
 
+import pytest
+
 import main as demo
 from llm_client.response import Response
 from tiny_agent.shared.tiny_agent import TinyAgent
 
 
-# ---- TinyAgent (placeholders until the later steps) --------------------------------
+class EchoLLM:
+    """A stand-in for ``LLM``: answers ``"Received: <last message>"`` and records every call."""
 
-def test_the_slots_are_empty_until_their_step():
-    agent = TinyAgent()
-    assert (agent.llm, agent.memory, agent.tools, agent.planner) == (None, None, None, None)
+    def __init__(self):
+        self.calls = []
+
+    def generate(self, messages, tools=None):
+        self.calls.append(messages)
+        return Response(content=f"Received: {messages[-1]['content']}")
 
 
-def test_run_echoes_the_task():
-    assert TinyAgent().run("Hello, agent!") == "Received: Hello, agent!"
+# ---- TinyAgent (one model call per task; the other slots are placeholders) ----------
+
+def test_the_llm_is_kept_and_the_other_slots_are_empty_until_their_step():
+    llm = EchoLLM()
+    agent = TinyAgent(llm)
+    assert agent.llm is llm
+    assert (agent.memory, agent.tools, agent.planner) == (None, None, None)
+
+
+def test_run_returns_the_models_reply():
+    assert TinyAgent(EchoLLM()).run("Hello, agent!") == "Received: Hello, agent!"
+
+
+def test_run_sends_the_task_as_one_user_message():
+    llm = EchoLLM()
+    TinyAgent(llm).run("Hello, agent!")
+    assert llm.calls == [[{"role": "user", "content": "Hello, agent!"}]]
 
 
 def test_run_handles_empty_and_unusual_text():
-    assert TinyAgent().run("") == "Received: "
-    assert TinyAgent().run("héllo 🌍\nline two") == "Received: héllo 🌍\nline two"
+    assert TinyAgent(EchoLLM()).run("") == "Received: "
+    assert TinyAgent(EchoLLM()).run("héllo 🌍\nline two") == "Received: héllo 🌍\nline two"
 
 
 def test_step_and_execute_action_placeholders():
-    agent = TinyAgent()
+    agent = TinyAgent(EchoLLM())
+    agent.trajectory.initialize("x")
     assert agent._step("x") == "Received: x"
     assert agent._execute_action("search") == "Executed action: search"
 
@@ -48,14 +70,22 @@ def test_response_equality_and_fields():
 
 # ---- the demo entry point -----------------------------------------------------------
 
-def test_main_prints_the_answer(capsys):
-    """main() builds the agent, runs one task and prints the result; it does not call a model."""
+def test_main_prints_the_answer(demo_server, capsys):
+    """main() builds the agent, runs one task through the model and prints the result."""
     demo.main()
     assert capsys.readouterr().out.strip() == "Received: Hello, agent!"
+    assert demo_server.requests[0]["body"]["messages"] == [{"role": "user", "content": "Hello, agent!"}]
 
 
-def test_main_does_not_need_a_model_server(capsys, dead_url, monkeypatch):
-    """The chat with a model lives in the tiny-agent CLI, so the demo works with nothing running."""
-    monkeypatch.setenv("TINYAGENT_LLM_URL", dead_url)
+def test_main_uses_the_model_named_in_the_environment(demo_server, monkeypatch):
+    demo_server.router(other="loaded")
+    monkeypatch.setenv("TINYAGENT_MODEL", "other")
     demo.main()
-    assert "Received: Hello, agent!" in capsys.readouterr().out
+    assert demo_server.requests[0]["body"]["model"] == "other"
+
+
+def test_main_needs_a_model_server(dead_url, monkeypatch):
+    """The agent now calls the model, so the demo fails clearly when nothing is listening."""
+    monkeypatch.setenv("TINYAGENT_LLM_URL", dead_url)
+    with pytest.raises(RuntimeError, match="Cannot reach the model"):
+        demo.main()

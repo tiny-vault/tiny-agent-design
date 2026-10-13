@@ -45,9 +45,7 @@ python -m venv .venv
 python code/main.py
 ```
 
-```text
-Received: Hello, agent!
-```
+The demo sends `Hello, agent!` to the model and prints its reply, so start the stack first (`node execute.mjs up`); see [INSTRUCTIONS.md](INSTRUCTIONS.md) for the settings it reads.
 
 To talk to a model, start the Docker stack and use the terminal chat below.
 

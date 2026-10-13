@@ -458,7 +458,7 @@ def test_the_log_names_the_loaded_settings_but_never_their_values(fake_server, t
             handler.close()
 
 
-def test_main_py_reads_its_log_settings_from_the_env_file(tmp_path, capsys):
+def test_main_py_reads_its_log_settings_from_the_env_file(tmp_path, demo_server, capsys):
     import logging
 
     import main as demo

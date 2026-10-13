@@ -118,8 +118,8 @@ test("OpenObserve receives the container logs and the tiny-agent logs", async ({
   const password = fs.readFileSync(secrets + "openobserve_password", "utf8").trim();
   const auth = { Authorization: "Basic " + Buffer.from(`${user}:${password}`).toString("base64") };
 
-  const now = Date.now() * 1000; // microseconds
   const count = async (stream) => {
+    const now = Date.now() * 1000; // microseconds; taken per call so records sent after the test started count
     const res = await request.post(`${OBSERVE}/api/default/_search?type=logs`, {
       headers: auth,
       data: { query: { sql: `SELECT * FROM "${stream}"`, start_time: now - 7 * 24 * 3600 * 1e6, end_time: now, from: 0, size: 1 } },
@@ -127,5 +127,18 @@ test("OpenObserve receives the container logs and the tiny-agent logs", async ({
     return res.ok() ? (await res.json()).total : 0;
   };
   expect(await count("docker")).toBeGreaterThan(0);
-  expect(await count("tiny_agent")).toBeGreaterThan(0);
+
+  // Write a fresh line to main.log rather than trusting old ones: Vector remembers how far it read
+  // each file, so lines written before OpenObserve's data was reset are never sent again.
+  const { spawnSync } = await import("node:child_process");
+  const [model] = await loadedModels(request);
+  expect(model, "needs a loaded model").toBeTruthy();
+  const python = process.platform === "win32" ? "../../../.venv/Scripts/python.exe" : "../../../.venv/bin/python";
+  const demo = spawnSync(python, ["../../../code/main.py"], {
+    encoding: "utf8",
+    timeout: 300_000,
+    env: { ...process.env, TINYAGENT_MODEL: model, TINYAGENT_API_KEY_FILE: secrets + "llama_api_key" },
+  });
+  expect(demo.status, demo.stderr).toBe(0);
+  await expect.poll(() => count("tiny_agent"), { timeout: 60_000 }).toBeGreaterThan(0);
 });

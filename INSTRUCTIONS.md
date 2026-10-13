@@ -12,7 +12,7 @@ python -m venv .venv
 python code/main.py
 ```
 
-Expected output: `Received: Hello, agent!`. This demo does not call a model; to chat with one, use the `tiny-agent` command below.
+The demo sends `Hello, agent!` to the model once and prints its reply, so it needs a running model server: the Docker stack with a model loaded (`node execute.mjs up`). It reads the same `TINYAGENT_MODEL` (default `gemma4-e4b`), `TINYAGENT_LLM_URL` and `TINYAGENT_API_KEY_FILE` settings as the `tiny-agent` command below; for the stack, set `TINYAGENT_API_KEY_FILE=experimentation/chat-app/secrets/llama_api_key`.
 
 ### Chat from the terminal
 

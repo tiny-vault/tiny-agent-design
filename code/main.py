@@ -12,7 +12,11 @@ planning live. Keeping the entry point separate means the harness can be
 reused unchanged by any front end.
 """
 
-from llm_client import env
+import os
+
+from cli import api_key_from_env
+from llm_client import check, env
+from llm_client.llm import LLM
 from tiny_agent import log as logs
 from tiny_agent.shared.tiny_agent import TinyAgent
 
@@ -25,7 +29,14 @@ def main() -> None:
     """
     env.load_env()  # code/.env: settings such as TINYAGENT_LOG_DIR and TINYAGENT_LOG_LEVEL
     log = logs.setup("main")  # writes to logs/main.log (see code/tiny_agent/log.py)
-    agent = TinyAgent()
+    # The same settings as the tiny-agent CLI: TINYAGENT_MODEL, TINYAGENT_LLM_URL, TINYAGENT_API_KEY(_FILE).
+    api_key = api_key_from_env()
+    llm = LLM(
+        model=os.environ.get("TINYAGENT_MODEL", "gemma4-e4b"),
+        base_url=os.environ.get("TINYAGENT_LLM_URL", check.DEFAULT_URL),
+        **({"api_key": api_key} if api_key else {}),
+    )
+    agent = TinyAgent(llm)
     log.info("running task: %s", "Hello, agent!")
     result = agent.run("Hello, agent!")
     log.info("result: %s", result)
