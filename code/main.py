@@ -26,7 +26,6 @@ Run it with ``python code/main.py``. It logs to ``main.log`` and prints the seco
 import os
 from typing import Any
 
-from cli import api_key_from_env
 from llm_client import check, env
 from llm_client.llm import LLM
 from tiny_agent import log as logs
@@ -47,7 +46,7 @@ def main() -> None:
     env.load_env()  # code/.env: settings such as TINYAGENT_LOG_DIR and TINYAGENT_LOG_LEVEL
     log = logs.setup("main")  # writes to logs/main.log (see code/tiny_agent/log.py)
     # The same settings as the tiny-agent CLI: TINYAGENT_MODEL, TINYAGENT_LLM_URL, TINYAGENT_API_KEY(_FILE).
-    api_key = api_key_from_env()
+    api_key = env.api_key_from_env()
     key_setting: dict[str, Any] = {"api_key": api_key} if api_key else {}
     llm = LLM(
         model=os.environ.get("TINYAGENT_MODEL", "gemma4-e4b"),

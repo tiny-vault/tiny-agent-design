@@ -111,9 +111,11 @@ class TinyAgent:
         # The model is stateless, so it gets the full history every time. Storing the
         # reply afterwards is what lets the next call "remember" this one.
         response = self.llm.generate(self.memory.get_messages())
-        self.memory.add("assistant", response.content)
+        # A tool-call-only reply has no text (content is None); there is no tool support yet, so treat it as empty text
+        text = response.content or ""
+        self.memory.add("assistant", text)
         self.trajectory.add(response)
-        return response.content
+        return text
 
     def _execute_action(self, action: str) -> str | None:
         """Execute a tool action.

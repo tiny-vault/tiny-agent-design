@@ -117,3 +117,25 @@ def load_env(path: str | Path | None = None, override: bool = False) -> dict[str
             os.environ[name] = value
             loaded[name] = value
     return loaded
+
+
+def api_key_from_env() -> str | None:
+    """The API key for a server that needs one, or ``None``.
+
+    Read from the file named by ``TINYAGENT_API_KEY_FILE`` (its first line that is not
+    blank or a comment), or else from ``TINYAGENT_API_KEY``. The file form keeps the key
+    out of ``code/.env``. The Docker stack needs no key: its backend holds it.
+
+    Raises:
+        OSError: The key file cannot be read.
+        ValueError: The key file has no key in it.
+    """
+    path = os.environ.get("TINYAGENT_API_KEY_FILE")
+    if path:
+        with open(path, encoding="utf-8-sig") as handle:
+            for line in handle:
+                line = line.strip()
+                if line and not line.startswith("#"):
+                    return line
+        raise ValueError(f"{path} is empty")
+    return os.environ.get("TINYAGENT_API_KEY") or None

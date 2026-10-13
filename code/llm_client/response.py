@@ -49,7 +49,7 @@ class Response:
             ``prompt_tokens`` and ``completion_tokens``. ``None`` if not set.
     """
 
-    content: str = ""
+    content: str | None = ""
     reasoning: str | None = None
     tool_call: dict[str, Any] | None = None
     metadata: dict[str, Any] | None = None

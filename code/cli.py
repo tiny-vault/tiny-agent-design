@@ -196,28 +196,6 @@ def truthy(value: str | None) -> bool:
     return (value or "").strip().lower() in ("1", "true", "yes", "on")
 
 
-def api_key_from_env() -> str | None:
-    """The API key for a server that needs one, or ``None``.
-
-    Read from the file named by ``TINYAGENT_API_KEY_FILE`` (its first line that is not
-    blank or a comment), or else from ``TINYAGENT_API_KEY``. The file form keeps the key
-    out of ``code/.env``. The Docker stack needs no key: its backend holds it.
-
-    Raises:
-        OSError: The key file cannot be read.
-        ValueError: The key file has no key in it.
-    """
-    path = os.environ.get("TINYAGENT_API_KEY_FILE")
-    if path:
-        with open(path, encoding="utf-8-sig") as handle:
-            for line in handle:
-                line = line.strip()
-                if line and not line.startswith("#"):
-                    return line
-        raise ValueError(f"{path} is empty")
-    return os.environ.get("TINYAGENT_API_KEY") or None
-
-
 def build_parser() -> argparse.ArgumentParser:
     """The command-line options."""
     parser = argparse.ArgumentParser(prog="tiny-agent", description="Chat with the TinyAgent model from the terminal.")
@@ -280,7 +258,7 @@ def main(argv: list[str] | None = None) -> int:
         log.warning(note)
     log.info("using model %s at %s (think=%s)", model, args.url, args.think)
     try:
-        api_key = api_key_from_env()
+        api_key = env.api_key_from_env()  # moved to llm_client.env so main.py need not import this file
     except (OSError, ValueError) as error:
         print(f"Cannot read the API key file: {error}")
         log.error("cannot read the API key file: %s", error)

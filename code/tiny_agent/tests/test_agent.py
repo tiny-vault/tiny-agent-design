@@ -79,6 +79,18 @@ def test_run_handles_empty_and_unusual_text():
     assert TinyAgent(EchoLLM(), Memory()).run("héllo 🌍\nline two") == "Received: héllo 🌍\nline two"
 
 
+def test_a_reply_without_text_is_stored_and_returned_as_empty_text():
+    """A tool-call-only reply has ``content=None``; with no tools yet it counts as empty text."""
+
+    class NoTextLLM(EchoLLM):
+        def generate(self, messages: list[dict[str, Any]], tools: list[Any] | None = None) -> Response:
+            return Response(content=None, tool_call={"id": "1"})
+
+    memory = Memory()
+    assert TinyAgent(NoTextLLM(), memory).run("hi") == ""
+    assert memory.get_messages()[-1] == {"role": "assistant", "content": ""}
+
+
 def test_step_and_execute_action_placeholders():
     agent = TinyAgent(EchoLLM(), Memory())
     agent.trajectory.initialize("x")
