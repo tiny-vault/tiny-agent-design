@@ -3,3 +3,5 @@ furo
 myst-parser
 sphinx-copybutton
 sphinxcontrib-mermaid
+fastapi
+httpx

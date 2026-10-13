@@ -39,6 +39,7 @@ A minimal, modular, and educational agent framework. ``TinyAgent`` is the
 
    api/index
    api/illustrated-agents-scripts
+   api/chat-app-backend
    guides/models
    guides/chat-app
    guides/development

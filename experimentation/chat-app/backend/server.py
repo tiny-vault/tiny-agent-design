@@ -16,8 +16,9 @@ Environment:
 
 Run:  uvicorn server:app --host 0.0.0.0 --port 8000
 
-Endpoints:
-    GET  /health              Backend liveness plus llama-server reachability.
+Endpoints::
+
+    GET  /health            Backend liveness plus llama-server reachability.
     GET  /api/models          {"models": [{"id", "status"}]}, status loaded|loading|unloaded.
     POST /api/models/load     {"model"}: load it through the router and wait until
                               loaded (200). 404 unknown, 500 load failed, 504 timed

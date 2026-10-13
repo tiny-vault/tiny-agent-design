@@ -11,6 +11,10 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "code"))
 # guard their model calls, but importing them reads the llama_api_key secret: run
 # `node execute.mjs up` once before building the docs.
 sys.path.append(str(Path(__file__).resolve().parent.parent))
+# The chat-app backend (server.py, llama_client.py) is not an installed package: put its folder on the
+# path, appended so nothing it contains shadows another module. Importing server.py builds the FastAPI app
+# but opens no connection; it needs fastapi and httpx (see docs/requirements.txt).
+sys.path.append(str(Path(__file__).resolve().parent.parent / "experimentation" / "chat-app" / "backend"))
 
 project = "TinyAgent"
 copyright = "2026, TinyAgent contributors"
@@ -53,6 +57,16 @@ napoleon_use_ivar = True
 autosectionlabel_prefix_document = True
 
 intersphinx_mapping = {"python": ("https://docs.python.org/3", None)}
+
+# Nitpicky mode (-n) warns about every type it cannot link. These come from the chat-app backend's
+# pydantic and FastAPI types, whose manuals are not in intersphinx_mapping (adding them would make the
+# docs build depend on two more websites); they are shown as plain text instead of links.
+nitpick_ignore = [
+    ("py:class", "pydantic.main.BaseModel"),
+    ("py:class", "fastapi.applications.FastAPI"),
+    ("py:class", "annotated_types.MinLen"),
+    ("py:class", "min_length=1"),
+]
 
 todo_include_todos = True
 
