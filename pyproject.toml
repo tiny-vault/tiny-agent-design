@@ -21,3 +21,6 @@ where = ["code"]   # the packages live in code/ (code/tiny_agent, code/llm_clien
 include = ["tiny_agent*", "llm_client*"]
 exclude = ["tiny_agent.tests*", "llm_client.tests*"]
 namespaces = true  # code/tiny_agent/ has no __init__.py; the harness is in code/tiny_agent/shared/
+
+[tool.ruff]
+src = ["code"]   # tiny_agent, llm_client, main and cli are first-party, so imports sort as pytest, blank line, then these

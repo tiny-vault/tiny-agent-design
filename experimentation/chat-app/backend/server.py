@@ -32,10 +32,16 @@ import httpx
 from fastapi import FastAPI, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse, StreamingResponse
+from llama_client import (
+    LlamaClient,
+    LlamaError,
+    LlamaUnreachable,
+    LoadFailed,
+    LoadTimeout,
+    ModelNotFound,
+)
 from pydantic import BaseModel, Field
 from starlette.background import BackgroundTask
-
-from llama_client import LlamaClient, LlamaError, LlamaUnreachable, LoadFailed, LoadTimeout, ModelNotFound
 
 # Headers not passed on to llama-server. "authorization" is dropped so a browser can never
 # send its own key: the backend always uses the one from its secret file.

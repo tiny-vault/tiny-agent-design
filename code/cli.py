@@ -34,9 +34,9 @@ import logging
 import os
 import sys
 
-from tiny_agent import log as logs
 from llm_client import check, env
 from llm_client.llm import LLM
+from tiny_agent import log as logs
 
 # Written to logs/cli.log once main() has called logs.setup("cli"). The NullHandler
 # keeps chat() and pick_model() silent when they are used without main() (in tests).

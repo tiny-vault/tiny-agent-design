@@ -466,10 +466,9 @@ def test_the_log_names_the_loaded_settings_but_never_their_values(fake_server, t
 
 def test_main_py_reads_its_log_settings_from_the_env_file(tmp_path, demo_server, capsys):
     import logging
+    import os
 
     import main as demo
-
-    import os
 
     os.environ.pop("TINYAGENT_LOG_DIR")  # the log_folder fixture sets it; the real environment would win over the file
     logs = tmp_path / "from-env-file"

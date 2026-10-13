@@ -10,18 +10,23 @@ import dataclasses
 import pytest
 
 import main as demo
+from llm_client.llm import LLM
 from llm_client.response import Response
 from tiny_agent.shared.memory import Memory
 from tiny_agent.shared.tiny_agent import TinyAgent
 
 
-class EchoLLM:
-    """A stand-in for ``LLM``: answers ``"Received: <last message>"`` and records every call."""
+class EchoLLM(LLM):
+    """A stand-in for ``LLM``: answers ``"Received: <last message>"`` and records every call.
+
+    A subclass so it type-checks where ``TinyAgent`` expects an ``LLM``; it never touches the network.
+    """
 
     def __init__(self):
+        super().__init__(model="echo")
         self.calls = []
 
-    def generate(self, messages, tools=None):
+    def generate(self, messages: list[dict], tools: list | None = None) -> Response:
         # A copy: memory hands out its live list, which grows after the call returns.
         self.calls.append(list(messages))
         return Response(content=f"Received: {messages[-1]['content']}")
