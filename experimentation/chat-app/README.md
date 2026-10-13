@@ -1,6 +1,6 @@
 # Chat app
 
-A small local chat app for trying TinyAgent's models, run with one `docker compose up`. A browser frontend talks to a backend, which talks to a llama.cpp server over its OpenAI-compatible API. llama.cpp downloads the models from Hugging Face the first time it loads them; there is no Ollama.
+A small local chat app for trying TinyAgent's models, started with `node execute.mjs up` (its compose file and Dockerfiles are in `deploy/chat-app/`). A browser frontend talks to a backend, which talks to a llama.cpp server over its OpenAI-compatible API. llama.cpp downloads the models from Hugging Face the first time it loads them; there is no Ollama.
 
 ```
 browser -> gateway (nginx, the only published port, :3200)
@@ -62,12 +62,11 @@ curl http://localhost:3200/api/chat -d '{"model":"gemma4-e4b","messages":[{"role
 `deploy/chat-app/docker-compose.yaml` runs `llama-server` (CUDA build) in router mode. It downloads each model from Hugging Face the first time the model is loaded and keeps it in `chat-app/models/cache`; `models.ini` maps the names clients use to the Hugging Face repos.
 
 ```powershell
-cd experimentation
-docker compose up -d --build
-docker compose logs -f llama
+node execute.mjs up
+node execute.mjs logs llama
 ```
 
-Then open the app at <http://localhost:3200>.
+Then open the app at <http://localhost:3200>. The model server of `deploy/llm-client` uses the same port and GPU, so run one of them at a time.
 
 The server has an OpenAI-compatible API on port 8080 inside the compose network. It is not published to the host and its built-in web page is disabled (`LLAMA_ARG_WEBUI=0`), so the custom frontend is the only UI. From your machine, use the gateway, which forwards `/v1/*` to the backend: <http://localhost:3200/v1/models>.
 
@@ -125,7 +124,7 @@ Measured on the development laptop (RTX 3060 Laptop, 6 GB of VRAM).
 | GPU memory with `gemma4-e4b` loaded | 5.3 of 6 GB, so both models cannot be loaded together |
 | Disk used by the two downloaded models | 9.3 GB in `models/cache` (the old Ollama copies, 9.5 GB, were deleted) |
 
-Every switch is a full unload and reload because only one model fits. See `node execute.mjs test` for the tests: backend 59, `llm_client` 121, `tiny_agent` 93 and the stub-based browser tests 35 pass.
+Every switch is a full unload and reload because only one model fits. See `node execute.mjs test` for the tests: backend 60, `llm_client` 123, `tiny_agent` 107 and the stub-based browser tests 35 pass.
 
 ## Status
 

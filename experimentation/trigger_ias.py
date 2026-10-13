@@ -21,6 +21,9 @@ import sys
 import traceback
 from pathlib import Path
 
+# The scripts this runs are imported, which would leave __pycache__ folders next to them; the repo stays free of bytecode.
+sys.dont_write_bytecode = True
+
 ROOT = Path(__file__).resolve().parent.parent
 """The repo root; put on ``sys.path`` so ``experimentation.illustrated_agents`` imports from anywhere."""
 

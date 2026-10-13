@@ -21,7 +21,7 @@ Set-ExecutionPolicy -Scope CurrentUser RemoteSigned
 python code/main.py
 ```
 
-The demo tells the agent the authors' names and then asks for them in a second run on the same agent, so memory is what answers (it prints the second reply), so it needs the Docker stack running with a model loaded (`node execute.mjs up`). It reads `TINYAGENT_MODEL` (default `gemma4-e4b`), `TINYAGENT_LLM_URL` and `TINYAGENT_API_KEY_FILE`, the same settings as the `tiny-agent` command.
+The demo tells the agent the authors' names and then asks for them in a second run on the same agent, so memory is what answers; it prints the second reply. It needs a model server with a model loaded: the Docker chat app (`node execute.mjs up`) or only the llm client's model server (`node execute.mjs up llm-client`, then `node execute.mjs llm-client load qwen3.5-4b`). It reads `TINYAGENT_MODEL` (default `gemma4-e4b`), `TINYAGENT_LLM_URL` and `TINYAGENT_API_KEY_FILE`, the same settings as the `tiny-agent` command.
 
 ## Install the terminal chat
 

@@ -19,10 +19,12 @@ See {py:class}`tiny_agent.shared.tiny_agent.TinyAgent` for the full API.
 
 ## Talking to a model
 
-Start the chat app stack once (it serves the models), then use the LLM client from code:
+Start a model server once, then use the LLM client from code. Either start the whole chat app (it serves the models and the web UI), or only the llm client's own model server; both listen on port 3200, so run one of them at a time:
 
 ```powershell
-node execute.mjs up
+node execute.mjs up                                  # the chat app
+node execute.mjs up llm-client                       # or: only a model server
+node execute.mjs llm-client load qwen3.5-4b          # and load a model into it
 ```
 
 ```python

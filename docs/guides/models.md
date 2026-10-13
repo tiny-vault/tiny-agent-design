@@ -28,7 +28,7 @@ The Docker stack serves these two models:
 | `gemma4-e4b` | `google/gemma-4-E4B-it-qat-q4_0-gguf` (Google's quantisation-aware 4-bit build, the same QAT build as Ollama's `gemma4:e4b-it-qat`) | 5.9 GB |
 | `qwen3.5-4b` | `unsloth/Qwen3.5-4B-GGUF`, `Q4_K_M` | 3.4 GB |
 
-The sizes include a small vision file in each repository. Downloads go into `experimentation/chat-app/models/cache`. See {doc}`chat-app` for the measured download and switching times.
+The sizes include a small vision file in each repository. Downloads go into `experimentation/chat-app/models/cache`. The llm client's own model server (`node execute.mjs up llm-client`) serves the same two models from a copy of `models.ini` and can reuse the same download folder. See {doc}`chat-app` for the measured download and switching times.
 
 ## Using Ollama instead
 

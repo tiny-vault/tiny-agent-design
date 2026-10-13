@@ -134,7 +134,9 @@ and deploy/tiny-agent. The environment works too;
 `;
 
 function run(cmd, args, options = {}) {
-  const result = spawnSync(cmd, args, { stdio: "inherit", shell: false, ...options });
+  // PYTHONDONTWRITEBYTECODE keeps Python (pytest, sphinx, the docs server) from leaving __pycache__ folders in the repo.
+  const env = { ...process.env, PYTHONDONTWRITEBYTECODE: "1", ...options.env };
+  const result = spawnSync(cmd, args, { stdio: "inherit", shell: false, ...options, env });
   if (result.error) {
     if (result.error.code === "ENOENT") fail(`'${cmd}' was not found. Is it installed and on your PATH?`);
     fail(result.error.message);

@@ -4,7 +4,7 @@
 # The build context is the repo root; Dockerfile.dockerignore keeps it to these (plus load.py, which waits for a model to load).
 FROM python:3.12-slim
 WORKDIR /app
-ENV PYTHONUNBUFFERED=1 PYTHONPATH=/app/code
+ENV PYTHONUNBUFFERED=1 PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=/app/code
 COPY code/llm_client code/llm_client
 COPY deploy/llm-client/ask.py deploy/llm-client/load.py ./
 # Prints which models the server has loaded. Override the command to ask a model: python ask.py "question"

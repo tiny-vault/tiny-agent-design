@@ -9,14 +9,15 @@ No runtime dependencies, Python 3.12.
 ```powershell
 python -m venv .venv
 .\.venv\Scripts\Activate.ps1
+Set-Content .venv\Lib\site-packages\sitecustomize.py "import sys; sys.dont_write_bytecode = True"   # optional: no __pycache__ folders in the repo
 python code/main.py
 ```
 
-The demo tells the agent the authors' names and then asks for them in a second run on the same agent, so memory is what answers (it prints the second reply), so it needs a running model server: the Docker stack with a model loaded (`node execute.mjs up`). It reads the same `TINYAGENT_MODEL` (default `gemma4-e4b`), `TINYAGENT_LLM_URL` and `TINYAGENT_API_KEY_FILE` settings as the `tiny-agent` command below; for the stack, set `TINYAGENT_API_KEY_FILE=experimentation/chat-app/secrets/llama_api_key`.
+The demo tells the agent the authors' names and then asks for them in a second run on the same agent, so memory is what answers; it prints the second reply. It needs a running model server with a model loaded: the chat app (`node execute.mjs up`, section 3) or only the llm client's model server (`node execute.mjs up llm-client`, section 4). It reads the same `TINYAGENT_MODEL` (default `gemma4-e4b`), `TINYAGENT_LLM_URL` and `TINYAGENT_API_KEY_FILE` settings as the `tiny-agent` command below. Neither server needs a key from you: the chat app's backend holds the llama.cpp key, and the llm client's server listens on this machine only.
 
 ### Chat from the terminal
 
-Install the project once and you get a `tiny-agent` command (needs the chat app stack from section 3 running with a model loaded):
+Install the project once and you get a `tiny-agent` command (needs a model server with a model loaded: the chat app from section 3 or the llm client's server from section 4):
 
 ```powershell
 python -m pip install -e .
@@ -48,10 +49,11 @@ Lives in `experimentation/chat-app/`. Full details are in its [README](experimen
 Needs Docker with NVIDIA GPU support. llama.cpp downloads the models from Hugging Face the first time they are loaded (several GB; `node execute.mjs download` fetches them ahead of time) and keeps them in `experimentation/chat-app/models/cache`. There is no Ollama.
 
 ```powershell
-cd experimentation
-docker compose up -d --build
-docker compose logs -f llama
+node execute.mjs up                # builds and starts it, then waits until it answers
+node execute.mjs logs llama        # follow the model server's log
 ```
+
+The compose file is `deploy/chat-app/docker-compose.yaml`. By hand: `node deploy/chat-app/init-secrets.mjs` once (creates the secret files), then `docker compose up -d --build` from `deploy/chat-app`. Optional settings (`GATEWAY_PORT`, `OPENOBSERVE_PORT`, `LLAMA_MODELS_MAX`) go in `deploy/chat-app/.env`; see `.env.example` there.
 
 | Service | URL |
 |---|---|
@@ -108,6 +110,19 @@ npm run dev
 
 Open <http://localhost:5173>. `npm run build` makes a bundle in `dist/`.
 
+## 4. The other Docker parts, each on its own
+
+The Docker setup is four independent folders in `deploy/`, each with its own compose file, README and `.env.example`. Start only what you need; see [deploy/README.md](deploy/README.md).
+
+| Need | Command | Reach it at |
+|---|---|---|
+| A model to talk to, without the chat app (run the `experimentation/illustrated_agents` scripts, `tiny-agent`) | `node execute.mjs up llm-client`, then `node execute.mjs llm-client load qwen3.5-4b` | <http://localhost:3200/v1> |
+| Ask that model something, from the llm client | `node execute.mjs llm-client ask "Why is the sky blue?"` | the terminal |
+| The tiny agent in a container | `node execute.mjs tiny-agent "Why is the sky blue?"` | the terminal |
+| The Sphinx docs | `node execute.mjs up docs` (or `node execute.mjs docs`) | <http://localhost:3300> |
+
+Stop a part with `node execute.mjs down <chat-app|llm-client|tiny-agent|docs|all>`. The chat app and the llm client's model server both use port 3200 and the GPU, so run one of them at a time. The llm client reuses the models the chat app downloaded when `deploy/llm-client/.env` sets `MODELS_CACHE=../../experimentation/chat-app/models/cache` (see its `.env.example`). If a model container fails with `WSL environment detected but no adapters were found`, Docker lost the GPU: `wsl --shutdown`, restart Docker Desktop, and check with `docker run --rm --gpus all nvidia/cuda:12.4.1-base-ubuntu22.04 nvidia-smi -L`.
+
 ## Markdown style
 
 Markdown is kept unwrapped (one paragraph per line). Enable the commit hook that enforces it once per clone with `git config core.hooksPath .githooks`, and check everything with `node tools/unwrap-md.mjs --check`.
@@ -116,10 +131,16 @@ Markdown is kept unwrapped (one paragraph per line). Enable the commit hook that
 
 ```
 tiny-agent-design/
-├── code/tiny_agent/
-│   ├── main.py        # entry point
-│   └── shared/        # the TinyAgent harness, LLM client, model check
+├── code/
+│   ├── main.py        # the two-turn memory demo
+│   ├── cli.py         # the tiny-agent terminal chat
+│   ├── tiny_agent/    # the TinyAgent harness (shared/), logs, tests
+│   └── llm_client/    # the LLM client, model check, .env loader, tests
+├── deploy/            # Docker: chat-app/, llm-client/, tiny-agent/, docs/ (a compose file each)
 ├── docs/              # Sphinx documentation
+├── execute.mjs        # the one entry point for Docker and tests
 └── experimentation/
-    └── chat-app/      # frontend, backend, llama.cpp compose
+    ├── chat-app/      # frontend, backend, models, logs, secrets
+    ├── illustrated_agents/  # runnable book scripts, one file per concept
+    └── trigger_ias.py # popup to run them
 ```

@@ -7,8 +7,8 @@ A small, self-contained client for chat models behind an OpenAI-compatible API (
 | `llm.py` | The `LLM` class. `generate(messages, tools=None)` sends a conversation and returns a `Response`. |
 | `response.py` | The `Response` dataclass: `content`, `reasoning`, `tool_call`, `metadata`. |
 | `check.py` | Asks the server which models are loaded. Also a command: `python -m llm_client.check`. |
-| `env.py` | Loads settings from a `.env` file (`load_env()`); used by the `tiny-agent` command, `main.py` and `check.py`, not by `LLM` itself. |
-| `tests/` | pytest suite (121 tests) against a fake model server (no real model needed). |
+| `env.py` | Loads settings from a `.env` file (`load_env()`) and reads the API key (`api_key_from_env()`); used by the `tiny-agent` command, `main.py` and `check.py`, not by `LLM` itself. |
+| `tests/` | pytest suite (123 tests) against a fake model server (no real model needed). |
 
 ## Use it
 
@@ -29,6 +29,10 @@ Point it at another server with `base_url`, for example Ollama: `LLM(model="gemm
 * Every failure (server down, HTTP error, a reply that is not JSON or not a chat completion, an empty `messages` list) is one clear error: `RuntimeError`, or `ValueError` for an empty `messages`.
 * It gives up after 600 seconds.
 * Reasoning is read from either `reasoning` (Ollama) or `reasoning_content` (llama.cpp). Only the first tool call is kept.
+
+## In Docker, with its own model server
+
+`deploy/llm-client/` in the repository runs this client in a container together with a llama.cpp server of its own, so it works without the chat app: `node execute.mjs up llm-client`, then `node execute.mjs llm-client load qwen3.5-4b` and `node execute.mjs llm-client ask "Why is the sky blue?"`. See `deploy/llm-client/README.md`.
 
 ## Check which model is loaded
 

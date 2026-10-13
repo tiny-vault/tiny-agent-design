@@ -4,7 +4,7 @@ Guidance for AI agents. `code/tiny_agent/` and `code/llm_client/` have stricter 
 
 ## What this is
 
-1. **TinyAgent** (`code/tiny_agent/`, `docs/`): minimal educational agent harness; one model call per task, loop/memory/tools/planning are placeholders. Also: LLM client (`code/llm_client/`: `llm.py`, `response.py`, `check.py`), `tiny-agent` terminal chat (`code/cli.py`), demo `python code/main.py`.
+1. **TinyAgent** (`code/tiny_agent/`, `docs/`): minimal educational agent harness; one model call per task with the conversation kept in `Memory`; the multi-step loop, tools and planning are placeholders. Also: LLM client (`code/llm_client/`: `llm.py`, `response.py`, `check.py`), `tiny-agent` terminal chat (`code/cli.py`), demo `python code/main.py`.
 2. **Chat app** (`experimentation/chat-app/`): local chat UI for llama.cpp models, all in Docker; does not use `code/tiny_agent/`.
 
 Key paths: `execute.mjs` (Docker + tests, start here), `INSTRUCTIONS.md` (how to run everything), `deploy/` (everything Docker, four independent parts, each folder with its own `docker-compose.yaml`, Dockerfiles, `.env.example` and README: `chat-app/` (llama.cpp, backend, frontend, gateway, `observability/`, `init-secrets.mjs`), `llm-client/`, `tiny-agent/` (both run on demand), `docs/` (Sphinx)), `experimentation/chat-app/{frontend (React 19, Vite, Tailwind v4), backend (FastAPI), models (models.ini, cache/), logs/, secrets/}` (source and state; the Docker files are in `deploy/chat-app/`).
@@ -36,7 +36,7 @@ browser -> gateway (nginx, ONLY published port, 3200)
 | Docs | `node execute.mjs docs` builds them into an image and serves them on <http://localhost:3300> (`DOCS_PORT`); without Docker: `docs --local [--no-build] [--port N]`; build only: `sphinx-build -b html -n -W --keep-going docs docs/_build/html` |
 | Educational audit (Claude skill) | `/edu-audit <folder>` (`.claude/skills/edu-audit/`, git-ignored, local) |
 
-Python: `.venv/Scripts/python` (3.12). Backend deps: `backend/requirements*.txt`.
+Python: `.venv/Scripts/python` (3.12). Backend deps: `backend/requirements*.txt`. **No `__pycache__` in the repo:** `execute.mjs` and the Dockerfiles set `PYTHONDONTWRITEBYTECODE=1`, `trigger_ias.py` and the root `conftest.py` set `sys.dont_write_bytecode`. Everything else relies on the virtual environment: `.venv/Lib/site-packages/sitecustomize.py` (untracked, because `.venv` is) sets `sys.dont_write_bytecode = True` at every Python start, which is the only thing that also covers a bare `pytest` (it compiles the root `conftest.py` before that file can set the flag). Recreate it in a new environment with `Set-Content .venv\Lib\site-packages\sitecustomize.py "import sys; sys.dont_write_bytecode = True"`; outside the venv use `python -B` or set `PYTHONDONTWRITEBYTECODE=1`.
 
 ## Bringing parts up individually
 

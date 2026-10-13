@@ -20,7 +20,7 @@ task ─▶ [memory] ─▶ LLM decides ─▶ action ─▶ tool ─▶ observa
   └───────────────────────────── loop ◀───────────────────────────┘
 ```
 
-> **Status:** the agent loop (`TinyAgent`) is still a skeleton: memory, tools and the planner are placeholders, and the loop does not call a model yet. Around it there is a working **LLM client**, a **model check**, a **terminal chat** (`tiny-agent`) and a **Docker chat app** that serves local models, so you can already talk to a real model.
+> **Status:** `TinyAgent` calls a model once per task and keeps the conversation in `Memory`, so a second `run` sees the first. The multi-step loop, tools and the planner are still placeholders. Around it there is a working **LLM client**, a **model check**, a **terminal chat** (`tiny-agent`) and a **Docker chat app** that serves local models, so you can already talk to a real model.
 
 ## 🧩 Architecture
 
@@ -45,7 +45,7 @@ python -m venv .venv
 python code/main.py
 ```
 
-The demo tells the agent the authors' names and then asks for them in a second run on the same agent, so memory is what answers (it prints the second reply), so start the stack first (`node execute.mjs up`); see [INSTRUCTIONS.md](INSTRUCTIONS.md) for the settings it reads.
+The demo tells the agent the authors' names and then asks for them in a second run on the same agent, so memory is what answers; it prints the second reply. It calls a model, so a model server must be running first: the chat app (`node execute.mjs up`) or just the llm client's model server (`node execute.mjs up llm-client`, then `node execute.mjs llm-client load qwen3.5-4b`). See [INSTRUCTIONS.md](INSTRUCTIONS.md) for the settings it reads.
 
 To talk to a model, start the Docker stack and use the terminal chat below.
 
@@ -56,6 +56,8 @@ node execute.mjs up
 ```
 
 This starts the app (<http://localhost:3200>), the model server (llama.cpp), and a log search (<http://localhost:5080>, already logged in). llama.cpp downloads each model from Hugging Face the first time it is loaded, which takes minutes; after that, switching models takes 35 to 70 seconds. See [INSTRUCTIONS.md](INSTRUCTIONS.md) for everything else (`down`, `prune`, `test`, `download`).
+
+The Docker side is four independent parts in `deploy/` (the chat app, the llm client with its own model server, the tiny agent, the docs); each can be brought up on its own, see [deploy/README.md](deploy/README.md). The chat app and the llm client's model server share port 3200 and the GPU, so run one of them at a time.
 
 ### Chat from the terminal
 
@@ -94,7 +96,7 @@ print(agent.run("Hello, agent!"))
 
 ## 📖 Documentation
 
-Full docs (architecture, API reference) are built with Sphinx and the Furo theme:
+Full docs (architecture, API reference, the chat app backend, the book scripts) are built with Sphinx and the Furo theme. `node execute.mjs docs` builds them in Docker and serves them at <http://localhost:3300>; to build them yourself:
 
 ```powershell
 pip install -r docs/requirements.txt
@@ -113,7 +115,7 @@ Measured on the development laptop (RTX 3060 Laptop, 6 GB), with the two local m
 | Switching to `gemma4-e4b` (5.2 GB), model on disk | 61 to 69 s |
 | First load, including the Hugging Face download | 6 min (`qwen3.5-4b`), 15 to 20 min (`gemma4-e4b`) |
 | Answer starts, model already loaded | about 1 s |
-| Tests | backend 59, llm_client 121, tiny_agent 93, browser (stubbed API) 35, live (real models and logs) in INSTRUCTIONS.md |
+| Tests | backend 60, llm_client 123, tiny_agent 107, browser (stubbed API) 35, live (real models and logs) in INSTRUCTIONS.md |
 
 Only one model fits in GPU memory at a time, so every switch is a full reload. The chat app is described in `docs/guides/chat-app.md`.
 
@@ -133,8 +135,11 @@ tiny-agent-design/
 │   ├── tiny-agent/      #   the TinyAgent terminal chat, run on demand
 │   └── docs/            #   the Sphinx docs
 ├── experimentation/
-│   └── chat-app/        # the app's source and state: frontend, backend, models/, logs/, secrets/
-├── execute.mjs          # start, stop, test and clean up the whole stack
+│   ├── chat-app/        # the app's source and state: frontend, backend, models/, logs/, secrets/
+│   ├── illustrated_agents/  # runnable scripts from the book, one file per concept (zero_shot, best_of_n/orm, ...)
+│   ├── trigger_ias.py   # popup to pick and run those scripts
+│   └── tests/           # tests for trigger_ias.py and the scripts
+├── execute.mjs          # start, stop, test and clean up: one entry point for the four Docker parts
 ├── pyproject.toml       # packaging: the tiny-agent command
 └── docs/                # Sphinx documentation
 ```
@@ -145,10 +150,11 @@ tiny-agent-design/
 - [x] Sphinx documentation
 - [x] LLM client, model check and terminal chat (works against local models)
 - [x] Docker chat app: llama.cpp with Hugging Face models, logs, secrets, tests
-- [ ] Step 1: LLM integration into `TinyAgent` (the client exists but the loop does not use it yet)
-- [ ] Step 2: Memory
+- [x] Step 1: LLM integration into `TinyAgent` (one model call per task)
+- [x] Step 2: Memory (the conversation is kept and resent on every call)
+- [x] Deploy as four independent Docker parts (`deploy/`)
 - [ ] Step 3: Tools
-- [ ] Step 4: Planning
+- [ ] Step 4: Planning (and the multi-step loop)
 
 ---
 

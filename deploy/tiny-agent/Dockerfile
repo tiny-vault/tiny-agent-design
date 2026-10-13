@@ -4,7 +4,7 @@
 FROM python:3.12-slim
 WORKDIR /app
 # code/ goes on the import path instead of being installed.
-ENV PYTHONUNBUFFERED=1 PYTHONPATH=/app/code
+ENV PYTHONUNBUFFERED=1 PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=/app/code
 COPY code code
 # The interactive chat. The memory demo is `python code/main.py`.
 CMD ["python", "-m", "tiny_agent"]

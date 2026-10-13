@@ -1,6 +1,6 @@
 # Chat app
 
-The chat app (in `experimentation/chat-app/`) is a local chat UI that talks to models served by llama.cpp, all in Docker. It is an experiment next to TinyAgent and does not use the `tiny_agent` package yet. One command starts the whole stack:
+The chat app (source in `experimentation/chat-app/`, Docker files in `deploy/chat-app/`) is a local chat UI that talks to models served by llama.cpp, all in Docker. It is an experiment next to TinyAgent and does not use the `tiny_agent` package yet. It is one of four independent Docker parts (see `deploy/README.md`). One command starts the whole stack:
 
 ```powershell
 node execute.mjs up
@@ -22,6 +22,10 @@ flowchart LR
 * The gateway is the only published port for the app. The backend is the only code that talks to llama.cpp, and it refuses to chat with a model that is not loaded (HTTP 409), so a chat can never trigger a surprise model switch.
 * The frontend lets you chat only when the router reports the selected model as loaded. Switching freezes the page until the load finishes, and a failed load shows the reason and a Load button.
 * llama.cpp runs in router mode: it knows several models but keeps one loaded at a time (`LLAMA_MODELS_MAX=1`).
+
+## The same models without the chat app
+
+`deploy/llm-client/` runs the same llama.cpp image and `models.ini` as a model server of its own (`node execute.mjs up llm-client`), published on the same port, 3200, and using the same GPU, so run it or the chat app, not both. It is what you use to run the scripts in `experimentation/illustrated_agents` or the tiny agent without the web UI.
 
 ## Models
 
@@ -77,21 +81,21 @@ All from the repository root.
 
 | Command | What it does |
 |---|---|
-| `node execute.mjs up` | Start the complete stack and print the URLs |
+| `node execute.mjs up` | Start the complete chat app stack and print the URLs (`up llm-client`, `up tiny-agent`, `up docs` start the other parts on their own) |
 | `node execute.mjs download [model]` | Fetch models from Hugging Face ahead of time |
 | `node execute.mjs load <model>` | Load a model and wait until it is loaded |
 | `node execute.mjs status`, `health`, `logs [service]` | See what is running |
 | `node execute.mjs test [target]` | Run the tests |
-| `node execute.mjs down` | Stop and remove the containers |
+| `node execute.mjs down [target]` | Stop and remove the containers of the chat app (or of `llm-client`, `tiny-agent`, `docs`, `all`) |
 | `node execute.mjs prune` | Remove the whole setup except the downloaded models and the Docker images |
 
 ## Tests
 
 | Target | What it runs | Result |
 |---|---|---|
-| `backend` | pytest against a fake llama.cpp router | 59 pass |
-| `llm` | pytest for the `llm_client` package against a fake model server | 121 pass |
-| `agent` | pytest for `tiny_agent` (chat command, logs, demo) against a fake model server | 93 pass |
+| `backend` | pytest against a fake llama.cpp router | 60 pass |
+| `llm` | pytest for the `llm_client` package against a fake model server | 123 pass |
+| `agent` | pytest for `tiny_agent` (chat command, logs, demo, memory) against a fake model server | 107 pass |
 | `mocked` | Playwright with the API stubbed in the browser: model-switch gating and chat edge cases | 35 pass |
 | `live` | Playwright against the running stack: real model switching and OpenObserve | see `INSTRUCTIONS.md` for the latest run |
 

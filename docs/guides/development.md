@@ -27,6 +27,7 @@ node execute.mjs test list       # list the tests without running them
 | `agent` | `tiny_agent` (chat command, logs, demo, the harness), against a fake model server | nothing |
 | `mocked` | the React app in a real browser with the API stubbed | nothing |
 | `live` | real model switching and OpenObserve, in a real browser | the Docker stack running |
+| `ias` | `trigger_ias.py` and every script in `experimentation/illustrated_agents`, run for real (add `-- -m "not slow"` for the quick ones) | a model server with `qwen3.5-4b` loaded |
 
 Runner arguments go after `--`, for example `node execute.mjs test backend -- -k load`. When behaviour changes, add or update a test in the same change.
 
@@ -41,4 +42,4 @@ Markdown is never hard-wrapped: one paragraph or list item is one line. A pre-co
 ## Known documentation gaps
 
 * `_step` and `_execute_action` are private and are not in the API reference. Their roles are described in the architecture overview.
-* `llm_client.env` (the `.env` loader) is not in the API reference.
+* The tests (`conftest.py`, `test_*.py`) and `tiny_agent/__main__.py` are not in the API reference; each test file explains itself in its module docstring.

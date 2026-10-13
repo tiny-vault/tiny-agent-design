@@ -1,6 +1,6 @@
 # llama.cpp models
 
-Everything that decides *which models llama.cpp serves and how* lives here. The Docker setup (`../../../deploy/chat-app/docker-compose.yaml`) only mounts these files.
+Everything that decides *which models llama.cpp serves and how* lives here. The Docker setup (`../../../deploy/chat-app/docker-compose.yaml`) only mounts these files. `deploy/llm-client/models.ini` is a copy for the llm client's own model server; when you add or change a model here, make the same change there.
 
 | Path | What it is |
 |---|---|
