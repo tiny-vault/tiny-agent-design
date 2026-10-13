@@ -7,6 +7,7 @@ import time
 from conftest import FAST
 from fake_router import FakeRouter
 from fastapi.testclient import TestClient
+
 from server import create_app
 
 
@@ -381,6 +382,7 @@ def test_read_secret_with_no_file_configured_is_none():
 
 def test_an_empty_secret_file_is_an_error_not_a_silent_no_key(tmp_path):
     import pytest
+
     from server import read_secret
 
     secret = tmp_path / "key"

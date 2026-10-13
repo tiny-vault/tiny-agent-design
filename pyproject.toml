@@ -23,4 +23,4 @@ exclude = ["tiny_agent.tests*", "llm_client.tests*"]
 namespaces = true  # code/tiny_agent/ has no __init__.py; the harness is in code/tiny_agent/shared/
 
 [tool.ruff]
-src = ["code"]   # tiny_agent, llm_client, main and cli are first-party, so imports sort as pytest, blank line, then these
+src = ["code", "experimentation/chat-app/backend"]   # first-party code: tiny_agent, llm_client, main, cli and the backend modules, so imports sort as pytest, blank line, then these

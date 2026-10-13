@@ -8,6 +8,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 from fake_router import FakeRouter  # noqa: E402
+
 from server import create_app  # noqa: E402
 
 FAST = dict(poll_interval=0.02, start_grace=1, load_timeout=3)
