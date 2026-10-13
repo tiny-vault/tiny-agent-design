@@ -465,7 +465,7 @@ switch (command) {
     const backend = (more = []) => run("python", ["-m", "pytest", "-q", ...more], { cwd: join(CHAT_APP, "backend") });
     // -rs lists why model tests were skipped (stack down, model not loaded).
     const ias = (more = []) =>
-      run("python", ["-m", "pytest", "-q", "-rs", "experimentation/illustrated_agents/tests", ...more], { cwd: ROOT });
+      run("python", ["-m", "pytest", "-q", "-rs", "experimentation/tests", ...more], { cwd: ROOT });
     const playwright = (project, more = []) =>
       run("npx", ["playwright", "test", ...(project ? ["--project", project] : []), ...more], {
         cwd: join(CHAT_APP, "frontend"),

@@ -29,8 +29,8 @@ browser -> gateway (nginx, ONLY published port, 3200)
 | Start / stop | `node execute.mjs up` / `down` |
 | Status, health, logs | `node execute.mjs status` / `health` / `logs [service]` |
 | Switch model / rebuild | `node execute.mjs load <model>` / `rebuild` |
-| Notebook-cell scripts | `.venv/Scripts/python trigger_ias.py [name]` (no name lists them; stack up, model loaded) |
-| Tests | `node execute.mjs test [backend\|agent\|llm\|mocked\|live\|e2e\|all\|list]`, runner args after `--` (e.g. `test backend -- -k load`) |
+| Notebook-cell scripts | `.venv/Scripts/python experimentation/trigger_ias.py [name]` (no name opens a popup REPL to pick and run; `--list` prints them; stack up, model loaded) |
+| Tests | `node execute.mjs test [backend\|agent\|llm\|mocked\|live\|e2e\|ias\|all\|list]`, runner args after `--` (e.g. `test backend -- -k load`) |
 | Frontend | `cd experimentation/chat-app/frontend; npm run dev` (stack up) / `npm run build` |
 | Docs | `sphinx-build -b html -n -W --keep-going docs docs/_build/html` |
 | Educational audit (Claude skill) | `/edu-audit <folder>` (`.claude/skills/edu-audit/`, git-ignored, local) |

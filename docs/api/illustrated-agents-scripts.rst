@@ -6,12 +6,13 @@ script per concept, in ``experimentation/illustrated_agents/``. Related scripts
 share a folder (``shot_prompting/``, ``best_of_n/``) and each folder has a
 ``compare.py`` that runs the concepts side by side. Each script
 has its own imports, ``LLM``, prompts and printing. Run any of
-them from the repo root with ``trigger_ias.py``:
+them from the repo root with ``experimentation/trigger_ias.py``:
 
 .. code-block:: console
 
-   .venv/Scripts/python trigger_ias.py                          # list the scripts
-   .venv/Scripts/python trigger_ias.py shot_prompting/zero_shot # run one
+   .venv/Scripts/python experimentation/trigger_ias.py                          # popup REPL: pick a script, it runs, the popup returns
+   .venv/Scripts/python experimentation/trigger_ias.py --list                   # list the scripts
+   .venv/Scripts/python experimentation/trigger_ias.py shot_prompting/zero_shot # run one and exit
 
 Scripts that call a model need the Docker stack up with ``qwen3.5-4b`` loaded
 (``node execute.mjs up``, ``node execute.mjs load qwen3.5-4b``); ``diff_*`` need no
@@ -54,4 +55,4 @@ Each of ``zero_shot``, ``one_shot`` and ``few_shot`` runs its technique plain an
    experimentation.illustrated_agents.best_of_n.weighted_prm
    experimentation.illustrated_agents.best_of_n.compare
    experimentation.illustrated_agents.agent_without_memory
-   trigger_ias
+   experimentation.trigger_ias
