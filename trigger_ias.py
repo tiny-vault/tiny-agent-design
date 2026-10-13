@@ -1,11 +1,11 @@
-"""Run one script from ``experimentation/illustrated_agents_scripts`` by name.
+"""Run one script from ``experimentation/illustrated_agents`` by name.
 
 Usage, from the repo root::
 
     python trigger_ias.py            list the scripts
     python trigger_ias.py one_shot   run one (the .py suffix is optional)
 
-Any ``.py`` file added to that folder is picked up automatically; only ``__init__`` is skipped. A script runs exactly as ``python -m experimentation.illustrated_agents_scripts.<name>`` would, so its ``if __name__ == "__main__":`` block executes.
+Any ``.py`` file added to that folder is picked up automatically; only ``__init__`` is skipped. A script runs exactly as ``python -m experimentation.illustrated_agents.<name>`` would, so its ``if __name__ == "__main__":`` block executes.
 
 Exit codes:
     * ``0``: the script ran, or the list was printed because no name was given.
@@ -17,10 +17,10 @@ import runpy
 import sys
 from pathlib import Path
 
-PACKAGE = "experimentation.illustrated_agents_scripts"
+PACKAGE = "experimentation.illustrated_agents"
 """Dotted package path the scripts are run under, relative to the repo root."""
 
-FOLDER = Path(__file__).parent / "experimentation" / "illustrated_agents_scripts"
+FOLDER = Path(__file__).parent / "experimentation" / "illustrated_agents"
 """Folder scanned for scripts.
 
 :meta hide-value:
@@ -56,6 +56,9 @@ def main(argv: list[str]) -> int:
     if name not in names:
         print(f"Unknown script '{name}'. Scripts:\n  " + "\n  ".join(names))
         return 2
+    # Scripts import their shared pieces as ``from common import ...``, which resolves when run as a file
+    # (the script's folder is sys.path[0]); add that folder so it resolves here too.
+    sys.path.insert(0, str(FOLDER))
     runpy.run_module(f"{PACKAGE}.{name}", run_name="__main__")
     return 0
 

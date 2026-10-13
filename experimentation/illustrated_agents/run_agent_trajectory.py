@@ -6,12 +6,14 @@ Prints the answer, the raw ``agent.trajectory.runs``, then a plain-text version 
 from illustrated_agents.chapters.ch2 import LLM, TinyAgent
 from illustrated_agents.utils import TrajectoryViewer
 
+from common import agent_query
+
 # The chat-app gateway forwards /v1 to llama.cpp and adds the API key itself.
 llm = LLM(model="qwen3.5-4b", base_url="http://localhost:3200/v1")
 
 if __name__ == "__main__":
     agent = TinyAgent(llm=llm)
-    response = agent.run("What is 2 + 2?")
+    response = agent.run(agent_query)
     print(response)
     print(agent.trajectory.runs)
 

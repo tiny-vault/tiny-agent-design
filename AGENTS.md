@@ -4,7 +4,7 @@ Guidance for AI agents in this repo. `code/tiny_agent/` and `code/llm_client/` h
 
 ## What this is
 
-1. **TinyAgent** (`code/tiny_agent/`, `docs/`): minimal educational agent harness. `TinyAgent` is a skeleton that calls no model. Beside it: the LLM client (`code/llm_client/`: `llm.py`, `response.py`, `check.py`), the `tiny-agent` terminal chat (`code/cli.py`), demo `python code/main.py`.
+1. **TinyAgent** (`code/tiny_agent/`, `docs/`): minimal educational agent harness. `TinyAgent` calls the model once per task; loop, memory, tools and planning are placeholders. Beside it: the LLM client (`code/llm_client/`: `llm.py`, `response.py`, `check.py`), the `tiny-agent` terminal chat (`code/cli.py`), demo `python code/main.py`.
 2. **Chat app** (`experimentation/chat-app/`): local chat UI for llama.cpp models, all in Docker; does not use `code/tiny_agent/`.
 
 Key paths: `execute.mjs` (Docker + tests, start here), `INSTRUCTIONS.md` (how to run everything), `experimentation/docker-compose.yaml` (the stack; optional `.env` beside it), `chat-app/{frontend (React 19, Vite, Tailwind v4), backend (FastAPI), models (models.ini, cache/), deploy (Dockerfiles, nginx), observability, logs/, secrets/}`.
@@ -51,11 +51,14 @@ Behaviour change means a test change in the same commit. The fake router (`backe
 - **Docs move with code:** a changed command, port, path or endpoint updates `INSTRUCTIONS.md` and the relevant README in the same change.
 - **Do not commit:** `.env`, model files, `node_modules`, `dist`, `.venv`, `docs/_build` (git-ignored; check `git status`).
 
-## Pasted model code (`experimentation/illustrated_agents_scripts/`)
+## Pasted model code (`experimentation/illustrated_agents/`)
 
-- Every pasted snippet becomes a **new** file there (descriptive snake_case name); never edit existing ones.
-- Each file is **self-sufficient**: own imports, `LLM(...)`, `query`, printing. No shared helper module, no imports between scripts. Copy the header of `one_shot.py`.
-- It runs on the **existing Docker stack**, never Ollama (`localhost:11434`) or a new server: `base_url="http://localhost:3200/v1"`, the stack's model names (`qwen3.5-4b`, `gemma4-e4b`, not Ollama tags), key read at runtime from `experimentation/chat-app/secrets/llama_api_key` (never print or hardcode it). A model not in `chat-app/models/models.ini`: say so and ask.
+- Every pasted snippet becomes a **new** file there (descriptive snake_case name), unless it is another variant of a technique that already has a file: then it is one more function in that file (e.g. each Best-of-N verifier is a `best_of_n_<type>` function in `best_of_n.py`, picked by name from the command line). Otherwise never edit existing scripts.
+- The folder has **no `__init__.py`** (a namespace folder), so it never shadows the installed `illustrated_agents` package; never add one.
+- **Shared pieces live in `common/`** and scripts import them with `from common import ...`: `common/llm.py` (`llm`, `make_llm(temperature)`, the key from the Docker secret), `common/prompts.py` (**every prompt**, including judge prompts; import under the script's local name, e.g. `seating_query as query`), `common/output.py` (`show`, `print_diff`). Anything a second script would copy goes there, never into a script. Scripts never import each other. Copy the header of `one_shot.py`.
+- `from common import` resolves because the script's folder is on `sys.path`: automatically when run as a file; `trigger_ias.py` and `docs/conf.py` add it. Keep it that way if either changes.
+- It runs on the **existing Docker stack**, never Ollama (`localhost:11434`) or a new server: use `common.llm` (gateway `http://localhost:3200/v1`, the stack's model names `qwen3.5-4b`, `gemma4-e4b`, not Ollama tags, key read at runtime from `experimentation/chat-app/secrets/llama_api_key`, never printed or hardcoded). A model not in `chat-app/models/models.ini`: say so and ask.
+- **One short docstring, at the top** (match `one_shot.py`): a summary line plus one paragraph covering the technique, the key names (``query``, ``llm`` settings, helpers), the expected answer and a "Compare <script>" pointer. No docstrings on variables or functions; no `Run:`/`Requires:`/`Messages sent:` sections (`trigger_ias.py` and `docs/api/illustrated-agents-scripts.rst` cover running). Add a `Warning:` only for a real hazard (e.g. `exec` of model code).
 - Before running: `node execute.mjs status`; `up` if down, `load <model>` if not loaded. It must run both as a file and via `trigger_ias.py <name>`.
 
 ## Secrets and logs

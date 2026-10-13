@@ -10,6 +10,9 @@ import time
 
 import httpx
 
+# Seconds an idle pooled connection is kept; must stay below llama-server's 5 s keep-alive timeout.
+KEEPALIVE_EXPIRY = 2
+
 
 class LlamaUnreachable(Exception):
     """llama-server could not be reached."""
@@ -43,8 +46,13 @@ class LlamaClient:
         self.base_url = base_url.rstrip("/")
         # llama-server may require a key (--api-key-file). It is sent as a bearer token on every request.
         headers = {"Authorization": f"Bearer {api_key}"} if api_key else {}
+        # llama-server (cpp-httplib) closes a keep-alive connection after 5 s idle, the same as httpx's
+        # default expiry, so a pooled connection could be reused just as the server dropped it: the
+        # request then fails with "Server disconnected without sending a response" (a 502). Expiring
+        # idle connections well before the server does means every reused connection is still open.
         self.http = httpx.AsyncClient(base_url=self.base_url, headers=headers,
-                                      timeout=httpx.Timeout(timeout, connect=5))
+                                      timeout=httpx.Timeout(timeout, connect=5),
+                                      limits=httpx.Limits(keepalive_expiry=KEEPALIVE_EXPIRY))
         self.load_timeout = load_timeout
         self.poll_interval = poll_interval
         self.start_grace = start_grace

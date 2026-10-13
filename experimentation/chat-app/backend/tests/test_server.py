@@ -440,3 +440,14 @@ def test_a_server_that_reports_no_source_keeps_all_its_models(client, router):
     router.report_source = False
     assert set(statuses(client)) == {"gemma", "qwen", "broken", "slow"}
     assert len(client.get("/v1/models").json()["data"]) == 4
+
+
+# ---- pooled connections ------------------------------------------------------------------
+
+def test_idle_connections_expire_before_llama_server_drops_them():
+    """llama-server closes an idle keep-alive connection after 5 s; reusing one it already closed
+    fails with "Server disconnected without sending a response" (a 502 between back-to-back calls)."""
+    from llama_client import KEEPALIVE_EXPIRY, LlamaClient
+
+    llama = LlamaClient("http://127.0.0.1:9")
+    assert llama.http._transport._pool._keepalive_expiry == KEEPALIVE_EXPIRY < 5
