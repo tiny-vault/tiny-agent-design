@@ -7,8 +7,8 @@ flowchart LR
     L["LLM.generate"] -->|reply| P["tools.parse"]
     P -->|tool_call| X["tools.execute"]
     X -->|result| O["tools.observation"]
-    O -->|"user message: OBSERVATION: ..."| M["memory"]
-    P -->|no tool call| D["is_done: the reply is the answer"]
+    O -->|"user or tool message: OBSERVATION: ..."| M["memory"]
+    P -->|"no tool call, or final_answer"| D["is_done: the reply is the answer"]
 ```
 
 ## The registry
@@ -32,7 +32,7 @@ This is the difference the project's two models make visible: a baseline model h
 
 ## What the agent does with them
 
-`TinyAgent` adds the tool prompt to memory as a system message when it is created. On each task it sends the memory (and `schemas`, for learned tools) to the model, then asks `tools.parse` for a tool call. No tool call means the reply is the answer (`is_done`). A tool call is run by `_execute_action`, and the result is stored as `OBSERVATION: <result>` and recorded in the trajectory.
+`TinyAgent` adds the tool prompt to memory as a system message when it is created. On each task it sends the memory (and `schemas`, for learned tools) to the model, then asks `tools.parse` for a tool call. No tool call means the reply is the answer (`is_done`), and so does a call to a tool named `final_answer`: its `kwargs` become the answer. Nothing registers `final_answer`, so the model has to be told about it in the prompt. Any other tool call is run by `_execute_action`, and the result is stored as `OBSERVATION: <result>` and recorded in the trajectory. With prompted tools the call is the text of the assistant message and the observation is a `user` message. With learned tools the agent keeps the structured call with the assistant message (`tool_calls`) and the observation is a `tool` message, the order a chat server expects.
 
 ```{note}
 There is no loop yet. After a tool runs, the observation is stored but the model is not called again in the same `run`; the next `run` sees it in memory. The multi-step loop is the next phase.

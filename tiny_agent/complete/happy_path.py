@@ -79,7 +79,9 @@ def run_stage(agent: TinyAgent, task: str, tool: str, observation: str) -> dict[
     (step,) = agent.trajectory.runs[0]["steps"]
     require(step.action and step.action["tool"] == tool, f"the step should record a call to {tool}: {step.action}")
     require(step.observation == observation and step.answer is None, "the step holds the observation, not an answer")
-    require(agent.memory.get_messages()[-1] == {"role": "user", "content": observation}, "the observation is in memory")
+    # Learned tools answer the recorded tool call with a `tool` message; prompted ones with a `user` message
+    role = "tool" if isinstance(agent.tools, LearnedTools) else "user"
+    require(agent.memory.get_messages()[-1] == {"role": role, "content": observation}, "the observation is in memory")
 
     answer = agent.run(ANSWER_PROMPT)
     number = observation.removeprefix("OBSERVATION: ").removesuffix(".0")

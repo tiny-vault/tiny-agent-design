@@ -185,7 +185,9 @@ def tool_round_trip(agent: TinyAgent) -> Facts:
     (step,) = agent.trajectory.runs[0]["steps"]
     require(step.action and step.action["tool"] == "multiply", f"the step should record the tool call: {step.action}")
     require(step.observation == observation and step.answer is None, "the step holds the observation, not an answer")
-    require(agent.memory.get_messages()[-1] == {"role": "user", "content": observation}, "the observation goes to memory")
+    # A structured (native) call is answered by a `tool` message; a prompted one by a `user` message
+    role = "tool" if isinstance(agent.tools, LearnedTools) else "user"
+    require(agent.memory.get_messages()[-1] == {"role": role, "content": observation}, "the observation goes to memory")
     answer = agent.run(ANSWER_PROMPT)
     require(contains(answer, "42"), f"the model should read the observation and answer 42: {answer!r}")
     return {"action": step.action, "observation": observation, "answer": answer}

@@ -20,8 +20,9 @@ may be a JSON string or an already decoded object. They become the shared
 without its ``function`` member are returned unchanged. JSON written only in
 the content text is not interpreted here.
 
-The base registry handles execution and approval. A result becomes a user-role
-observation; another agent run is needed for a textual answer. Malformed JSON,
+The base registry handles execution and approval. A result becomes a ``tool``-role
+observation, which follows the assistant message that recorded the call (the agent
+keeps the call with that message); another agent run is needed for a textual answer. Malformed JSON,
 missing function names and invalid callable arguments can raise; there is no
 recovery or sandbox. Compare ``PromptingTools`` for the same dispatch path
 driven by JSON in ordinary reply text.
@@ -120,6 +121,12 @@ class LearnedTools(BaseTools):
                 }
             )
         return schemas
+
+    @override
+    def observation(self, result: Any) -> tuple[str, str]:
+        """The result as a ``tool`` message, the role that follows the assistant's recorded tool call."""
+        _, text = super().observation(result)
+        return "tool", text
 
     @override
     def parse(self, response: Response) -> Response:

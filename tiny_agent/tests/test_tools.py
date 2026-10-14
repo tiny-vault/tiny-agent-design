@@ -133,6 +133,13 @@ def test_parse_extracts_a_tool_call_from_text_around_the_json():
     assert parsed.tool_call == {"tool": "multiply", "kwargs": {"a": "6", "b": "7"}}
 
 
+def test_parse_then_execute_runs_the_tool_without_an_agent():
+    # A fake reply, parsed into a tool call and executed by hand: the two steps the agent does for you
+    parsed = make_tools().parse(Response(content='{"tool": "multiply", "kwargs": {"a": "3.1", "b": "6.5"} }'))
+    assert parsed.tool_call == {"tool": "multiply", "kwargs": {"a": "3.1", "b": "6.5"}}
+    assert make_tools().execute(parsed) == pytest.approx(20.15)
+
+
 def test_parse_leaves_a_plain_answer_alone():
     response = Response(content="It is 42.")
     assert PromptingTools().parse(response) is response
@@ -440,8 +447,30 @@ def test_is_done_only_without_a_tool_call():
     assert not tools.is_done(tools.parse(Response(content=None, tool_call=NATIVE_CALL)))
 
 
-def test_observation_is_a_user_message():
-    assert make_native().observation(42.0) == ("user", "OBSERVATION: 42.0")
+def test_a_final_answer_call_is_done_and_its_kwargs_become_the_answer():
+    tools = make_native()
+    response = Response(content=None, tool_call={"tool": "final_answer", "kwargs": "It is 42."})
+    assert tools.is_done(response)
+    assert response.content == "It is 42."
+    # Anything that is not text is turned into text
+    response = Response(content=None, tool_call={"tool": "final_answer", "kwargs": {"answer": 42}})
+    assert tools.is_done(response)
+    assert response.content == "{'answer': 42}"
+
+
+def test_the_agent_returns_the_final_answer_and_runs_no_tool():
+    call = '{"tool": "final_answer", "kwargs": "It is 42."}'
+    memory = Memory()
+    agent = TinyAgent(ScriptedLLM(call), memory, make_tools())
+    assert agent.run("What is 6 times 7?") == "It is 42."
+    # The raw reply stays in memory, and no OBSERVATION was added
+    assert memory.get_messages()[-1] == {"role": "assistant", "content": call}
+    (step,) = agent.trajectory.runs[0]["steps"]
+    assert (step.answer, step.action, step.observation) == ("It is 42.", None, None)
+
+
+def test_observation_is_a_tool_message():
+    assert make_native().observation(42.0) == ("tool", "OBSERVATION: 42.0")
 
 
 # ---- wired into TinyAgent ------------------------------------------------------------------
@@ -468,7 +497,15 @@ def test_a_learned_tool_call_runs_the_tool_and_returns_the_observation():
     memory = Memory()
     agent = TinyAgent(ScriptedLLM(Response(content=None, tool_call=NATIVE_CALL)), memory, make_native())
     assert agent.run("What is 6 times 7?") == "OBSERVATION: 42.0"
-    assert memory.get_messages()[-1] == {"role": "user", "content": "OBSERVATION: 42.0"}
+    # The model's own call is kept with its message, and the result follows it as a `tool` message
+    assert memory.get_messages()[-2] == {"role": "assistant", "content": "", "tool_calls": [NATIVE_CALL]}
+    assert memory.get_messages()[-1] == {"role": "tool", "content": "OBSERVATION: 42.0"}
+
+
+def test_a_prompted_tool_call_is_not_stored_as_a_structured_call():
+    memory = Memory()
+    TinyAgent(ScriptedLLM(CALL), memory, make_tools()).run("What is 6 times 7?")
+    assert "tool_calls" not in memory.get_messages()[-2]
 
 
 def test_a_learned_tool_call_is_recorded_in_the_trajectory():

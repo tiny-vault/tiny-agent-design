@@ -2,14 +2,24 @@
 
 What is it? A language model only turns text into text. An *agent* is that model
 plus the code around it (the *harness*): something that keeps the conversation,
-decides what to send, and (in later phases) runs tools and plans. ``TinyAgent``
+decides what to send, runs registered tools, and (in a later phase) plans. ``TinyAgent``
 is that harness, built up one phase at a time.
 
 What this file does today: ``run`` puts the task into ``memory``, ``_step`` sends
 the whole memory to the model once and stores the reply, and the call is
 recorded in ``trajectory``. Because the history is resent every time, a second
 ``run`` on the same agent can use what the first one said; with a fresh
-``Memory`` it cannot. There is no loop, no tool use and no planning yet.
+``Memory`` it cannot. With ``tools``, the reply is parsed and a requested tool
+is executed once; its observation is returned and kept in memory. A plain
+reply is returned as the answer. There is no automatic loop or planning yet.
+
+Prompting tools describe functions in the system message; learned tools send
+schemas with the request and parse structured calls. Both dispatch through
+``_execute_action``. An observation such as ``OBSERVATION: 42.0`` is a tool
+result, not a model-written final answer: the caller must start another run
+to let the model read it. Memory variants may make additional model calls
+internally; the harness itself makes one decision call per run. The trajectory
+records that decision and its result, not the memory's internal calls.
 
 Based on *An Illustrated Guide to AI Agents* by Maarten Grootendorst and
 Jay Alammar (O'Reilly). The book's companion repository has no license, so
@@ -36,7 +46,7 @@ class TinyAgent:
     the *harness*, i.e. the code around the model. In this class the harness
     is:
 
-    * :meth:`run` - the loop that keeps calling the model until done.
+    * :meth:`run` - the entry point for one model decision; a loop is a later phase.
     * ``_step`` - assembles the model's input (task, memory and tool
       descriptions) and interprets its output.
     * ``_execute_action`` - carries out the model's chosen action in the
@@ -45,7 +55,8 @@ class TinyAgent:
 
     The model decides; the harness does. The agent now calls the model once
     per task, remembers the exchange in ``memory`` and records what happened
-    in ``trajectory``; the loop, tools and planning are still placeholders.
+    in ``trajectory``. Optional tools already run once when requested; the
+    automatic loop and planning are still placeholders.
 
     Memory vs trajectory: ``memory`` is what the model *sees* (the messages sent
     on every call); ``trajectory`` is what *you* see afterwards (a debugging
@@ -58,7 +69,7 @@ class TinyAgent:
             A ``Memory`` (``tiny_agent.components.memory``), passed in when the
             agent is created.
         tools: The "hands": functions the agent can call to affect the world.
-            ``None`` until the tools step.
+            ``None`` for plain chat; otherwise a supplied tool registry.
         planner: The "strategy": breaks a goal into ordered sub-steps.
             ``None`` until the planning step.
         trajectory: The :class:`~tiny_agent.components.trajectory.Trajectory`:
@@ -96,8 +107,8 @@ class TinyAgent:
     def run(self, task: str) -> str:
         """Run the agent on a task.
 
-        Role: public entry point and outer control loop. Takes a goal from the
-        user and drives the agent until it produces a final answer. Later this
+        Role: public entry point for one model decision. Takes a goal from the
+        user and returns one answer or tool observation. Later this
         becomes the loop step -> act -> observe -> repeat, with a stop
         condition (answer found, step limit reached, or error).
 
@@ -105,7 +116,8 @@ class TinyAgent:
             task: The goal or question for the agent, in natural language.
 
         Returns:
-            The agent's result. Currently the model's reply to the task.
+            The model's reply, or the observation from one requested tool.
+            Model, parsing, and tool failures propagate to the caller.
         """
         self.memory.add("user", task)
         self.trajectory.initialize(task)
@@ -116,15 +128,17 @@ class TinyAgent:
 
         Role: one iteration of the reason-act cycle (the "think" phase).
         Sends the whole memory to the LLM, stores its reply back in memory, and
-        returns either a final answer or (later) an action for
-        ``_execute_action`` to carry out.
+        returns either a final answer or the observation from an action that
+        ``_execute_action`` carries out.
 
         The task is not passed in: :meth:`run` has already put it into memory,
         which is what the model sees.
 
         Returns:
-            Currently the model's reply text; a reply with no text (a tool call
-            only, ``content`` is ``None``) comes back, and is stored, as ``""``.
+            The model's reply text when no action is requested (or the answer
+            inside a ``final_answer`` call), otherwise the
+            tool observation. A reply with no text (``content`` is ``None``)
+            is stored as ``""`` before parsing and dispatch.
             The call is recorded as a :class:`~tiny_agent.components.step.Step` in
             ``self.trajectory``.
         """
@@ -136,18 +150,22 @@ class TinyAgent:
         )
         # A tool-call-only reply has no text (content is None); treat it as empty text
         text = response.content or ""
-        self.memory.add("assistant", text)
+        # Keep the model's own tool call (the server's shape, before parsing) with its message, so the next
+        # request shows that the call happened. Prompted tools have none here: their call is the text.
+        # Without tools nothing runs the call, so no result would follow it: leave it out.
+        self.memory.add("assistant", text, tool_call=response.tool_call if self.tools else None)
 
         # Without tools every reply is the answer
         if self.tools is None:
             self.trajectory.add(response)
             return text
 
-        # The model asks for a tool by writing JSON in its reply; parse it out of the text
+        # Each registry normalizes its own format: JSON text or a structured call.
         response = self.tools.parse(response)
         if self.tools.is_done(response):
             self.trajectory.add(response)
-            return text
+            # Not `text`: for a `final_answer` call, is_done put the answer into response.content
+            return response.content or ""
         return self._execute_action(response)
 
     def _execute_action(self, response: Response) -> str:
@@ -155,7 +173,8 @@ class TinyAgent:
 
         Role: the "act" phase. Dispatches the parsed tool call the LLM chose to
         the matching tool, and returns the result as an observation that is
-        stored in memory and fed into the next ``_step``.
+        stored in memory for a later ``run``. This method does not call the
+        model again or implement the planned act-observe loop.
 
         Args:
             response: The model's reply, with its ``tool_call`` already parsed.

@@ -17,10 +17,10 @@ import json
 import threading
 import time
 
-from conftest import FAST
 from fake_router import FakeRouter
 from fastapi.testclient import TestClient
 
+from conftest import FAST
 from server import create_app
 
 
