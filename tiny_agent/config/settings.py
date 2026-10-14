@@ -57,6 +57,7 @@ class Settings(BaseSettings):
         native_tools: Bind them for a model that learned tool calling; wins over ``tools``.
         embedding_model: The embedding model for the ``rag`` and ``bank`` memories.
         embedding_url: Where it is served.
+        a2a: Let the orchestrator reach its specialists over the A2A protocol instead of in-process.
         log_dir: The folder for the log files; ``None`` means the default folder.
         log_level: ``DEBUG``, ``INFO``, ``WARNING`` or ``ERROR``.
     """
@@ -81,6 +82,7 @@ class Settings(BaseSettings):
     bank_memory: bool = False
     tools: bool = False
     native_tools: bool = False
+    a2a: bool = False
     embedding_model: str = DEFAULT_EMBEDDING_MODEL
     embedding_url: str = DEFAULT_EMBEDDING_URL
     log_dir: Path | None = None

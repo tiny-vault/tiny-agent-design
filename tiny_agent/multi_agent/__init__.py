@@ -8,5 +8,8 @@ a question and returns text; behind it a whole ``TinyAgent`` runs its own loop w
 * ``orchestrator.py``: ``create_orchestrator``, an agent whose only tools are ``ask_math_agent`` and
   ``ask_date_agent``.
 
+* ``a2a.py``: ``A2AServer`` and ``A2AClient``, the A2A protocol (agent card and ``message/send`` over HTTP). With
+  the ``a2a`` flag the orchestrator reaches its specialists through them instead of in-process.
+
 Import from the files, for example ``from tiny_agent.multi_agent.orchestrator import create_orchestrator``.
 """
