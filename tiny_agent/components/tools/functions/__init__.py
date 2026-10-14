@@ -1,4 +1,5 @@
-"""The functions the agent can call as tools, one per file: ``add.py``, ``subtract.py``, ``multiply.py``, ``divide.py``.
+"""The functions the agent can call as tools, one per file: ``add.py``, ``subtract.py``, ``multiply.py``, ``divide.py``,
+``today.py``, ``days_between.py``.
 
 Add a new tool as a new file here, then register it with ``add_tool`` (``default.py`` does it for the built-in ones).
 These functions accept text because this project advertises string parameters

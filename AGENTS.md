@@ -53,6 +53,7 @@ Start only what the task needs (`node execute.mjs help`).
 | Sphinx docs | `up docs` | <http://localhost:3300> |
 | Tiny agent in Docker | `tiny-agent ["q"]` (needs something on 3200) | terminal |
 
+- **The embedding container (`llama-embed`, port 3201) runs only when the task needs embeddings** (`RAGMemory`, `MemoryBank`, the embedding scripts and tests). `up llm-client` starts it too: stop it right after with `docker compose -f deploy/llm-client/docker-compose.yaml stop llama-embed`, start it on demand with `... up -d llama-embed`, and stop it again when done.
 - **`llm-client` and `chat-app` share port 3200 and the GPU: run one, never both.** `down` the other first; `up all` leaves `llm-client` out.
 - `docker ps` shows what is up; `down <target>` stops one part (`down all` all four); one part's `down` never touches another's containers.
 - After starting a model server confirm it: `llm-client` (`* name loaded`) and `llm-client ask "…"`.

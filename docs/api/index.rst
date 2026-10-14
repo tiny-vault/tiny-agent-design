@@ -14,6 +14,8 @@ The harness
    tiny_agent.agent
    tiny_agent.main
    tiny_agent.cli
+   tiny_agent.agents
+   tiny_agent.multi_agent
 
 What it records
 ---------------
