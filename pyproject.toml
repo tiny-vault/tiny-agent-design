@@ -7,17 +7,22 @@ name = "tiny-agent"
 version = "0.1.0"
 description = "A minimal, modular, educational agent framework, built step by step."
 readme = "README.md"
-requires-python = ">=3.10"
-dependencies = []  # standard library only
+requires-python = ">=3.12"
+dependencies = [
+    "pydantic>=2.5",  # Response, Step
+    "pydantic-settings>=2.2",  # config/settings.py: the TINYAGENT_* settings and the .env file
+    "httpx>=0.27",  # the HTTP calls to the model server
+    "click>=8.1",  # the tiny-agent and model-check commands
+]
 
 [project.scripts]
 tiny-agent = "tiny_agent.cli:main"
 
 [tool.setuptools.packages.find]
-where = ["."]   # tiny_agent, with tiny_agent/llm_client inside it
+where = ["."]   # tiny_agent, with memory, tools, client and config inside it
 include = ["tiny_agent*"]
 exclude = ["tiny_agent.tests*"]
-namespaces = true  # tiny_agent/ has no __init__.py; the harness is in tiny_agent/agent/
+namespaces = true  # tiny_agent/ has no __init__.py; the harness is tiny_agent/agent.py
 
 [tool.ruff]
-src = [".", "experimentation/chat-app/backend"]   # first-party code: tiny_agent (with llm_client, main and cli inside) and the backend modules, so imports sort as pytest, blank line, then these
+src = [".", "experimentation/chat-app/backend"]   # first-party code: tiny_agent (with base, inherit, config, main and cli inside) and the backend modules, so imports sort as pytest, blank line, then these

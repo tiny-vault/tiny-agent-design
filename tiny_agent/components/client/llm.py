@@ -2,7 +2,7 @@
 
 Step 1 of the harness. An LLM only maps text to text, so this module's one job
 is to send it a conversation and hand back what it said as a
-:class:`~tiny_agent.llm_client.response.Response`: the answer text, the model's
+:class:`~tiny_agent.components.client.response.Response`: the answer text, the model's
 reasoning if it sent any, and the tool it asked to run if it wants one.
 
 It speaks the ``/v1/chat/completions`` dialect that most local and hosted model
@@ -18,11 +18,11 @@ The request follows the example in *An Illustrated Guide to AI Agents* by
 Maarten Grootendorst and Jay Alammar (O'Reilly): POST ``model`` and ``messages``
 as JSON, then read ``result["choices"][0]``.
 
-Only the standard library is used, so TinyAgent keeps zero runtime dependencies.
+Requests go through httpx (see :func:`tiny_agent.components.client.http.post_json`).
 
 How a call works, step by step (all inside :meth:`LLM.generate`):
 
-1. Ask the server which models are loaded (:func:`tiny_agent.llm_client.check.model_statuses`)
+1. Ask the server which models are loaded (:func:`tiny_agent.components.client.check.model_statuses`)
    and fail early, with the fix, if this model is not.
 2. Build the JSON body: ``model`` and ``messages``, plus ``tools`` if given and
    ``reasoning_effort: "none"`` when ``think`` is off.
@@ -39,22 +39,19 @@ Example:
     'Hello! How can I help?'
 """
 
-import http.client
-import json
-import urllib.error
-import urllib.request
 import warnings
 from typing import Any
 
-from tiny_agent.llm_client import check
-from tiny_agent.llm_client.response import Response
+from tiny_agent.components.client import check
+from tiny_agent.components.client.http import post_json
+from tiny_agent.components.client.response import Response
 
 
 class LLM:
     """One chat model on one server.
 
     An ``LLM`` holds the connection settings and turns a list of messages into a
-    :class:`~tiny_agent.llm_client.response.Response` with :meth:`generate`. It keeps
+    :class:`~tiny_agent.components.client.response.Response` with :meth:`generate`. It keeps
     no conversation state: the caller passes the full message history every time,
     which is what lets the harness (and later its memory) decide what the model
     sees.
@@ -118,7 +115,7 @@ class LLM:
 
         Role: the one place the harness talks to the model. It asks the server
         which models are loaded, sends the conversation, and converts the JSON
-        reply into a :class:`~tiny_agent.llm_client.response.Response`.
+        reply into a :class:`~tiny_agent.components.client.response.Response`.
 
         The call blocks until the model has finished answering. It gives up after
         600 seconds, which is long enough for a slow local model to reason.
@@ -224,29 +221,8 @@ class LLM:
 
         # POST to the OpenAI-compatible /chat/completions endpoint. Every way this can
         # fail becomes a RuntimeError that says what happened, so callers handle one type.
-        try:
-            request = urllib.request.Request(
-                f"{self.base_url.rstrip('/')}/chat/completions",
-                data=json.dumps(body).encode(),
-                headers={
-                    "Content-Type": "application/json",
-                    "Authorization": f"Bearer {self.api_key}",
-                },
-            )
-            # 600 s: long enough for a slow local model to reason, short enough not to hang forever.
-            with urllib.request.urlopen(request, timeout=600) as response:
-                data = json.loads(response.read())
-        except urllib.error.HTTPError as error:  # the server answered with an error status
-            detail = error.read().decode("utf-8", errors="replace")
-            try:
-                detail = json.loads(detail)["error"]["message"]
-            except (ValueError, KeyError, TypeError):
-                detail = detail[:500]
-            raise RuntimeError(f"HTTP {error.code} from {self.base_url}: {detail}") from error
-        except (OSError, http.client.HTTPException) as error:  # refused, reset, timed out
-            raise RuntimeError(f"Cannot reach the model at {self.base_url}: {error}") from error
-        except ValueError as error:  # a malformed URL, or a reply that is not JSON
-            raise RuntimeError(f"Bad URL or a reply that is not JSON ({self.base_url}): {error}") from error
+        # 600 s: long enough for a slow local model to reason, short enough not to hang forever.
+        data = post_json(self.base_url, self.api_key, "/chat/completions", body, timeout=600)
 
         # Extract message, tool_call, and metadata. A server can answer 200 with JSON
         # that is not a chat completion, so check the shape before trusting it.
@@ -265,7 +241,7 @@ class LLM:
             "completion_tokens": usage.get("completion_tokens"),
         }
 
-        # Format as the flat Response dataclass, so the agent never sees raw server JSON.
+        # Format as the flat Response model, so the agent never sees raw server JSON.
         return Response(
             content=message.get("content"),
             # Ollama calls it "reasoning"; llama.cpp calls it "reasoning_content".

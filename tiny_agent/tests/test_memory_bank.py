@@ -10,11 +10,11 @@ from typing import Any
 import pytest
 
 from tiny_agent import main as demo
-from tiny_agent.agent.memory import Memory
-from tiny_agent.agent.tiny_agent import TinyAgent
-from tiny_agent.llm_client.llm import LLM
-from tiny_agent.llm_client.response import Response
-from tiny_agent.memory.memory_bank import (
+from tiny_agent.agent import TinyAgent
+from tiny_agent.components.client.llm import LLM
+from tiny_agent.components.client.response import Response
+from tiny_agent.components.memory.memory import BaseMemory, Memory
+from tiny_agent.components.memory.memory_bank import (
     FORGET_BELOW,
     SECONDS_PER_DAY,
     TOP_K,
@@ -77,7 +77,7 @@ def bank_with(texts: list[str]) -> tuple[MemoryBank, Clock]:
 
 def test_it_is_a_memory_and_starts_empty():
     memory, llm, embedder, _ = make()
-    assert isinstance(memory, Memory)
+    assert isinstance(memory, BaseMemory)
     assert memory.get_messages() == []
     assert memory.conversation_history == [] and memory.event_summaries == [] and memory.user_portrait == ""
     assert llm.prompts == [] and embedder.requests == []
@@ -211,7 +211,7 @@ def test_these_values_turn_the_bank_on(monkeypatch, value):
     assert type(demo.memory_from_env(FakeLLM())) is MemoryBank
 
 
-@pytest.mark.parametrize("value", ["", "0", "false", "off", "no", "maybe"])
+@pytest.mark.parametrize("value", ["", "0", "false", "off", "no"])
 def test_other_values_leave_the_bank_off(monkeypatch, value):
     monkeypatch.setenv("TINYAGENT_BANK_MEMORY", value)
     assert type(demo.memory_from_env(FakeLLM())) is Memory

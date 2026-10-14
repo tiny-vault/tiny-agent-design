@@ -1,6 +1,6 @@
 # Installation
 
-TinyAgent currently has no runtime dependencies beyond the Python standard library. The project was set up with Python 3.12.
+TinyAgent needs `pydantic`, `pydantic-settings`, `httpx` and `click` (installed with the package; see `pyproject.toml`). The project was set up with Python 3.12.
 
 ## Create a virtual environment
 
@@ -30,4 +30,4 @@ python -m pip install -e .
 tiny-agent --help
 ```
 
-This adds the ``tiny-agent`` command, still with no dependencies beyond the standard library. In this repository's virtual environment ``python -m pip`` is more reliable than the ``pip`` launcher. To chat with a model you also need the Docker stack running; see {doc}`../guides/chat-app` and ``INSTRUCTIONS.md`` in the repository root.
+This adds the ``tiny-agent`` command, which installs those libraries too. In this repository's virtual environment ``python -m pip`` is more reliable than the ``pip`` launcher. To chat with a model you also need the Docker stack running; see {doc}`../guides/chat-app` and ``INSTRUCTIONS.md`` in the repository root.

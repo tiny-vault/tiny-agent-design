@@ -17,7 +17,7 @@ import sys
 import time
 import urllib.request
 
-from tiny_agent.llm_client import check
+from tiny_agent.components.client import check
 
 USAGE = "usage: python load.py MODEL"
 TIMEOUT_SECONDS = 1800  # the first load downloads the model

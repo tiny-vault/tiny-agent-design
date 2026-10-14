@@ -4,18 +4,15 @@ An embedding is a list of numbers that places a text in a space where texts with
 together. Comparing two vectors (for example with cosine similarity) tells how related two texts are, which is
 what retrieval-augmented memory uses to find the notes that match a question.
 
-``EmbeddingModel`` is the counterpart of :class:`~tiny_agent.llm_client.llm.LLM` for embedding models such as EmbeddingGemma
+``EmbeddingModel`` is the counterpart of :class:`~tiny_agent.components.client.llm.LLM` for embedding models such as EmbeddingGemma
 (``embeddinggemma-300m`` on the Docker stack): it holds the connection settings and ``embed`` does one request.
-Standard library only, like the rest of this package.
+Uses httpx, like the rest of the model client.
 
 Limitations: one text per request, blocking, no retries. The model must be loaded on the server (on the Docker
 stack that means ``LLAMA_MODELS_MAX`` of at least 2 if a chat model is loaded as well).
 """
 
-import http.client
-import json
-import urllib.error
-import urllib.request
+from tiny_agent.components.client.http import post_json
 
 
 class EmbeddingModel:
@@ -60,25 +57,9 @@ class EmbeddingModel:
                 not an embedding. The message says which; the original exception is kept as ``__cause__``.
         """
         # POST to the OpenAI-compatible /embeddings endpoint
-        try:
-            request = urllib.request.Request(
-                f"{self.base_url.rstrip('/')}/embeddings",
-                data=json.dumps({"model": self.model, "input": text}).encode(),
-                headers={"Content-Type": "application/json", "Authorization": f"Bearer {self.api_key}"},
-            )
-            with urllib.request.urlopen(request, timeout=120) as resp:
-                response = json.loads(resp.read())
-        except urllib.error.HTTPError as error:  # the server answered with an error status
-            detail = error.read().decode("utf-8", errors="replace")
-            try:
-                detail = json.loads(detail)["error"]["message"]
-            except (ValueError, KeyError, TypeError):
-                detail = detail[:500]
-            raise RuntimeError(f"HTTP {error.code} from {self.base_url}: {detail}") from error
-        except (OSError, http.client.HTTPException) as error:  # refused, reset, timed out
-            raise RuntimeError(f"Cannot reach the embedding model at {self.base_url}: {error}") from error
-        except ValueError as error:  # a malformed URL, or a reply that is not JSON
-            raise RuntimeError(f"Bad URL or a reply that is not JSON ({self.base_url}): {error}") from error
+        response = post_json(
+            self.base_url, self.api_key, "/embeddings", {"model": self.model, "input": text}, timeout=120, what="embedding model"
+        )
 
         # Extract and return the embedding, after checking the reply really holds one
         try:

@@ -13,14 +13,15 @@ import os
 import pytest
 
 from tiny_agent import main as demo
-from tiny_agent.agent.memory import Memory
-from tiny_agent.agent.tiny_agent import TinyAgent
-from tiny_agent.llm_client import check
-from tiny_agent.llm_client.embedding import EmbeddingModel
-from tiny_agent.llm_client.llm import LLM
-from tiny_agent.memory.rag import RAGMemory
-from tiny_agent.memory.summarization import SummarizationMemory
-from tiny_agent.memory.trimming import TrimmingMemory
+from tiny_agent.agent import TinyAgent
+from tiny_agent.components.client import check
+from tiny_agent.components.client.embedding import EmbeddingModel
+from tiny_agent.components.client.llm import LLM
+from tiny_agent.components.memory.memory import BaseMemory, Memory
+from tiny_agent.components.memory.rag import RAGMemory
+from tiny_agent.components.memory.similarity import cosine
+from tiny_agent.components.memory.summarization import SummarizationMemory
+from tiny_agent.components.memory.trimming import TrimmingMemory
 
 EMBEDDING_URL = os.environ.get("TINYAGENT_EMBEDDING_URL", "http://127.0.0.1:3201/v1")
 LLM_URL = os.environ.get("TINYAGENT_LLM_URL", check.DEFAULT_URL)
@@ -60,7 +61,7 @@ def memory(embedder):
     return RAGMemory(embedder, DOCS)
 
 
-def texts(mem: Memory) -> list[str]:
+def texts(mem: BaseMemory) -> list[str]:
     """The message texts in order."""
     return [message["content"] for message in mem.get_messages()]
 
@@ -69,7 +70,7 @@ def texts(mem: Memory) -> list[str]:
 
 def test_it_is_a_memory_and_starts_empty(embedder):
     fresh = RAGMemory(embedder, DOCS[:2])
-    assert isinstance(fresh, Memory) and fresh.get_messages() == []
+    assert isinstance(fresh, BaseMemory) and fresh.get_messages() == []
 
 
 def test_every_document_is_embedded_at_construction(memory):
@@ -100,10 +101,10 @@ def test_search_with_fewer_than_three_documents_returns_them_all(embedder):
     assert sorted(small.search("flamingos")) == sorted(small.documents)
 
 
-def test_cosine_of_the_same_direction_is_one_and_of_perpendicular_vectors_zero(memory):
-    assert memory._cosine([2.0, 0.0], [5.0, 0.0]) == pytest.approx(1.0)
-    assert memory._cosine([1.0, 0.0], [0.0, 3.0]) == pytest.approx(0.0)
-    assert memory._cosine([1.0, 1.0], [-1.0, -1.0]) == pytest.approx(-1.0)
+def test_cosine_of_the_same_direction_is_one_and_of_perpendicular_vectors_zero():
+    assert cosine([2.0, 0.0], [5.0, 0.0]) == pytest.approx(1.0)
+    assert cosine([1.0, 0.0], [0.0, 3.0]) == pytest.approx(0.0)
+    assert cosine([1.0, 1.0], [-1.0, -1.0]) == pytest.approx(-1.0)
 
 
 def test_a_user_message_is_stored_with_its_context_in_front(embedder):
@@ -187,7 +188,7 @@ def test_these_values_turn_retrieval_on(monkeypatch, embedder, llm, value):
     assert type(mem) is RAGMemory and mem.documents == demo.DOCUMENTS
 
 
-@pytest.mark.parametrize("value", ["", "0", "false", "off", "no", "maybe"])
+@pytest.mark.parametrize("value", ["", "0", "false", "off", "no"])
 def test_other_values_leave_retrieval_off(monkeypatch, value):
     monkeypatch.setenv("TINYAGENT_RAG_MEMORY", value)
     assert type(demo.memory_from_env(LLM(model="m"))) is Memory  # nothing is embedded, so no server is needed

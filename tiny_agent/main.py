@@ -5,7 +5,7 @@ hands it two tasks, and shows the result. It contains no agent logic itself, so
 the agent can later be driven from a CLI, a chat loop, or a test just by
 changing this file.
 
-Harness: `TinyAgent` (in tiny_agent/agent/tiny_agent.py) is the harness, the non-model code that
+Harness: `TinyAgent` (in tiny_agent/agent.py) is the harness, the non-model code that
 turns an LLM into an agent. This file only starts it: `main()` creates the
 harness and calls `run(task)`, which is where the loop, memory, tools and
 planning are meant to live as the phases add them (today `run` makes one
@@ -38,22 +38,26 @@ and updates a user portrait, and each user message gets the summaries it recalls
 it; unused summaries fade over time. It needs the same embedding model as the RAG flag and costs two extra chat
 calls and one embedding request per task. It wins over all the other flags.
 
+Set ``TINYAGENT_TOOLS=1`` to bind the built-in tools (``multiply``) to the agent, described to the model in its prompt, or
+``TINYAGENT_NATIVE_TOOLS=1`` to bind them for a model that learned tool calling (the definitions go in the request's
+``tools`` field instead). The native flag wins. With neither, the agent has no tools.
+
 Run it with ``python -m tiny_agent.main``. It logs to ``main.log`` and prints the second answer.
 """
 
-import os
 from typing import Any
 
-from tiny_agent import log as logs
-from tiny_agent.agent.memory import Memory
-from tiny_agent.agent.tiny_agent import TinyAgent
-from tiny_agent.llm_client import check, env
-from tiny_agent.llm_client.embedding import EmbeddingModel
-from tiny_agent.llm_client.llm import LLM
-from tiny_agent.memory.memory_bank import MemoryBank
-from tiny_agent.memory.rag import RAGMemory
-from tiny_agent.memory.summarization import SummarizationMemory
-from tiny_agent.memory.trimming import TrimmingMemory
+from tiny_agent.agent import TinyAgent
+from tiny_agent.components.client.embedding import EmbeddingModel
+from tiny_agent.components.client.llm import LLM
+from tiny_agent.components.memory.memory import BaseMemory, Memory
+from tiny_agent.components.memory.memory_bank import MemoryBank
+from tiny_agent.components.memory.rag import RAGMemory
+from tiny_agent.components.memory.summarization import SummarizationMemory
+from tiny_agent.components.memory.trimming import TrimmingMemory
+from tiny_agent.components.tools.default import tools_from_settings
+from tiny_agent.config.settings import Settings
+from tiny_agent.logging import log as logs
 
 # The first task puts the names into memory; the second can only be answered from it.
 GREETING = "Hi! We are Maarten and Jay, authors of 'An Illustrated Guide to AI Agents'."
@@ -74,7 +78,7 @@ DOCUMENTS = [
 ]
 
 
-def memory_from_env(llm: LLM | None = None) -> Memory:
+def memory_from_env(llm: LLM | None = None, settings: Settings | None = None) -> BaseMemory:
     """Pick the agent's memory: banking, retrieving, summarizing, trimming or plain, depending on the environment.
 
     ``TINYAGENT_BANK_MEMORY`` gives a ``MemoryBank``, ``TINYAGENT_RAG_MEMORY`` a ``RAGMemory`` over ``DOCUMENTS``, ``TINYAGENT_SUMMARY_MEMORY`` a
@@ -92,29 +96,28 @@ def memory_from_env(llm: LLM | None = None) -> Memory:
     Raises:
         ValueError: ``TINYAGENT_SUMMARY_MEMORY``, ``TINYAGENT_RAG_MEMORY`` or ``TINYAGENT_BANK_MEMORY`` is on but no ``llm`` was given.
     """
-    def is_on(name: str) -> bool:
-        return os.environ.get(name, "").strip().lower() in ("1", "true", "yes", "on")
+    settings = settings or Settings.from_env()
 
     def embedding_model_for(llm: LLM) -> EmbeddingModel:
         return EmbeddingModel(
-            model=os.environ.get("TINYAGENT_EMBEDDING_MODEL", "embeddinggemma-300m"),
-            base_url=os.environ.get("TINYAGENT_EMBEDDING_URL", "http://127.0.0.1:3201/v1"),
+            model=settings.embedding_model,
+            base_url=settings.embedding_url,
             api_key=llm.api_key,
         )
 
-    if is_on("TINYAGENT_BANK_MEMORY"):
+    if settings.memory == "bank":
         if llm is None:
             raise ValueError("TINYAGENT_BANK_MEMORY needs an llm to write the summaries and the embedding model's key")
         return MemoryBank(llm, embedding_model_for(llm))
-    if is_on("TINYAGENT_RAG_MEMORY"):
+    if settings.memory == "rag":
         if llm is None:
             raise ValueError("TINYAGENT_RAG_MEMORY needs an llm for the embedding model's key")
         return RAGMemory(embedding_model_for(llm), DOCUMENTS)
-    if is_on("TINYAGENT_SUMMARY_MEMORY"):
+    if settings.memory == "summary":
         if llm is None:
             raise ValueError("TINYAGENT_SUMMARY_MEMORY needs an llm to write the summaries")
         return SummarizationMemory(llm)
-    return TrimmingMemory() if is_on("TINYAGENT_TRIM_MEMORY") else Memory()
+    return TrimmingMemory() if settings.memory == "trim" else Memory()
 
 
 def main() -> None:
@@ -123,17 +126,13 @@ def main() -> None:
     Role: composition root. Constructs the agent (and, in later steps,
     configures its LLM, memory, tools and planner) before calling `run`.
     """
-    env.load_env()  # .env: settings such as TINYAGENT_LOG_DIR and TINYAGENT_LOG_LEVEL
-    log = logs.setup("main")  # writes to logs/main.log (see tiny_agent/log.py)
+    log = logs.setup("main")  # writes to logs/main.log (see tiny_agent/logging/log.py)
     # The same settings as the tiny-agent CLI: TINYAGENT_MODEL, TINYAGENT_LLM_URL, TINYAGENT_API_KEY(_FILE).
-    api_key = env.api_key_from_env()
+    settings = Settings.from_env()
+    api_key = settings.resolve_api_key()  # TINYAGENT_API_KEY_FILE or TINYAGENT_API_KEY
     key_setting: dict[str, Any] = {"api_key": api_key} if api_key else {}
-    llm = LLM(
-        model=os.environ.get("TINYAGENT_MODEL", "gemma4-e4b"),
-        base_url=os.environ.get("TINYAGENT_LLM_URL", check.DEFAULT_URL),
-        **key_setting,
-    )
-    agent = TinyAgent(llm, memory_from_env(llm))
+    llm = LLM(model=settings.model or "gemma4-e4b", base_url=settings.llm_url, **key_setting)
+    agent = TinyAgent(llm, memory_from_env(llm, settings), tools_from_settings(settings))
     for task in (GREETING, QUESTION):
         log.info("running task: %s", task)
         result = agent.run(task)

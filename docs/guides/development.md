@@ -16,14 +16,14 @@ One command runs everything, from the repository root:
 ```powershell
 node execute.mjs test            # backend + tiny_agent + mocked (+ live when the stack is up)
 node execute.mjs test agent      # only the tiny_agent tests
-node execute.mjs test llm        # only the llm_client tests
+node execute.mjs test llm        # only the model client tests
 node execute.mjs test list       # list the tests without running them
 ```
 
 | Target | What it covers | Needs |
 |---|---|---|
 | `backend` | the FastAPI service, against a fake llama.cpp router | nothing |
-| `llm` | `llm_client` (the LLM client, `Response`, the loaded-model check), against a fake model server | nothing |
+| `llm` | the model client (`LLM`, `Response`, the loaded-model check, `.env` loader), against a fake model server | nothing |
 | `agent` | `tiny_agent` (chat command, logs, demo, the harness), against a fake model server | nothing |
 | `mocked` | the React app in a real browser with the API stubbed | nothing |
 | `live` | real model switching and OpenObserve, in a real browser | the Docker stack running |

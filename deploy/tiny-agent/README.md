@@ -1,6 +1,6 @@
 # deploy/tiny-agent
 
-The TinyAgent terminal chat (`tiny_agent`, with the `tiny_agent/llm_client` it uses) in a container, deployed on its own. No chat app and no other part of the repo's Docker setup is needed to build or run it.
+The TinyAgent terminal chat (`tiny_agent`, with the `tiny_agent/components/client` it uses) in a container, deployed on its own. No chat app and no other part of the repo's Docker setup is needed to build or run it.
 
 ```
 cd deploy/tiny-agent
@@ -16,6 +16,6 @@ The agent needs a model server to talk to. By default that is whatever answers o
 | File | What it is |
 |---|---|
 | `docker-compose.yaml` | The service. Project name `tiny-agent`. |
-| `Dockerfile` | Copies `tiny_agent/` (standard library only, nothing to install). |
+| `Dockerfile` | Copies `tiny_agent/` (its libraries pydantic-settings, httpx and click are pip-installed). |
 | `Dockerfile.dockerignore` | Keeps the repo-root build context down to `tiny_agent/`, without tests. |
 | `.env.example` | The optional settings. |

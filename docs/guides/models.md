@@ -42,7 +42,7 @@ ollama list
 ```
 
 ```python
-from tiny_agent.llm_client.llm import LLM
+from tiny_agent.components.client.llm import LLM
 
 llm = LLM(model="gemma3:4b", base_url="http://localhost:11434/v1")
 ```

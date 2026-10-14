@@ -9,7 +9,7 @@ commands, error handling and the exit codes of ``main`` are covered.
 import pytest
 
 from tiny_agent import cli
-from tiny_agent.llm_client.llm import LLM
+from tiny_agent.components.client.llm import LLM
 
 
 def llm(fake_server, model="a", **kwargs):
@@ -335,10 +335,8 @@ def test_bad_options_exit_with_a_usage_error():
     assert error.value.code == 2
 
 
-def test_help_exits_zero(capsys):
-    with pytest.raises(SystemExit) as error:
-        cli.main(["--help"])
-    assert error.value.code == 0
+def test_help_prints_usage_and_returns_zero(capsys):
+    assert cli.main(["--help"]) == 0
     assert "tiny-agent" in capsys.readouterr().out
 
 
@@ -388,12 +386,6 @@ def test_think_and_system_come_from_the_env_file(fake_server, tmp_path):
     body = fake_server.requests[0]["body"]
     assert "reasoning_effort" not in body  # thinking is on
     assert body["messages"][0] == {"role": "system", "content": "Be brief.\nReally."}
-
-
-@pytest.mark.parametrize("value,expected", [("1", True), ("true", True), ("YES", True), ("on", True), (" On ", True),
-                                            ("0", False), ("false", False), ("no", False), ("", False), (None, False), ("maybe", False)])
-def test_truthy(value, expected):
-    assert cli.truthy(value) is expected
 
 
 def test_an_api_key_from_the_env_file_is_sent(fake_server, tmp_path):
@@ -450,14 +442,13 @@ def test_a_missing_or_empty_env_file_changes_nothing(fake_server, tmp_path):
 
 
 def test_the_log_names_the_loaded_settings_but_never_their_values(fake_server, tmp_path, log_folder):
-    from tiny_agent import log
 
     fake_server.router(a="loaded")
     fake_server.reply("ok")
     env_file(tmp_path, f"TINYAGENT_LLM_URL={fake_server.url}\nTINYAGENT_API_KEY=very-secret-value\n")
     cli.main(["hi"])
     text = (log_folder / "cli.log").read_text(encoding="utf-8")
-    assert "settings loaded from the .env file: TINYAGENT_API_KEY, TINYAGENT_LLM_URL" in text
+    assert "settings given: TINYAGENT_API_KEY, TINYAGENT_LLM_URL" in text
     assert "very-secret-value" not in text
     for handler in list(__import__("logging").getLogger("tiny_agent.cli").handlers):
         if getattr(handler, "_tiny_agent_file_handler", False):

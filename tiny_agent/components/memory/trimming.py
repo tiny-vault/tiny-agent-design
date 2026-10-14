@@ -20,12 +20,12 @@ Switch it on in the demo with ``TINYAGENT_TRIM_MEMORY=1`` (see ``main.memory_fro
 itself takes whichever memory it is given.
 """
 
-from typing import Any
+from typing import Any, override
 
-from tiny_agent.agent.memory import Memory
+from tiny_agent.components.memory.memory import BaseMemory
 
 
-class TrimmingMemory(Memory):
+class TrimmingMemory(BaseMemory):
     """Memory that keeps only the last two user/assistant turns.
 
     Role: a drop-in replacement for ``Memory`` in the harness's "context" slot, for chats that should not
@@ -35,6 +35,7 @@ class TrimmingMemory(Memory):
         messages: The system message(s), then at most the four most recent other messages, oldest first.
     """
 
+    @override
     def add(self, role: str, content: str, tool_call: dict[str, Any] | None = None, **kwargs) -> None:
         """Add a message, then drop everything but the system message(s) and the last four others.
 
@@ -44,8 +45,8 @@ class TrimmingMemory(Memory):
             tool_call: The tool call the model made, if this message records one (stored as in ``Memory``).
             **kwargs: Accepted and ignored, as in ``Memory``.
         """
-        # Add the new message first using the parent class (Memory)
-        super().add(role, content, tool_call, **kwargs)
+        # Add the new message first using the parent class's helper (BaseMemory)
+        self._append(role, content, tool_call)
 
         # Then keep the system message(s) plus the most recent two turns (4 messages)
         system = [message for message in self.messages if message["role"] == "system"]

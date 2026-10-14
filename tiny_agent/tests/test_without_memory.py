@@ -5,10 +5,10 @@
 
 from typing import Any
 
-from tiny_agent.agent.memory import Memory
-from tiny_agent.agent.tiny_agent import TinyAgent
-from tiny_agent.llm_client.llm import LLM
-from tiny_agent.llm_client.response import Response
+from tiny_agent.agent import TinyAgent
+from tiny_agent.components.client.llm import LLM
+from tiny_agent.components.client.response import Response
+from tiny_agent.components.memory.memory import Memory
 
 GREETING = "Hi! We are Maarten and Jay, authors of 'An Illustrated Guide to AI Agents'."
 QUESTION = "Hi! What are our names?"

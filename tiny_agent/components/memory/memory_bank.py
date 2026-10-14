@@ -31,18 +31,19 @@ whichever memory it is given. The time comes from ``clock`` (seconds, ``time.tim
 import math
 import time
 from collections.abc import Callable
-from typing import Any
+from typing import Any, override
 
-from tiny_agent.agent.memory import Memory
-from tiny_agent.llm_client.embedding import EmbeddingModel
-from tiny_agent.llm_client.llm import LLM
+from tiny_agent.components.client.embedding import EmbeddingModel
+from tiny_agent.components.client.llm import LLM
+from tiny_agent.components.memory.memory import BaseMemory
+from tiny_agent.components.memory.similarity import cosine
 
 TOP_K = 3
 FORGET_BELOW = 0.1
 SECONDS_PER_DAY = 86400
 
 
-class MemoryBank(Memory):
+class MemoryBank(BaseMemory):
     """Long-term memory with event summaries, a user portrait and a forgetting curve.
 
     Role: a drop-in replacement for ``Memory`` in the harness's "context" slot, for agents that should remember
@@ -76,6 +77,7 @@ class MemoryBank(Memory):
         self.user_portrait = ""
         self._turn_start = 0  # index in conversation_history of the first message not yet summarised
 
+    @override
     def add(self, role: str, content: str, tool_call: dict[str, Any] | None = None, **kwargs) -> None:
         """Add a message; a user message gets memories in front of it, an assistant reply updates the bank.
 
@@ -99,7 +101,7 @@ Memories:
 {memories}
 
 Question: {content}"""
-        super().add(role, stored, tool_call, **kwargs)
+        self._append(role, stored, tool_call)
 
         # A completed turn becomes a new memory and updates the portrait
         if role == "assistant":
@@ -119,7 +121,7 @@ Question: {content}"""
         if not remembered:
             return []
         query_embed = self.embedding_model.embed(query)
-        ranked = sorted(remembered, key=lambda item: self._cosine(query_embed, item["embedding"]), reverse=True)
+        ranked = sorted(remembered, key=lambda item: cosine(query_embed, item["embedding"]), reverse=True)
         top = ranked[:TOP_K]
         # Recalling a memory strengthens it and restarts its clock
         for item in top:
@@ -189,17 +191,3 @@ Output the updated portrait only."""
         """
         days = (now - item["last_recalled"]) / SECONDS_PER_DAY
         return math.exp(-days / item["strength"])
-
-    def _cosine(self, a: list[float], b: list[float]) -> float:
-        """Calculate cosine similarity between two embeddings.
-
-        Args:
-            a: One embedding.
-            b: Another embedding of the same length.
-
-        Returns:
-            1 for the same direction, near 0 for unrelated texts.
-        """
-        dot = sum(x * y for x, y in zip(a, b))
-        norm = (sum(x * x for x in a) ** 0.5) * (sum(x * x for x in b) ** 0.5)
-        return dot / norm

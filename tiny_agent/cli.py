@@ -9,13 +9,13 @@ Install the project once (from the repo root) and you get a ``tiny-agent`` comma
 
 It also works without installing: ``python -m tiny_agent.cli``.
 
-The chat talks to the model through :class:`~tiny_agent.llm_client.llm.LLM`, so it
+The chat talks to the model through :class:`~tiny_agent.components.client.llm.LLM`, so it
 uses the Docker gateway by default (start it with
 ``node execute.mjs up``). It picks the model that is
 loaded right now unless you name one with ``--model``.
 
 Inside the chat, lines starting with ``/`` are commands (``/help`` lists them).
-Standard library only.
+Libraries: click and httpx.
 
 How the chat works: the model server keeps no memory between requests, so
 :func:`chat` keeps a ``messages`` list and sends all of it on every turn. Each turn
@@ -29,14 +29,15 @@ long chat will exceed the model's context window), and this chat does not use
 ``TinyAgent``. Replies vary from run to run.
 """
 
-import argparse
 import logging
-import os
 import sys
 
-from tiny_agent import log as logs
-from tiny_agent.llm_client import check, env
-from tiny_agent.llm_client.llm import LLM
+import click
+
+from tiny_agent.components.client import check
+from tiny_agent.components.client.llm import LLM
+from tiny_agent.config.settings import Settings
+from tiny_agent.logging import log as logs
 
 # Written to logs/cli.log once main() has called logs.setup("cli"). The NullHandler
 # keeps chat() and pick_model() silent when they are used without main() (in tests).
@@ -88,7 +89,7 @@ def pick_model(requested: str | None, base_url: str) -> tuple[str | None, str]:
         return loaded[0], ""
     if statuses and not router:  # no status reported (Ollama): start with the first one listed
         return next(iter(statuses)), ""
-    return None, "No model is loaded. Load one first: node execute.mjs load <model>  (see: python -m tiny_agent.llm_client.check)"
+    return None, "No model is loaded. Load one first: node execute.mjs load <model>  (see: python -m tiny_agent.components.client.check)"
 
 
 def chat(llm: LLM, system: str | None = None, input_fn=None, output=print) -> None:
@@ -191,44 +192,26 @@ def chat(llm: LLM, system: str | None = None, input_fn=None, output=print) -> No
         messages.append({"role": "assistant", "content": text})
 
 
-def truthy(value: str | None) -> bool:
-    """True for the usual ways to say yes in a settings file: 1, true, yes or on."""
-    return (value or "").strip().lower() in ("1", "true", "yes", "on")
+# The defaults are functions, so they read the settings (environment, .env file) when the command runs, not at import.
+@click.command(context_settings={"help_option_names": ["-h", "--help"]})
+@click.argument("message", nargs=-1)
+@click.option("-m", "--model", default=lambda: Settings.from_env().model,
+              help="model name (default: the model that is loaded; or $TINYAGENT_MODEL)")
+@click.option("--url", default=lambda: Settings.from_env().llm_url,
+              help=f"API root ending in /v1 (default: {check.DEFAULT_URL}; or $TINYAGENT_LLM_URL)")
+@click.option("--think", is_flag=True, default=lambda: Settings.from_env().think,
+              help="let the model reason before answering (slower; or TINYAGENT_THINK=1)")
+@click.option("--system", default=lambda: Settings.from_env().system,
+              help="a system message that sets the model's role (or $TINYAGENT_SYSTEM)")
+@click.option("--demo", is_flag=True, help="run main.py's demo first, then chat")
+def command(message: tuple[str, ...], model: str | None, url: str, think: bool, system: str | None, demo: bool) -> int:
+    """Chat with the TinyAgent model from the terminal.
 
-
-def build_parser() -> argparse.ArgumentParser:
-    """The command-line options."""
-    parser = argparse.ArgumentParser(prog="tiny-agent", description="Chat with the TinyAgent model from the terminal.")
-    parser.add_argument("message", nargs="*", help="ask one question, print the answer and exit (no interactive chat)")
-    parser.add_argument("-m", "--model", default=os.environ.get("TINYAGENT_MODEL"),
-                        help="model name (default: the model that is loaded; or $TINYAGENT_MODEL)")
-    parser.add_argument("--url", default=os.environ.get("TINYAGENT_LLM_URL", check.DEFAULT_URL),
-                        help=f"API root ending in /v1 (default: {check.DEFAULT_URL}; or $TINYAGENT_LLM_URL)")
-    parser.add_argument("--think", action="store_true", default=truthy(os.environ.get("TINYAGENT_THINK")),
-                        help="let the model reason before answering (slower; or TINYAGENT_THINK=1)")
-    parser.add_argument("--system", default=os.environ.get("TINYAGENT_SYSTEM"),
-                        help="a system message that sets the model's role (or $TINYAGENT_SYSTEM)")
-    parser.add_argument("--demo", action="store_true", help="run main.py's demo first, then chat")
-    return parser
-
-
-def main(argv: list[str] | None = None) -> int:
-    """The ``tiny-agent`` command. Returns the process exit code.
-
-    Args:
-        argv: Arguments after the program name; ``None`` reads ``sys.argv``.
-
-    Returns:
-        ``0`` on success; ``1`` if a one-shot question failed; ``2`` if no model
-        can be used (server down, nothing loaded, unknown model) or the options
-        were wrong.
+    With a MESSAGE, ask that one question, print the answer and exit (no interactive chat).
     """
-    loaded = env.load_env()  # .env fills in settings the real environment does not set
-    args = build_parser().parse_args(argv)
-    logs.setup("cli")
-    log.info("tiny-agent started: argv=%s", sys.argv[1:] if argv is None else argv)
-    if loaded:
-        log.info("settings loaded from the .env file: %s", ", ".join(sorted(loaded)))  # names only, never values
+    settings = Settings.from_env()  # real environment, then the .env file, then the defaults
+    if settings.model_fields_set:
+        log.info("settings given: %s", ", ".join("TINYAGENT_" + name.upper() for name in sorted(settings.model_fields_set)))  # names only, never values
     # Model replies often contain emoji; Windows consoles default to cp1252.
     if hasattr(sys.stdout, "reconfigure"):
         sys.stdout.reconfigure(encoding="utf-8")  # pyright: ignore[reportAttributeAccessIssue] (the hasattr check above guards it)
@@ -237,18 +220,20 @@ def main(argv: list[str] | None = None) -> int:
     except ImportError:
         pass
 
-    if args.demo:
-        from tiny_agent import main as demo  # imported here: only needed for --demo
+    if demo:
+        from tiny_agent import (
+            main as demo_module,  # imported here: only needed for --demo
+        )
 
         log.info("running the main.py demo first")
         try:
-            demo.main()
+            demo_module.main()
         except RuntimeError as error:
             print(f"demo failed: {error}")
             log.error("demo failed: %s", error)
         print()
 
-    model, note = pick_model(args.model, args.url)
+    model, note = pick_model(model, url)
     if model is None:
         print(note)
         log.error("no usable model: %s", note)
@@ -256,19 +241,19 @@ def main(argv: list[str] | None = None) -> int:
     if note:
         print(note)
         log.warning(note)
-    log.info("using model %s at %s (think=%s)", model, args.url, args.think)
+    log.info("using model %s at %s (think=%s)", model, url, think)
     try:
-        api_key = env.api_key_from_env()  # moved to tiny_agent.llm_client.env so main.py need not import this file
+        api_key = settings.resolve_api_key()
     except (OSError, ValueError) as error:
         print(f"Cannot read the API key file: {error}")
         log.error("cannot read the API key file: %s", error)
         return 2
     # LLM keeps its own placeholder key unless one is configured.
-    llm = LLM(model=model, base_url=args.url, think=args.think, **({"api_key": api_key} if api_key else {}))
+    llm = LLM(model=model, base_url=url, think=think, **({"api_key": api_key} if api_key else {}))
 
-    if args.message:
-        question = " ".join(args.message)
-        messages = ([{"role": "system", "content": args.system}] if args.system else []) + [
+    if message:
+        question = " ".join(message)
+        messages = ([{"role": "system", "content": system}] if system else []) + [
             {"role": "user", "content": question}
         ]
         log.info("one-shot question: %s", question)
@@ -284,8 +269,28 @@ def main(argv: list[str] | None = None) -> int:
                  metadata.get("prompt_tokens"), metadata.get("completion_tokens"), response.content)
         return 0
 
-    chat(llm, system=args.system)
+    chat(llm, system=system)
     return 0
+
+
+def main(argv: list[str] | None = None) -> int:
+    """The ``tiny-agent`` command. Returns the process exit code.
+
+    Args:
+        argv: Arguments after the program name; ``None`` reads ``sys.argv``.
+
+    Returns:
+        ``0`` on success; ``1`` if a one-shot question failed; ``2`` if no model
+        can be used (server down, nothing loaded, unknown model). Wrong options exit with code 2 (``SystemExit``).
+    """
+    logs.setup("cli")
+    log.info("tiny-agent started: argv=%s", sys.argv[1:] if argv is None else argv)
+    try:
+        code = command.main(args=argv, prog_name="tiny-agent", standalone_mode=False)
+    except click.ClickException as error:  # wrong options: print the usage message and exit with its code
+        error.show()
+        raise SystemExit(error.exit_code) from error
+    return code if isinstance(code, int) else 0  # --help ends the command with code 0 and no return value
 
 
 if __name__ == "__main__":

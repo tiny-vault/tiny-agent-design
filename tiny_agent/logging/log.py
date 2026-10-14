@@ -2,7 +2,7 @@
 
 Each tool writes its own file under ``experimentation/chat-app/logs/`` (``cli.log`` and
 ``main.log``). Nothing else logs here: the backend, llama.cpp and nginx
-already write their logs in Docker (``node execute.mjs logs <service>``); OpenObserve collects those and these files in one place, and the library modules in ``tiny_agent/agent`` stay silent;
+already write their logs in Docker (``node execute.mjs logs <service>``); OpenObserve collects those and these files in one place, and the library modules in ``tiny_agent`` stay silent;
 the tools log what those modules return or raise.
 
 Nothing is printed to the terminal by this module (the tools do their own
@@ -30,8 +30,9 @@ Example:
 
 import logging
 import logging.handlers
-import os
 from pathlib import Path
+
+from tiny_agent.config.settings import Settings
 
 FORMAT = "%(asctime)s %(levelname)-7s %(name)s: %(message)s"
 _MARK = "_tiny_agent_file_handler"  # tags the handlers this module adds, so setup() can replace them
@@ -45,10 +46,10 @@ def log_dir() -> Path:
     ``pyproject.toml``), and ``logs/`` in the current directory when it is not (a
     regular, non-editable install).
     """
-    configured = os.environ.get("TINYAGENT_LOG_DIR")
+    configured = Settings.from_env().log_dir
     if configured:
         return Path(configured)
-    root = Path(__file__).resolve().parents[1]  # tiny_agent/log.py -> the repo root
+    root = Path(__file__).resolve().parents[2]  # tiny_agent/logging/log.py -> the repo root
     if (root / "pyproject.toml").exists():
         return root / "experimentation" / "chat-app" / "logs"
     return Path.cwd() / "logs"
@@ -71,7 +72,7 @@ def setup(name: str) -> logging.Logger:
     """
     logger = logging.getLogger(f"tiny_agent.{name}")
     logger.propagate = False
-    logger.setLevel(getattr(logging, os.environ.get("TINYAGENT_LOG_LEVEL", "INFO").upper(), logging.INFO))
+    logger.setLevel(getattr(logging, Settings.from_env().log_level.upper(), logging.INFO))
 
     for handler in [h for h in logger.handlers if getattr(h, _MARK, False)]:
         logger.removeHandler(handler)

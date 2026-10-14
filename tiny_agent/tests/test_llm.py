@@ -1,4 +1,4 @@
-"""Tests for tiny_agent.llm_client.llm: the LLM client and the Response it returns.
+"""Tests for tiny_agent.components.client.llm: the LLM client and the Response it returns.
 
 They check the request the client builds (model, messages, tools, reasoning setting),
 how the reply is turned into a ``Response``, the loaded-model check that runs before
@@ -8,10 +8,11 @@ readable message. All against the fake server in ``conftest.py``, never a real m
 
 import json
 
+import httpx
 import pytest
 
-from tiny_agent.llm_client.llm import LLM
-from tiny_agent.llm_client.response import Response
+from tiny_agent.components.client.llm import LLM
+from tiny_agent.components.client.response import Response
 
 MESSAGES = [{"role": "user", "content": "hi"}]
 
@@ -231,7 +232,7 @@ def test_metadata_reports_the_model_that_really_answered(fake_server):
 def test_unreachable_server_raises_a_clear_error(dead_url):
     with pytest.raises(RuntimeError, match="Cannot reach the model") as error:
         LLM(model="a", base_url=dead_url).generate(MESSAGES)
-    assert isinstance(error.value.__cause__, OSError)  # the original is kept
+    assert isinstance(error.value.__cause__, httpx.TransportError)  # the original is kept
 
 
 def test_an_http_error_carries_the_servers_message(fake_server):

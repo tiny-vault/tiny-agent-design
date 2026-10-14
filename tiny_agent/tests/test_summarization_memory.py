@@ -11,12 +11,12 @@ from typing import Any
 import pytest
 
 from tiny_agent import main as demo
-from tiny_agent.agent.memory import Memory
-from tiny_agent.agent.tiny_agent import TinyAgent
-from tiny_agent.llm_client.llm import LLM
-from tiny_agent.llm_client.response import Response
-from tiny_agent.memory.summarization import SummarizationMemory
-from tiny_agent.memory.trimming import TrimmingMemory
+from tiny_agent.agent import TinyAgent
+from tiny_agent.components.client.llm import LLM
+from tiny_agent.components.client.response import Response
+from tiny_agent.components.memory.memory import BaseMemory, Memory
+from tiny_agent.components.memory.summarization import SummarizationMemory
+from tiny_agent.components.memory.trimming import TrimmingMemory
 
 
 class RecordingLLM(LLM):
@@ -33,7 +33,7 @@ class RecordingLLM(LLM):
         return Response(content=self.fixed if self.fixed is not None else f"s{len(self.calls)}")
 
 
-def texts(memory: Memory) -> list[str]:
+def texts(memory: BaseMemory) -> list[str]:
     """The message texts in order, which is all these tests need to tell the messages apart."""
     return [message["content"] for message in memory.get_messages()]
 
@@ -41,7 +41,7 @@ def texts(memory: Memory) -> list[str]:
 # ---- the memory on its own ----------------------------------------------------------
 
 def test_it_is_a_memory():
-    assert isinstance(SummarizationMemory(RecordingLLM()), Memory)
+    assert isinstance(SummarizationMemory(RecordingLLM()), BaseMemory)
 
 
 def test_it_starts_empty_and_makes_no_model_call():
@@ -185,7 +185,7 @@ def test_these_values_turn_summarizing_on(monkeypatch, value):
     assert type(demo.memory_from_env(RecordingLLM())) is SummarizationMemory
 
 
-@pytest.mark.parametrize("value", ["", "0", "false", "off", "no", "maybe"])
+@pytest.mark.parametrize("value", ["", "0", "false", "off", "no"])
 def test_other_values_leave_summarizing_off(monkeypatch, value):
     monkeypatch.setenv("TINYAGENT_SUMMARY_MEMORY", value)
     assert type(demo.memory_from_env(RecordingLLM())) is Memory

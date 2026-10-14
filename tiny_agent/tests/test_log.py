@@ -1,4 +1,4 @@
-"""Tests for tiny_agent.log (the log files) and for what cli.py and main.py write to them.
+"""Tests for tiny_agent.logging.log (the log files) and for what cli.py and main.py write to them.
 
 They check where the files go, that ``setup`` can be called twice without duplicate
 lines, the log level setting, file rotation, UTF-8 text, and that a folder that cannot
@@ -11,8 +11,9 @@ from pathlib import Path
 
 import pytest
 
-from tiny_agent import cli, log
+from tiny_agent import cli
 from tiny_agent import main as demo
+from tiny_agent.logging import log
 
 
 @pytest.fixture(autouse=True)
@@ -38,7 +39,7 @@ def read(folder, name):
     return (folder / f"{name}.log").read_text(encoding="utf-8")
 
 
-# ---- tiny_agent.log -----------------------------------------------------------------
+# ---- tiny_agent.logging.log -----------------------------------------------------------------
 
 def test_log_dir_comes_from_the_environment(log_folder):
     assert log.log_dir() == log_folder
@@ -46,7 +47,7 @@ def test_log_dir_comes_from_the_environment(log_folder):
 
 def test_log_dir_defaults_to_experimentation_logs_in_the_repo(monkeypatch):
     monkeypatch.delenv("TINYAGENT_LOG_DIR")
-    expected = Path(log.__file__).resolve().parents[1] / "experimentation" / "chat-app" / "logs"
+    expected = Path(log.__file__).resolve().parents[2] / "experimentation" / "chat-app" / "logs"
     assert log.log_dir() == expected
     assert (expected.parents[2] / "pyproject.toml").exists()
 

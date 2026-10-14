@@ -21,13 +21,14 @@ Switch it on in the demo with ``TINYAGENT_RAG_MEMORY=1`` (see ``main.memory_from
 takes whichever memory it is given.
 """
 
-from typing import Any
+from typing import Any, override
 
-from tiny_agent.agent.memory import Memory
-from tiny_agent.llm_client.embedding import EmbeddingModel
+from tiny_agent.components.client.embedding import EmbeddingModel
+from tiny_agent.components.memory.memory import BaseMemory
+from tiny_agent.components.memory.similarity import cosine
 
 
-class RAGMemory(Memory):
+class RAGMemory(BaseMemory):
     """Long-term Memory with RAG.
 
     Role: a drop-in replacement for ``Memory`` in the harness's "context" slot, for agents that should answer
@@ -52,6 +53,7 @@ class RAGMemory(Memory):
         self.documents = documents
         self.embeddings = [embedding_model.embed(doc) for doc in documents]
 
+    @override
     def add(self, role: str, content: str, tool_call: dict[str, Any] | None = None, **kwargs) -> None:
         """Add a message; a user message first gets the most relevant documents put in front of it.
 
@@ -69,7 +71,7 @@ class RAGMemory(Memory):
 {context}
 
 Question: {content}"""
-        super().add(role, content, tool_call, **kwargs)
+        self._append(role, content, tool_call)
 
     def search(self, query: str) -> list[str]:
         """Return the top-k documents most similar to the query.
@@ -81,22 +83,8 @@ Question: {content}"""
             Up to three documents, most similar first.
         """
         query_embed = self.embedding_model.embed(query)
-        scores = [self._cosine(query_embed, embed) for embed in self.embeddings]
+        scores = [cosine(query_embed, embed) for embed in self.embeddings]
         ranked = sorted(
             range(len(scores)), key=lambda i: scores[i], reverse=True
         )
         return [self.documents[index] for index in ranked[:3]]
-
-    def _cosine(self, a: list[float], b: list[float]) -> float:
-        """Calculate cosine similarity between two embeddings.
-
-        Args:
-            a: One embedding.
-            b: Another embedding of the same length.
-
-        Returns:
-            1 for the same direction, near 0 for unrelated texts.
-        """
-        dot = sum(x * y for x, y in zip(a, b))
-        norm = (sum(x * x for x in a) ** 0.5) * (sum(x * x for x in b) ** 0.5)
-        return dot / norm

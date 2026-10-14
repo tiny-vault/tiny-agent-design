@@ -1,20 +1,19 @@
-"""Tests for the TinyAgent skeleton, the Response dataclass and the demo entry point.
+"""Tests for the TinyAgent skeleton, the Response model and the demo entry point.
 
 These tests never need a real model. ``EchoLLM`` replies "Received: <last message>",
 so a test can assert exactly what the agent sent and what it returned. The demo tests
 use the fake server from ``conftest.py`` instead, to cover the real HTTP path.
 """
 
-import dataclasses
 from typing import Any
 
 import pytest
 
 from tiny_agent import main as demo
-from tiny_agent.agent.memory import Memory
-from tiny_agent.agent.tiny_agent import TinyAgent
-from tiny_agent.llm_client.llm import LLM
-from tiny_agent.llm_client.response import Response
+from tiny_agent.agent import TinyAgent
+from tiny_agent.components.client.llm import LLM
+from tiny_agent.components.client.response import Response
+from tiny_agent.components.memory.memory import Memory
 
 
 class EchoLLM(LLM):
@@ -91,12 +90,11 @@ def test_a_reply_without_text_is_stored_and_returned_as_empty_text():
     assert memory.get_messages()[-1] == {"role": "assistant", "content": ""}
 
 
-def test_step_and_execute_action_placeholders():
+def test_step_without_tools_returns_the_reply():
     agent = TinyAgent(EchoLLM(), Memory())
     agent.trajectory.initialize("x")
     agent.memory.add("user", "x")
     assert agent._step() == "Received: x"
-    assert agent._execute_action("search") == "Executed action: search"
 
 
 # ---- Response ----------------------------------------------------------------------
@@ -106,8 +104,8 @@ def test_response_defaults():
     assert (response.content, response.reasoning, response.tool_call, response.metadata) == ("", None, None, None)
 
 
-def test_response_is_a_dataclass_with_the_four_fields():
-    assert [f.name for f in dataclasses.fields(Response)] == ["content", "reasoning", "tool_call", "metadata"]
+def test_response_has_the_four_fields():
+    assert list(Response.model_fields) == ["content", "reasoning", "tool_call", "metadata"]
 
 
 def test_response_equality_and_fields():

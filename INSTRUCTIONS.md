@@ -134,9 +134,9 @@ tiny-agent-design/
 ├── tiny_agent/      # the TinyAgent package, self-contained
 │   ├── main.py      #   the two-turn memory demo
 │   ├── cli.py       #   the tiny-agent terminal chat
-│   ├── agent/       #   the harness (TinyAgent, trajectory, step), tests/ beside it
-│   ├── memory/      #   Memory and its variants (trimming, summarization, RAG)
-│   └── llm_client/  #   the LLM client, model check, .env loader, tests
+│   ├── agent.py, step.py, trajectory.py, response.py  #   the harness (TinyAgent) and what it records
+│   ├── memory/, tools/, client/  #   the memories, the tools and the model client, each with its base class
+│   ├── config/     #   the .env loader
 ├── deploy/            # Docker: chat-app/, llm-client/, tiny-agent/, docs/ (a compose file each)
 ├── docs/              # Sphinx documentation
 ├── execute.mjs        # the one entry point for Docker and tests

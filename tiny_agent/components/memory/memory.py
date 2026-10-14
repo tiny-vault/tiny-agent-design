@@ -11,19 +11,21 @@ records a tool call also carries ``tool_calls``.
 
 This file keeps the list in plain Python memory only. It is lost when the program
 ends, never shortened, and has no limit, so a long chat will eventually exceed the
-model's context window. ``trimming.TrimmingMemory`` (in the ``tiny_agent.memory`` package) is the first
+model's context window. ``trimming.TrimmingMemory`` (in the ``tiny_agent.components.memory`` package) is the first
 fix: it keeps only the last two turns. ``summarization.SummarizationMemory`` keeps a running summary
 instead. Saving to disk is left to a later phase.
 """
 
-from typing import Any
+from abc import ABC, abstractmethod
+from typing import Any, override
 
 
-class Memory:
-    """Simple memory module to store conversation history.
+class BaseMemory(ABC):
+    """What every memory has: a list of messages the agent reads back before each model call.
 
-    Role: the "context" slot of the harness. The agent adds each user message and
-    each model reply here, and reads the whole list back before every model call.
+    Role: the "context" slot of the harness. What differs between memories is what
+    ``add`` does with a new message (keep it, trim, summarise), so a subclass such as
+    :class:`tiny_agent.components.memory.memory.Memory` provides ``add``.
 
     Attributes:
         messages: The history so far, oldest first, in chat-message format.
@@ -33,6 +35,55 @@ class Memory:
         """Start with an empty history."""
         self.messages = []
 
+    @abstractmethod
+    def add(
+        self, role: str, content: str, tool_call: dict[str, Any] | None = None, **kwargs
+    ) -> None:
+        """Add a message to memory.
+
+        Args:
+            role: Who said it: ``system``, ``user``, ``assistant`` or ``tool``.
+            content: The message text.
+            tool_call: The tool call the model made, if this message records one.
+            **kwargs: Extra details a subclass may accept.
+        """
+
+    def _append(self, role: str, content: str, tool_call: dict[str, Any] | None = None) -> None:
+        """Store one message at the end of the history; the step every ``add`` ends with.
+
+        Args:
+            role: Who said it: ``system``, ``user``, ``assistant`` or ``tool``.
+            content: The message text.
+            tool_call: The tool call the model made, if this message records one.
+                It is stored under ``tool_calls`` as a one-item list, the shape
+                chat servers expect.
+        """
+        message: dict[str, Any] = {"role": role, "content": content}
+
+        # Tool call: the server expects a list, even for a single call
+        if tool_call:
+            message["tool_calls"] = [tool_call]
+
+        self.messages.append(message)
+
+    def get_messages(self) -> list[dict[str, Any]]:
+        """Get all messages.
+
+        Returns:
+            The history itself, not a copy, so changing it changes the memory. This
+            is what the agent passes to ``LLM.generate`` on each step.
+        """
+        return self.messages
+
+
+class Memory(BaseMemory):
+    """Simple memory module to store conversation history.
+
+    Role: the "context" slot of the harness. The agent adds each user message and
+    each model reply here, and reads the whole list back before every model call.
+    """
+
+    @override
     def add(
         self, role: str, content: str, tool_call: dict[str, Any] | None = None, **kwargs
     ) -> None:
@@ -46,20 +97,4 @@ class Memory:
                 chat servers expect.
             **kwargs: Accepted and ignored, so callers may pass extra details.
         """
-        message: dict[str, Any] = {"role": role, "content": content}
-
-        # Tool call: the server expects a list, even for a single call
-        if tool_call:
-            message["tool_calls"] = [tool_call]
-
-        # Append message to memory
-        self.messages.append(message)
-
-    def get_messages(self) -> list[dict[str, Any]]:
-        """Get all messages.
-
-        Returns:
-            The history itself, not a copy, so changing it changes the memory. This
-            is what the agent passes to ``LLM.generate`` on each step.
-        """
-        return self.messages
+        self._append(role, content, tool_call)

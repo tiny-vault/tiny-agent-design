@@ -15,7 +15,7 @@ between runs because the model writes it. Each task costs two model calls, the a
 run is slower than with ``Memory``. Whatever the summary leaves out is forgotten, and the summary calls do not
 appear in the agent's trajectory. ``llm`` is ``qwen3.5-4b`` via the gateway with ``temperature=None`` (the
 server's default). Compare ``agent_with_trimming_memory``, which keeps the last two turns verbatim, and the
-repo's own ``SummarizationMemory`` in ``tiny_agent/memory/summarization.py``.
+repo's own ``SummarizationMemory`` in ``tiny_agent/components/memory/summarization.py``.
 """
 
 from pathlib import Path

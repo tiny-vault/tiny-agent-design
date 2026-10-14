@@ -1,4 +1,4 @@
-"""Tests for tiny_agent.llm_client.embedding: the ``EmbeddingModel`` client, against the real embedding model.
+"""Tests for tiny_agent.components.client.embedding: the ``EmbeddingModel`` client, against the real embedding model.
 
 These talk to EmbeddingGemma as deployed in Docker (the ``llama-embed`` container of ``deploy/llm-client``,
 ``node execute.mjs up llm-client``) at ``TINYAGENT_EMBEDDING_URL`` (default ``http://127.0.0.1:3201/v1``). There
@@ -10,7 +10,7 @@ import os
 
 import pytest
 
-from tiny_agent.llm_client.embedding import EmbeddingModel
+from tiny_agent.components.client.embedding import EmbeddingModel
 
 URL = os.environ.get("TINYAGENT_EMBEDDING_URL", "http://127.0.0.1:3201/v1")
 

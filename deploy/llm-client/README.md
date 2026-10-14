@@ -1,6 +1,6 @@
 # deploy/llm-client
 
-The LLM client (`tiny_agent/llm_client`) and its own model server, deployed on their own. No chat app and no other folder in `deploy/` is needed.
+The LLM client (`tiny_agent/components/client`) and its own model server, deployed on their own. No chat app and no other folder in `deploy/` is needed.
 
 | Service | What it is |
 |---|---|
@@ -33,6 +33,6 @@ Copy `.env.example` to `.env` to change the port, the models folder or the serve
 |---|---|
 | `docker-compose.yaml` | The three services. Project name `tiny-agent-llm-client`. |
 | `models.ini` | The models llama.cpp serves, a copy of `experimentation/chat-app/models/models.ini`. Keep the two in step. |
-| `Dockerfile`, `Dockerfile.dockerignore` | The client image: `tiny_agent/llm_client` plus `ask.py` and `load.py`, nothing installed. |
+| `Dockerfile`, `Dockerfile.dockerignore` | The client image: `tiny_agent/components/client` plus `ask.py` and `load.py`; `pydantic-settings`, `httpx` and `click` are pip-installed. |
 | `ask.py`, `load.py` | Send one question to a model; load a model and wait. |
 | `.env.example` | The optional settings. |

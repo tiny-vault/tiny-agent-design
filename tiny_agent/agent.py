@@ -16,9 +16,11 @@ Jay Alammar (O'Reilly). The book's companion repository has no license, so
 all rights remain with the authors.
 """
 
-from tiny_agent.agent.memory import Memory
-from tiny_agent.agent.trajectory import Trajectory
-from tiny_agent.llm_client.llm import LLM
+from tiny_agent.components.client.llm import LLM
+from tiny_agent.components.client.response import Response
+from tiny_agent.components.memory.memory import BaseMemory
+from tiny_agent.components.tools.tools import BaseTools
+from tiny_agent.components.trajectory import Trajectory
 
 
 class TinyAgent:
@@ -53,13 +55,13 @@ class TinyAgent:
         llm: The "brain": reasons about the task and chooses the next step.
             Passed in when the agent is created.
         memory: The "context": remembers past messages and observations.
-            A ``Memory`` (``tiny_agent.memory``), passed in when the
+            A ``Memory`` (``tiny_agent.components.memory``), passed in when the
             agent is created.
         tools: The "hands": functions the agent can call to affect the world.
             ``None`` until the tools step.
         planner: The "strategy": breaks a goal into ordered sub-steps.
             ``None`` until the planning step.
-        trajectory: The :class:`~tiny_agent.agent.trajectory.Trajectory`:
+        trajectory: The :class:`~tiny_agent.components.trajectory.Trajectory`:
             every run and the steps taken in it, for debugging.
 
     Example:
@@ -68,7 +70,7 @@ class TinyAgent:
         'Hello! How can I help?'
     """
 
-    def __init__(self, llm: LLM, memory: Memory):
+    def __init__(self, llm: LLM, memory: BaseMemory, tools: BaseTools | None = None):
         """Assemble the agent's components.
 
         Role: configuration and dependency wiring. Each attribute is a
@@ -78,10 +80,15 @@ class TinyAgent:
         Args:
             llm: The client the agent asks for each decision.
             memory: The conversation history the agent reads and writes.
+            tools: The tool registry. When given, its prompt is added to memory
+                as a system message so the model knows the tools from the start.
+                ``None`` means a plain chat agent.
         """
         self.llm = llm
         self.memory = memory
-        self.tools = None  # Phase 5: Add Tools
+        self.tools = tools
+        if tools is not None:
+            self.memory.add("system", "You are a helpful assistant.\n\n" + tools.prompt)
         self.planner = None  # Phase 6: Add Planning
 
         self.trajectory = Trajectory()
@@ -118,30 +125,51 @@ class TinyAgent:
         Returns:
             Currently the model's reply text; a reply with no text (a tool call
             only, ``content`` is ``None``) comes back, and is stored, as ``""``.
-            The call is recorded as a :class:`~tiny_agent.agent.step.Step` in
+            The call is recorded as a :class:`~tiny_agent.components.step.Step` in
             ``self.trajectory``.
         """
         # The model is stateless, so it gets the full history every time. Storing the
         # reply afterwards is what lets the next call "remember" this one.
-        response = self.llm.generate(self.memory.get_messages())
-        # A tool-call-only reply has no text (content is None); there is no tool support yet, so treat it as empty text
+        response = self.llm.generate(
+            self.memory.get_messages(),
+            tools=self.tools.schemas if self.tools else None,
+        )
+        # A tool-call-only reply has no text (content is None); treat it as empty text
         text = response.content or ""
         self.memory.add("assistant", text)
-        self.trajectory.add(response)
-        return text
 
-    def _execute_action(self, action: str) -> str | None:
+        # Without tools every reply is the answer
+        if self.tools is None:
+            self.trajectory.add(response)
+            return text
+
+        # The model asks for a tool by writing JSON in its reply; parse it out of the text
+        response = self.tools.parse(response)
+        if self.tools.is_done(response):
+            self.trajectory.add(response)
+            return text
+        return self._execute_action(response)
+
+    def _execute_action(self, response: Response) -> str:
         """Execute a tool action.
 
-        Role: the "act" phase. Parses the action the LLM chose, dispatches it
-        to the matching tool, and returns the result as an observation that is
+        Role: the "act" phase. Dispatches the parsed tool call the LLM chose to
+        the matching tool, and returns the result as an observation that is
         stored in memory and fed into the next ``_step``.
 
         Args:
-            action: The action chosen by the model.
+            response: The model's reply, with its ``tool_call`` already parsed.
 
         Returns:
-            Currently a placeholder, ``"Executed action: <action>"``.
+            The observation text, ``"OBSERVATION: <result>"``. It is also added to
+            memory and recorded in ``self.trajectory``.
         """
-        # Placeholder - will be implemented in later steps
-        return f"Executed action: {action}"
+        assert self.tools is not None, "_execute_action needs tools"
+        # ACTION: run the tool
+        result = self.tools.execute(response)
+
+        # OBSERVATION: store the result so the model can read it, and record the step
+        role, observation = self.tools.observation(result)
+        self.memory.add(role, observation)
+        self.trajectory.add(response, observation)
+        return observation

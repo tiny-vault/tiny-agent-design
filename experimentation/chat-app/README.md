@@ -124,7 +124,7 @@ Measured on the development laptop (RTX 3060 Laptop, 6 GB of VRAM).
 | GPU memory with `gemma4-e4b` loaded | 5.3 of 6 GB, so both models cannot be loaded together |
 | Disk used by the two downloaded models | 9.3 GB in `models/cache` (the old Ollama copies, 9.5 GB, were deleted) |
 
-Every switch is a full unload and reload because only one model fits. See `node execute.mjs test` for the tests: backend 60, `llm_client` 123, `tiny_agent` 107 and the stub-based browser tests 35 pass.
+Every switch is a full unload and reload because only one model fits. See `node execute.mjs test` for the tests: backend 60, model client 123, `tiny_agent` 107 and the stub-based browser tests 35 pass.
 
 ## Status
 

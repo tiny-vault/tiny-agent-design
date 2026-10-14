@@ -21,13 +21,13 @@ Switch it on in the demo with ``TINYAGENT_SUMMARY_MEMORY=1`` (see ``main.memory_
 itself takes whichever memory it is given.
 """
 
-from typing import Any
+from typing import Any, override
 
-from tiny_agent.agent.memory import Memory
-from tiny_agent.llm_client.llm import LLM
+from tiny_agent.components.client.llm import LLM
+from tiny_agent.components.memory.memory import BaseMemory
 
 
-class SummarizationMemory(Memory):
+class SummarizationMemory(BaseMemory):
     """Memory that compresses past turns into a running summary via an LLM.
 
     Role: a drop-in replacement for ``Memory`` in the harness's "context" slot, for chats that should stay
@@ -49,6 +49,7 @@ class SummarizationMemory(Memory):
         super().__init__()
         self.llm = llm
 
+    @override
     def add(self, role: str, content: str, tool_call: dict[str, Any] | None = None, **kwargs) -> None:
         """Add a message; after an assistant reply, replace the history with an updated summary.
 
@@ -58,8 +59,8 @@ class SummarizationMemory(Memory):
             tool_call: The tool call the model made, if this message records one (stored as in ``Memory``).
             **kwargs: Accepted and ignored, as in ``Memory``.
         """
-        # Add the new message first using the parent class (Memory)
-        super().add(role, content, tool_call, **kwargs)
+        # Add the new message first using the parent class's helper (BaseMemory)
+        self._append(role, content, tool_call)
 
         # After each completed turn, update the running summary
         if role == "assistant":

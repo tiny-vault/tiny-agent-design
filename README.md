@@ -87,9 +87,9 @@ The Python code reads its settings from `tiny_agent/.env` (git-ignored; `tiny_ag
 Or from code:
 
 ```python
-from tiny_agent.agent.memory import Memory
-from tiny_agent.agent.tiny_agent import TinyAgent
-from tiny_agent.llm_client.llm import LLM
+from tiny_agent.components.memory.memory import Memory
+from tiny_agent.agent import TinyAgent
+from tiny_agent.components.client.llm import LLM
 
 llm = LLM(model="gemma4-e4b")              # the LLM client: talks to a real model
 print(llm.generate([{"role": "user", "content": "Hi!"}]).content)
@@ -119,7 +119,7 @@ Measured on the development laptop (RTX 3060 Laptop, 6 GB), with the two local m
 | Switching to `gemma4-e4b` (5.2 GB), model on disk | 61 to 69 s |
 | First load, including the Hugging Face download | 6 min (`qwen3.5-4b`), 15 to 20 min (`gemma4-e4b`) |
 | Answer starts, model already loaded | about 1 s |
-| Tests | backend 60, llm_client 123, tiny_agent 107, browser (stubbed API) 35, live (real models and logs) in INSTRUCTIONS.md |
+| Tests | backend 60, model client 123, tiny_agent 107, browser (stubbed API) 35, live (real models and logs) in INSTRUCTIONS.md |
 
 Only one model fits in GPU memory at a time, so every switch is a full reload. The chat app is described in `docs/guides/chat-app.md`.
 
@@ -131,9 +131,9 @@ tiny-agent-design/
 │   ├── main.py          #   entry point: creates the agent and runs a task
 │   ├── cli.py           #   the tiny-agent terminal chat
 │   ├── .env.example     #   settings template (copy to .env in this folder)
-│   ├── agent/           #   the harness: TinyAgent, trajectory, step
-│   ├── memory/          #   Memory and its variants (trimming, summarization, RAG)
-│   ├── llm_client/      #   LLM client, model check, .env loader (own README and tests)
+│   ├── agent.py, step.py, trajectory.py, response.py  #   the harness (TinyAgent) and what it records
+│   ├── memory/, tools/, client/  #   the memories, the tools and the model client, each with its base class
+│   ├── config/           #   the .env loader
 │   └── tests/           #   pytest suite
 ├── deploy/              # Docker, four independent parts, each with its own compose file and README:
 │   ├── chat-app/        #   llama.cpp, backend, frontend, gateway, logs (OpenObserve, Vector)

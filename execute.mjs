@@ -89,7 +89,7 @@ Tests  (extra arguments after "--" go to the test runner)
                       (+ live and the quick ias tests if the stack is up)
   test backend        Backend pytest suite (fake llama router; no Docker needed)
   test agent          tiny_agent pytest suite (fake model server; no Docker needed)
-  test llm            llm_client pytest suite (fake model server; no Docker needed)
+  test llm            model client pytest suite (fake model server; no Docker needed)
   test mocked         Playwright, API stubbed in the browser (current source; no Docker needed)
   test live           Playwright against the REAL stack: switches real models (slow; needs "up")
   test e2e            mocked + live
@@ -460,10 +460,10 @@ switch (command) {
     // `run --build` so the image always matches the code; Docker's layer cache makes that fast. Words after the
     // service name replace its default command, so the whole command is repeated here.
     // `ask "question"` really talks to the loaded model (ask.py), `load MODEL` loads one and waits (load.py);
-    // anything else is the model check (tiny_agent.llm_client.check).
+    // anything else is the model check (tiny_agent.components.client.check).
     const [first, ...rest] = args;
     const cmd =
-      first === "ask" ? ["python", "ask.py", ...rest] : first === "load" ? ["python", "load.py", ...rest] : ["python", "-m", "tiny_agent.llm_client.check", ...args];
+      first === "ask" ? ["python", "ask.py", ...rest] : first === "load" ? ["python", "load.py", ...rest] : ["python", "-m", "tiny_agent.components.client.check", ...args];
     process.exit(composeFor("llm-client", "run", "--rm", "--build", "llm-client", ...cmd));
   }
   case "tiny-agent":
@@ -561,7 +561,7 @@ switch (command) {
     if (!known.includes(which)) fail(`Unknown test target '${which}'. Use one of: ${known.join(", ")}`);
 
     // The LLM client's tests live in tiny_agent/tests too; "llm" runs only them and "agent" everything else.
-    const llmTests = ["test_llm.py", "test_check.py", "test_env.py", "test_embedding.py"].map((f) => `tiny_agent/tests/${f}`);
+    const llmTests = ["test_llm.py", "test_check.py", "test_settings.py", "test_embedding.py"].map((f) => `tiny_agent/tests/${f}`);
     const agent = (more = []) =>
       run("python", ["-m", "pytest", "-q", "tiny_agent/tests", ...llmTests.map((f) => `--ignore=${f}`), ...more], { cwd: ROOT });
     const llm = (more = []) => run("python", ["-m", "pytest", "-q", ...llmTests, ...more], { cwd: ROOT });

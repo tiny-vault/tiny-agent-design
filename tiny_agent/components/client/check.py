@@ -19,21 +19,20 @@ Functions: :func:`model_statuses` is the one request; :func:`loaded_models` and
 
 Run it from the repo root to see the state::
 
-    python -m tiny_agent.llm_client.check                 # list every model and its status
-    python -m tiny_agent.llm_client.check gemma4-e4b      # exit code 0 if loaded, 1 if not
+    python -m tiny_agent.components.client.check                 # list every model and its status
+    python -m tiny_agent.components.client.check gemma4-e4b      # exit code 0 if loaded, 1 if not
 
-Standard library only.
+Libraries: click and httpx.
 """
 
-import http.client
-import json
-import os
 import sys
-import urllib.request
 
-from tiny_agent.llm_client import env
+import click
+import httpx
 
-DEFAULT_URL = "http://127.0.0.1:3200/v1"  # the Docker gateway; 127.0.0.1, not localhost: on Windows "localhost" tries IPv6 first and costs about 2 s per request
+from tiny_agent.config.settings import DEFAULT_LLM_URL, Settings
+
+DEFAULT_URL = DEFAULT_LLM_URL  # the Docker gateway (see tiny_agent/config/settings.py)
 
 
 def model_statuses(base_url: str = DEFAULT_URL, timeout: float = 5) -> dict[str, str] | None:
@@ -52,13 +51,13 @@ def model_statuses(base_url: str = DEFAULT_URL, timeout: float = 5) -> dict[str,
         with something that is not a model list.
     """
     try:
-        with urllib.request.urlopen(f"{base_url.rstrip('/')}/models", timeout=timeout) as response:
-            data = json.loads(response.read()).get("data", [])
+        reply = httpx.get(f"{base_url.rstrip('/')}/models", timeout=timeout)
+        reply.raise_for_status()
+        data = reply.json().get("data", [])
         return {m["id"]: (m.get("status") or {}).get("value", "unknown") for m in data}
-    # OSError covers refused/reset connections, timeouts and HTTP errors; ValueError
-    # covers a malformed URL and a reply that is not JSON; the rest cover JSON that
-    # is not shaped like a model list.
-    except (OSError, http.client.HTTPException, ValueError, TypeError, KeyError, AttributeError):
+    # HTTPError covers refused/reset connections, timeouts and HTTP error statuses; InvalidURL and ValueError
+    # cover a malformed URL and a reply that is not JSON; the rest cover JSON that is not shaped like a model list.
+    except (httpx.HTTPError, httpx.InvalidURL, ValueError, TypeError, KeyError, AttributeError):
         return None
 
 
@@ -82,7 +81,7 @@ def loaded_models(base_url: str = DEFAULT_URL) -> list[str]:
 def model_status(model: str, base_url: str = DEFAULT_URL) -> str | None:
     """Return one model's status, or ``None`` if the server is unreachable or does not offer it.
 
-    This is what :meth:`tiny_agent.llm_client.llm.LLM.generate` calls before sending a
+    This is what :meth:`tiny_agent.components.client.llm.LLM.generate` calls before sending a
     chat request.
 
     Args:
@@ -97,21 +96,46 @@ def model_status(model: str, base_url: str = DEFAULT_URL) -> str | None:
     return (model_statuses(base_url) or {}).get(model)
 
 
+# The default is a function, so the settings (environment, .env file) are read when the command runs, not at import.
+@click.command(context_settings={"help_option_names": ["-h", "--help"]})
+@click.argument("model", required=False)
+@click.option("--url", default=lambda: Settings.from_env().llm_url, help="the API root to query, ending in /v1 (default: $TINYAGENT_LLM_URL or the Docker gateway)")
+def command(model: str | None, url: str) -> int:
+    """Print the model list, or check one MODEL.
+
+    With no MODEL it prints every model with its status, marking the loaded one with *. With a MODEL it prints that
+    model's status only, so it can be used in scripts.
+    """
+    base_url = url
+    statuses = model_statuses(base_url)
+    if statuses is None:
+        print(f"Cannot reach the model server at {base_url}. Is the stack running? (node execute.mjs up)")
+        return 2
+
+    if model:
+        status = statuses.get(model)
+        if status is None:
+            print(f"'{model}' is not offered. Available: {', '.join(statuses) or 'none'}")
+            return 1
+        print(f"{model}: {status}")
+        return 0 if status in ("loaded", "unknown") else 1
+
+    for model, status in statuses.items():
+        print(f"{'*' if status == 'loaded' else ' '} {model:<20} {status}")
+    loaded = [m for m, s in statuses.items() if s == "loaded"]
+    print(f"\nLoaded: {', '.join(loaded) if loaded else 'none (load one: node execute.mjs load <model>)'}")
+    return 0
+
+
 def main(argv: list[str] | None = None) -> int:
-    """Print the model list, or check one model. Returns the process exit code.
+    """Run the command and return its process exit code.
 
     Command line::
 
-        python -m tiny_agent.llm_client.check [MODEL] [--url BASE_URL]
-
-    With no ``MODEL`` it prints every model with its status, marking the loaded
-    one with ``*``. With a ``MODEL`` it prints that model's status only, so it
-    can be used in scripts.
+        python -m tiny_agent.components.client.check [MODEL] [--url BASE_URL]
 
     Args:
-        argv: The arguments after the program name. ``None`` (the default) reads
-            them from ``sys.argv``. ``--url`` takes the API root to query instead
-            of the Docker gateway and must be followed by a value.
+        argv: The arguments after the program name. ``None`` (the default) reads them from ``sys.argv``.
 
     Returns:
         The process exit code, one of the following values.
@@ -120,50 +144,16 @@ def main(argv: list[str] | None = None) -> int:
           status is unknown because the server does not report it).
         * ``1``: the named model is not offered, or is ``unloaded`` or ``loading``.
         * ``2``: the server could not be reached, or the command was used wrongly
-          (``--url`` without a value, an unknown option, more than one model name).
+          (``--url`` without a value, an unknown option, more than one model name); the usage message is on stderr.
 
-        ``-h`` or ``--help`` prints the usage line and returns ``0``.
+        ``-h`` or ``--help`` prints the help and returns ``0``.
     """
-    args = list(sys.argv[1:] if argv is None else argv)  # a copy: never change the caller's list
-    usage = "usage: python -m tiny_agent.llm_client.check [MODEL] [--url BASE_URL]"
-    env.load_env()  # .env may set TINYAGENT_LLM_URL
-    base_url = os.environ.get("TINYAGENT_LLM_URL", DEFAULT_URL)
-    if "-h" in args or "--help" in args:
-        print(usage)
-        return 0
-    if "--url" in args:
-        i = args.index("--url")
-        if i + 1 >= len(args) or args[i + 1].startswith("-"):
-            print(f"--url needs a value, for example: --url http://127.0.0.1:3200/v1\n{usage}")
-            return 2
-        base_url = args[i + 1]
-        del args[i : i + 2]
-    unknown = [a for a in args if a.startswith("-")]
-    if unknown:
-        print(f"Unknown option: {unknown[0]}\n{usage}")
-        return 2
-    if len(args) > 1:
-        print(f"Give at most one model name, got {len(args)}: {', '.join(args)}\n{usage}")
-        return 2
-
-    statuses = model_statuses(base_url)
-    if statuses is None:
-        print(f"Cannot reach the model server at {base_url}. Is the stack running? (node execute.mjs up)")
-        return 2
-
-    if args:
-        status = statuses.get(args[0])
-        if status is None:
-            print(f"'{args[0]}' is not offered. Available: {', '.join(statuses) or 'none'}")
-            return 1
-        print(f"{args[0]}: {status}")
-        return 0 if status in ("loaded", "unknown") else 1
-
-    for model, status in statuses.items():
-        print(f"{'*' if status == 'loaded' else ' '} {model:<20} {status}")
-    loaded = [m for m, s in statuses.items() if s == "loaded"]
-    print(f"\nLoaded: {', '.join(loaded) if loaded else 'none (load one: node execute.mjs load <model>)'}")
-    return 0
+    try:
+        code = command.main(args=argv, prog_name="python -m tiny_agent.components.client.check", standalone_mode=False)
+    except click.ClickException as error:  # wrong options
+        error.show()
+        return error.exit_code
+    return code if isinstance(code, int) else 0  # --help ends the command with code 0 and no return value
 
 
 if __name__ == "__main__":

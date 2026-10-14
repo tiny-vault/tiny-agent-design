@@ -1,7 +1,8 @@
 # Docker reads this file for Dockerfile in this folder. The context is the whole repo, so send only the client
 # and the ask.py and load.py scripts.
 *
-!tiny_agent/llm_client
+!tiny_agent/components/client
+!tiny_agent/config
 !deploy/llm-client/ask.py
 !deploy/llm-client/load.py
 # ...without caches (the client's tests are in tiny_agent/tests, already left out above)

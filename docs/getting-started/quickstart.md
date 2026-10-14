@@ -5,9 +5,9 @@
 Start the stack first (`node execute.mjs up`), because the agent calls a model:
 
 ```python
-from tiny_agent.llm_client.llm import LLM
-from tiny_agent.agent.memory import Memory
-from tiny_agent.agent.tiny_agent import TinyAgent
+from tiny_agent.components.client.llm import LLM
+from tiny_agent.components.memory.memory import Memory
+from tiny_agent.agent import TinyAgent
 
 agent = TinyAgent(LLM(model="gemma4-e4b"), Memory())
 print(agent.run("Hello, agent!"))
@@ -15,7 +15,7 @@ print(agent.run("Hello, agent!"))
 
 This prints the model's reply, which varies between runs. `run` stores the task in `memory`, and `_step` sends the whole memory to the model and stores the reply, so a second `run` on the same agent sees the first exchange. Tools, planning and the multi-step loop are still placeholders.
 
-See {py:class}`tiny_agent.agent.tiny_agent.TinyAgent` for the full API.
+See {py:class}`tiny_agent.agent.TinyAgent` for the full API.
 
 ## Talking to a model
 
@@ -28,7 +28,7 @@ node execute.mjs llm-client load qwen3.5-4b          # and load a model into it
 ```
 
 ```python
-from tiny_agent.llm_client.llm import LLM
+from tiny_agent.components.client.llm import LLM
 
 llm = LLM(model="gemma4-e4b")   # the Docker gateway is the default address
 reply = llm.generate([{"role": "user", "content": "Hi! How's life?"}])
@@ -36,7 +36,7 @@ print(reply.content)
 print(reply.metadata)           # model, prompt_tokens, completion_tokens
 ```
 
-If the model is not the one that is loaded, `generate` stops with a message that says how to load it, or, when the name is not offered at all, uses the loaded model and warns. See {py:class}`tiny_agent.llm_client.llm.LLM`.
+If the model is not the one that is loaded, `generate` stops with a message that says how to load it, or, when the name is not offered at all, uses the loaded model and warns. See {py:class}`tiny_agent.components.client.llm.LLM`.
 
 ## The terminal chat
 

@@ -1,13 +1,13 @@
-"""Tests for tiny_agent.llm_client.check: which models are loaded.
+"""Tests for tiny_agent.components.client.check: which models are loaded.
 
 They cover the three kinds of server (a router that reports ``loaded``/``loading``/
 ``unloaded``, a server that reports no status, and one that cannot be reached or sends
-bad data) and the exit codes of the ``python -m tiny_agent.llm_client.check`` command line.
+bad data) and the exit codes of the ``python -m tiny_agent.components.client.check`` command line.
 """
 
 import pytest
 
-from tiny_agent.llm_client import check
+from tiny_agent.components.client import check
 
 
 def test_statuses_of_a_router(fake_server):
@@ -110,12 +110,12 @@ def test_cli_treats_unknown_status_as_ok(fake_server):
 
 def test_cli_url_without_a_value_is_a_usage_error_not_a_crash(capsys):
     assert check.main(["--url"]) == 2
-    assert "--url needs a value" in capsys.readouterr().out
+    assert "requires an argument" in capsys.readouterr().err
 
 
-def test_cli_url_followed_by_another_option_is_a_usage_error(capsys):
+def test_cli_url_followed_by_another_option_is_taken_as_the_url_and_is_unreachable(capsys):
     assert check.main(["--url", "--other"]) == 2
-    assert "--url needs a value" in capsys.readouterr().out
+    assert "Cannot reach the model server at --other" in capsys.readouterr().out
 
 
 def test_cli_url_value_may_come_before_the_model(fake_server):
@@ -125,18 +125,18 @@ def test_cli_url_value_may_come_before_the_model(fake_server):
 
 def test_cli_unknown_option_is_a_usage_error(capsys):
     assert check.main(["--nope"]) == 2
-    assert "Unknown option: --nope" in capsys.readouterr().out
+    assert "No such option '--nope'" in capsys.readouterr().err
 
 
 def test_cli_more_than_one_model_is_a_usage_error(capsys):
     assert check.main(["a", "b"]) == 2
-    assert "at most one model" in capsys.readouterr().out
+    assert "unexpected extra argument" in capsys.readouterr().err
 
 
 @pytest.mark.parametrize("flag", ["-h", "--help"])
 def test_cli_help_prints_usage_and_succeeds(flag, capsys):
     assert check.main([flag]) == 0
-    assert "usage:" in capsys.readouterr().out
+    assert "Usage:" in capsys.readouterr().out
 
 
 def test_cli_does_not_change_the_callers_argument_list(fake_server):

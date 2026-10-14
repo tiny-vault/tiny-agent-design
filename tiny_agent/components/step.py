@@ -5,15 +5,15 @@ why, the harness tracks everything the model has done so far, one :class:`Step`
 at a time, including what each tool returned.
 """
 
-from dataclasses import dataclass
 from typing import Any
 
+from pydantic import BaseModel
 
-@dataclass
-class Step:
+
+class Step(BaseModel):
     """A single step in an agent's trajectory.
 
-    A step is very much like :class:`tiny_agent.llm_client.response.Response`, with one major
+    A step is very much like :class:`tiny_agent.components.client.response.Response`, with one major
     difference: it adds the ``answer`` and ``observation`` fields. These are
     consequences of processing, results we get from the TinyAgent rather than
     something the model sent directly. An *action* is the term for a tool call.

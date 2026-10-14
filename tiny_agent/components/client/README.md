@@ -1,20 +1,21 @@
-# llm_client
+# client
 
-A small, self-contained client for chat models behind an OpenAI-compatible API (llama.cpp, Ollama, and similar). It has no dependencies beyond the Python standard library and imports nothing from the rest of this repository, so the folder works on its own.
+A small, self-contained client for chat models behind an OpenAI-compatible API (llama.cpp, Ollama, and similar). It uses httpx for the requests.
 
 | File | What it is |
 |---|---|
+| `http.py` | `post_json`, the one HTTP POST that `LLM` and `EmbeddingModel` both use. |
 | `llm.py` | The `LLM` class. `generate(messages, tools=None)` sends a conversation and returns a `Response`. |
 | `embedding.py` | The `EmbeddingModel` class. `embed(text)` sends a text to `/v1/embeddings` and returns the vector (a list of floats). |
 | `response.py` | The `Response` dataclass: `content`, `reasoning`, `tool_call`, `metadata`. |
-| `check.py` | Asks the server which models are loaded. Also a command: `python -m tiny_agent.llm_client.check`. |
+| `check.py` | Asks the server which models are loaded. Also a command: `python -m tiny_agent.components.client.check`. |
 | `env.py` | Loads settings from a `.env` file (`load_env()`) and reads the API key (`api_key_from_env()`); used by the `tiny-agent` command, `main.py` and `check.py`, not by `LLM` itself. |
 | `tests/` | pytest suite (123 tests) against a fake model server (no real model needed). |
 
 ## Use it
 
 ```python
-from tiny_agent.llm_client.llm import LLM
+from tiny_agent.components.client.llm import LLM
 
 llm = LLM(model="gemma4-e4b")   # base_url defaults to http://127.0.0.1:3200/v1
 reply = llm.generate([{"role": "user", "content": "Hi! How's life?"}])
@@ -38,8 +39,8 @@ Point it at another server with `base_url`, for example Ollama: `LLM(model="gemm
 ## Check which model is loaded
 
 ```powershell
-python -m tiny_agent.llm_client.check                  # every model and its status
-python -m tiny_agent.llm_client.check gemma4-e4b       # exit code 0 if loaded, 1 if not, 2 if the server is down
+python -m tiny_agent.components.client.check                  # every model and its status
+python -m tiny_agent.components.client.check gemma4-e4b       # exit code 0 if loaded, 1 if not, 2 if the server is down
 ```
 
 ## Settings from a `.env` file
@@ -47,12 +48,12 @@ python -m tiny_agent.llm_client.check gemma4-e4b       # exit code 0 if loaded, 
 `env.load_env()` reads `.env` (or the file named by `TINYAGENT_ENV_FILE`) and sets each name that the real environment has not already set. A missing, empty or unreadable file is fine, and values are never printed or logged. It understands comments, `export NAME=value`, double quotes (with `\n`, `\t`, `\"`, `\\`), single quotes (literal) and trailing ` # comments`.
 
 ```python
-from tiny_agent.llm_client import env
+from tiny_agent.config import env
 
 env.load_env()   # then os.environ["TINYAGENT_LLM_URL"] etc. are available
 ```
 
-`python -m tiny_agent.llm_client.check` uses `TINYAGENT_LLM_URL` as its default server. The names are listed in `tiny_agent/.env.example`. `LLM` takes its settings only as arguments, so pass what you read from the environment yourself.
+`python -m tiny_agent.components.client.check` uses `TINYAGENT_LLM_URL` as its default server. The names are listed in `tiny_agent/.env.example`. `LLM` takes its settings only as arguments, so pass what you read from the environment yourself.
 
 ## Tests
 

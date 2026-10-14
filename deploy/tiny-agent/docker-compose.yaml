@@ -1,4 +1,4 @@
-# The TinyAgent terminal chat (tiny_agent, with llm_client, cli.py and main.py inside it) in a
+# The TinyAgent terminal chat (tiny_agent, with the model client, cli.py and main.py inside it) in a
 # container, on its own: no chat app, no other service. Run it from this folder:
 #
 #   docker compose run --rm --build tiny-agent                       the interactive chat

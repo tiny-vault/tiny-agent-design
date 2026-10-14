@@ -2,7 +2,7 @@
 #
 #   llama        llama.cpp in router mode serving the models in models.ini, on http://localhost:3200/v1
 #   llama-embed  a second llama.cpp that serves only the embedding model (EmbeddingGemma), on http://localhost:3201/v1
-#   llm-client   the client (tiny_agent/llm_client) in a container, run on demand
+#   llm-client   the client (tiny_agent/components/client) in a container, run on demand
 #
 # Start the model server and talk to it (from this folder, or from the repo root with `node execute.mjs`):
 #
@@ -100,7 +100,7 @@ services:
 
   llm-client:
     build:
-      context: ../..   # the repo root; Dockerfile.dockerignore sends only tiny_agent/llm_client and the two scripts
+      context: ../..   # the repo root; Dockerfile.dockerignore sends only tiny_agent/components/client, tiny_agent/config and the two scripts
       dockerfile: deploy/llm-client/Dockerfile
     image: tiny-agent-llm-client
     environment:
@@ -110,5 +110,5 @@ services:
       TINYAGENT_EMBEDDING_URL: ${TINYAGENT_EMBEDDING_URL:-http://llama-embed:8080/v1}
     extra_hosts:
       - "host.docker.internal:host-gateway"   # built in on Docker Desktop; this line makes it work on Linux too
-    command: ["python", "-m", "tiny_agent.llm_client.check"]
+    command: ["python", "-m", "tiny_agent.components.client.check"]
     profiles: ["tools"]   # run on demand; `docker compose up` starts only the model server

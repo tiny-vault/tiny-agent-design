@@ -94,7 +94,7 @@ All from the repository root.
 | Target | What it runs | Result |
 |---|---|---|
 | `backend` | pytest against a fake llama.cpp router | 60 pass |
-| `llm` | pytest for the `llm_client` package against a fake model server | 123 pass |
+| `llm` | pytest for the model client against a fake model server | 123 pass |
 | `agent` | pytest for `tiny_agent` (chat command, logs, demo, memory) against a fake model server | 107 pass |
 | `mocked` | Playwright with the API stubbed in the browser: model-switch gating and chat edge cases | 35 pass |
 | `live` | Playwright against the running stack: real model switching and OpenObserve | see `INSTRUCTIONS.md` for the latest run |

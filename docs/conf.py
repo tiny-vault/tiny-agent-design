@@ -4,8 +4,8 @@ import sys
 from pathlib import Path
 
 # Make the project modules importable for autodoc. Importing them is safe:
-# tiny_agent/agent/tiny_agent.py has no side effects and tiny_agent/main.py guards its entry point.
-# The repo root, for tiny_agent (with main, cli and llm_client inside it), experimentation.illustrated_agents and
+# tiny_agent/agent.py has no side effects and tiny_agent/main.py guards its entry point.
+# The repo root, for tiny_agent (with main, cli, memory, tools, client and config inside it), experimentation.illustrated_agents and
 # experimentation.trigger_ias. Those scripts
 # guard their model calls, but importing them reads the llama_api_key secret: run
 # `node execute.mjs up` once before building the docs.

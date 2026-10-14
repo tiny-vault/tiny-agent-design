@@ -6,7 +6,7 @@ agent loop never has to know that format.
 
 Why it exists: different servers spell the same thing differently (llama.cpp
 sends the model's thinking as ``reasoning_content``, Ollama as ``reasoning``).
-Converting once, in :meth:`tiny_agent.llm_client.llm.LLM.generate`, keeps that mess out of
+Converting once, in :meth:`tiny_agent.components.client.llm.LLM.generate`, keeps that mess out of
 the agent. The key idea for agents is that one reply is either a final answer
 (``content``) or a request to run a tool (``tool_call``); the loop branches on
 which one it got.
@@ -14,15 +14,15 @@ which one it got.
 This file only defines the data container. It does no parsing and calls nothing.
 """
 
-from dataclasses import dataclass
 from typing import Any
 
+from pydantic import BaseModel
 
-@dataclass
-class Response:
+
+class Response(BaseModel):
     """Structured response from LLM calls.
 
-    Built by :meth:`tiny_agent.llm_client.llm.LLM.generate`. All fields have
+    Built by :meth:`tiny_agent.components.client.llm.LLM.generate`. All fields have
     defaults, so ``Response()`` is a valid empty response.
 
     A reply is usually one of two things: a final answer (``content`` is set,

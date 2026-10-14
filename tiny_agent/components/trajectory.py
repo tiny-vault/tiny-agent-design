@@ -1,7 +1,7 @@
 """The sequence of steps an agent takes to reach its final answer.
 
 To reach a final answer, an agent might need various steps and use different
-actions (tool calls). This sequence of :class:`~tiny_agent.agent.step.Step`
+actions (tool calls). This sequence of :class:`~tiny_agent.components.step.Step`
 objects is the agent's *trajectory*.
 
 The trajectory is where each ``Step`` is created and filled with information
@@ -11,15 +11,15 @@ debug: you can see where, and why, an agent failed.
 
 from typing import Any
 
-from tiny_agent.agent.step import Step
-from tiny_agent.llm_client.response import Response
+from tiny_agent.components.client.response import Response
+from tiny_agent.components.step import Step
 
 
 class Trajectory:
-    """Records agent execution as a sequence of runs.
+    """Records agent execution as a sequence of runs, each a list of :class:`~tiny_agent.components.step.Step`.
 
     Role: the agent's logbook. It is for the developer reading afterwards, not
-    for the model (what the model sees is ``tiny_agent.agent.memory.Memory``).
+    for the model (what the model sees is ``tiny_agent.components.memory.memory.BaseMemory``).
 
     Attributes:
         runs: One dict per call to ``TinyAgent.run``, oldest first, in the form
