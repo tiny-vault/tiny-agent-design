@@ -4,7 +4,7 @@
 
 **How it works here.** ``react`` is the book's ``ReAct`` with ``max_steps=10``. ``react.prompt`` is the system message and ``react.parse`` turns a reply into a ``Response`` whose ``reasoning`` is the THOUGHT and whose ``content`` is only the ACTION. ``sample_reply`` is parsed first, with no model, to show the split; then ``query`` is sent to ``llm`` once under the ReAct prompt and its reply is parsed the same way. One call is one step: the loop that feeds back the observation lives in ``TinyAgent.run``.
 
-**What to expect.** The parsed sample is deterministic. The model's reply varies, but should start with ``THOUGHT:`` and hold one ``add`` action. ``llm`` is ``qwen3.5-4b`` via the gateway with ``temperature=None``. Compare ``agent_with_memory`` and the repo's ``ReAct`` in ``tiny_agent/components/planning.py``, which also drives the loop.
+**What to expect.** The parsed sample is deterministic. The model's reply varies, but should start with ``THOUGHT:`` and hold one ``add`` action. ``llm`` is ``qwen3.5-4b`` via the gateway with ``temperature=None``. Compare ``agent_with_memory`` and the repo's ``ReAct`` in ``tiny_agent/components/planning/react.py``, which also drives the loop.
 """
 
 from pathlib import Path

@@ -23,7 +23,7 @@ The model decides; the harness does. Everything in the diagram except the box la
 | `memory` | The context: what the model sees on each call. | a `BaseMemory` | {doc}`memory` |
 | `tools` | The hands: functions the agent may call. | a `BaseTools`, or `None` for a plain chat | {doc}`tools` |
 | `trajectory` | The logbook: what happened, for you. | `Trajectory`, created inside the agent | {doc}`trajectory` |
-| `planner` | The strategy: break a goal into steps. | `None`, or a `ReAct` (`components/planning.py`) | |
+| `planner` | The strategy: break a goal into steps. | `None`, a `ReAct` (`components/planning/react.py`) or a `NativeReAct` (`components/planning/native_react.py`) | |
 
 ## What `run` does today
 
