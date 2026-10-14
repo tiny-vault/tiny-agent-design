@@ -2,6 +2,8 @@
 
 Guidance for AI agents. `tiny_agent/` has a stricter `AGENTS.md` (fix methods only, never restructure, flag what is missing, re-read before every edit; it also covers `tiny_agent/components/client/` and `tiny_agent/config/`); read it before touching that folder.
 
+**Never create, edit or delete anything in `experimentation/` unless the user explicitly asks for a change there.** A pasted snippet, a "merge into tiny_agent" or "test it" is not such a request: do the work in `tiny_agent/` (and run things from a scratchpad, not a new file here). This overrides every other rule in this file that says to create a script.
+
 ## What this is
 
 1. **TinyAgent** (`tiny_agent/`, `docs/`): minimal educational agent harness. One model call per task, conversation in `Memory`; loop and planning are placeholders. Also the model client (`tiny_agent/components/client/`, `tiny_agent/config/`), the `tiny-agent` terminal chat (`cli.py`), demo `python -m tiny_agent.main`.
@@ -74,8 +76,10 @@ Behaviour change = test change in the same commit. The fake router (`backend/tes
 
 ## Pasted model code (`experimentation/illustrated_agents/`)
 
+Only when the user explicitly asks for a script here (see the rule at the top); otherwise a pasted snippet goes into `tiny_agent/` alone.
+
 - **One file per concept**, grouped by folder; each pasted snippet is a **new** descriptive snake_case file. Variants of one technique share a folder (`best_of_n/orm.py`, `best_of_n/prm.py`); a comparison is its own `compare.py` there, never mixed into a concept file. A lone concept stays top level. Never edit existing scripts' code; documentation-only edits via `edu-audit` are fine.
-- **A snippet about `TinyAgent` is also a request to change `tiny_agent/`.** The book's version is only the script here. Check whether `tiny_agent/` already does what the snippet shows; if not, say what is missing and change it per `tiny_agent/AGENTS.md`, with tests and docs. The script is still created.
+- **A snippet about `TinyAgent` is also a request to change `tiny_agent/`.** The book's version is only the script here. Check whether `tiny_agent/` already does what the snippet shows; if not, say what is missing and change it per `tiny_agent/AGENTS.md`, with tests and docs. A script here only when explicitly asked.
 - **No `__init__.py`** (namespace folder, so it never shadows the installed `illustrated_agents`).
 - Each file is **self-sufficient**: own imports, `LLM(...)`, key reading, prompts, printing helpers. No shared module, no imports between scripts; duplicated setup is intended, also in `compare.py`. Copy the header of `shot_prompting/zero_shot.py`.
 - Runs on the **Docker stack**, never Ollama or a new server: `base_url="http://localhost:3200/v1"`, stack model names (`qwen3.5-4b`, `gemma4-e4b`), key read at runtime from `experimentation/chat-app/secrets/llama_api_key` via `Path(__file__).parents[1]` (`[2]` in a subfolder; never print or hardcode it). Model not in `models.ini`: say so and ask.

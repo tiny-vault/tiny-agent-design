@@ -25,6 +25,15 @@ What it records
    tiny_agent.components.trajectory
    tiny_agent.components.step
 
+Evaluation
+----------
+
+.. autosummary::
+   :toctree: generated
+   :recursive:
+
+   tiny_agent.components.evaluator
+
 Memory
 ------
 
