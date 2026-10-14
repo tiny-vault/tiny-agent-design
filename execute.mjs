@@ -561,7 +561,7 @@ switch (command) {
     if (!known.includes(which)) fail(`Unknown test target '${which}'. Use one of: ${known.join(", ")}`);
 
     // The LLM client's tests live in tiny_agent/tests too; "llm" runs only them and "agent" everything else.
-    const llmTests = ["test_llm.py", "test_check.py", "test_settings.py", "test_embedding.py"].map((f) => `tiny_agent/tests/${f}`);
+    const llmTests = ["test_client.py"].map((f) => `tiny_agent/tests/${f}`);
     const agent = (more = []) =>
       run("python", ["-m", "pytest", "-q", "tiny_agent/tests", ...llmTests.map((f) => `--ignore=${f}`), ...more], { cwd: ROOT });
     const llm = (more = []) => run("python", ["-m", "pytest", "-q", ...llmTests, ...more], { cwd: ROOT });

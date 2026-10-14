@@ -47,4 +47,10 @@ tools = PromptingTools(requires_approval=["delete_file"])
 tools.add_tool("multiply", lambda a, b: int(a) * int(b), "Multiplies two numbers: multiply(a: str, b: str)")
 ```
 
-Every parameter is a string, so the function converts its own arguments. `default_tools()` in `tiny_agent/components/tools/default.py` registers the built-in `multiply`.
+With prompting tools the model writes its arguments as text, so the function converts its own arguments. `default_tools()` in `tiny_agent/components/tools/default.py` registers the built-in `multiply`. The tool functions live one per file in `tiny_agent/components/tools/functions/` (`multiply.py`, `divide.py`); add a new tool as a new file there.
+
+With learned tools, `LearnedTools.schemas` builds the definition from the function itself: a parameter annotated `float` is advertised as `number` (`int` as `integer`, `bool` as `boolean`, anything else as `string`), and its description is the matching entry in the docstring's `Args:` section. So `multiply(a: float | str, b: float | str)` with documented `a` and `b` gives two `number` parameters with descriptions, and a model that sends `6` instead of `"6"` still works because the function calls `float()` on both.
+
+## Complete runs
+
+`tiny_agent/complete/` runs the whole agent against the real model in Docker (`node execute.mjs up llm-client`, then `llm-client load qwen3.5-4b`): `python -m tiny_agent.complete.happy_path` multiplies with prompting tools and then divides that result with learned tools; `python -m tiny_agent.complete.full_run` runs one scenario per part (memory variants, tool approval, settings, the demo, the chat). `node execute.mjs test agent` runs them as `tests/test_complete.py` and skips them when no model is loaded.

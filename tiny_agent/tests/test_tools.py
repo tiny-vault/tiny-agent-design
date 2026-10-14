@@ -1,18 +1,37 @@
-"""Tests for the tool registry, the ``multiply`` tool and the tools wired into ``TinyAgent``."""
-
-from typing import Any
+"""Tests for the tools: the registry and the example tools, prompting (JSON in text) and learned (structured call)
+tool use, and how both are wired into TinyAgent.
+"""
 
 import pytest
 
 from tiny_agent.agent import TinyAgent
-from tiny_agent.components.client.llm import LLM
 from tiny_agent.components.client.response import Response
 from tiny_agent.components.memory.memory import Memory
-from tiny_agent.components.tools.default import default_tools
-from tiny_agent.components.tools.multiply import multiply
+from tiny_agent.components.tools.default import default_native_tools, default_tools
+from tiny_agent.components.tools.functions.divide import divide
+from tiny_agent.components.tools.functions.multiply import multiply
+from tiny_agent.components.tools.learned import LearnedTools
 from tiny_agent.components.tools.prompting import PromptingTools
 from tiny_agent.components.tools.tools import BaseTools
+from tiny_agent.tests.stubs import ScriptedLLM
 
+# ====================================================================================================
+# test_tools
+# Tool registry wiring, parsing, approval and dispatch.
+#
+# The model requests a named action; Python executes the registered callable.
+# Scripted replies isolate that boundary so a multiplication result can be
+# traced from text JSON through the registry to memory and trajectory.
+#
+# What this file demonstrates:
+# Tests for the tool registry, the ``multiply`` tool and the tools wired into ``TinyAgent``.
+#
+# Expected observations and limits:
+# Assertions cover numeric conversion, registration, parsing, denial and tool
+# selection flags. The observation is not a final model answer; another run
+# reads it. These checks do not sandbox arbitrary tools or prove robust parsing
+# of every possible model response.
+# ====================================================================================================
 
 def test_multiply_takes_text_and_returns_a_float():
     assert multiply("3", "4.5") == 13.5
@@ -78,19 +97,6 @@ def test_requires_approval_is_stored():
 
 
 # ---- the tools wired into TinyAgent ----------------------------------------------------
-
-
-class ScriptedLLM(LLM):
-    """Replies with the given texts in order and records the messages of every call."""
-
-    def __init__(self, *replies: str):
-        super().__init__(model="scripted")
-        self.replies = list(replies)
-        self.calls = []
-
-    def generate(self, messages: list[dict[str, Any]], tools: list[Any] | None = None) -> Response:
-        self.calls.append((list(messages), tools))
-        return Response(content=self.replies.pop(0))
 
 
 def make_tools(**kwargs) -> PromptingTools:
@@ -164,7 +170,7 @@ def test_the_observation_reaches_the_model_on_the_next_run():
     agent = TinyAgent(llm, Memory(), make_tools())
     agent.run("What is 6 times 7?")
     assert agent.run("So?") == "The answer is 42."
-    sent = llm.calls[1][0]
+    sent = llm.calls[1]
     assert {"role": "user", "content": "OBSERVATION: 42.0"} in sent
 
 
@@ -263,3 +269,248 @@ def test_the_demo_has_no_tools_by_default(demo_server):
     demo.main()
     first = demo_server.requests[0]["body"]
     assert first["messages"] == [{"role": "user", "content": demo.GREETING}] and "tools" not in first
+
+
+# ====================================================================================================
+# test_learned_tools
+# Compare prompt tool definitions with native tool schemas.
+#
+# Tool choice and tool execution are separate operations. A scripted model
+# provides either JSON text or a structured call, so both registries can be
+# compared on the same multiplication without stochastic model behavior.
+#
+# What this file demonstrates:
+# Tests for the two ways to tell a model about its tools: prompting (``PromptingTools``) and learned (``LearnedTools``).
+#
+# Expected observations and limits:
+# ``CALL`` is the server-shaped request and ``DESCRIPTION`` names the tool.
+# Assertions check schemas, parsed arguments, approval, observations and agent
+# trajectory. Both variants returning 42 proves matching dispatch for these
+# inputs, not that one prompting or training approach is superior.
+# ====================================================================================================
+
+DESCRIPTION = "Multiplies two numbers: multiply(a: str, b: str)"
+NATIVE_CALL = {"id": "call_1", "type": "function", "function": {"name": "multiply", "arguments": '{"a": "6", "b": "7"}'}}
+
+
+def make_native(**kwargs) -> LearnedTools:
+    tools = LearnedTools(**kwargs)
+    tools.add_tool("multiply", multiply, DESCRIPTION)
+    return tools
+
+
+def test_both_variants_are_tools_registries():
+    assert issubclass(PromptingTools, BaseTools) and issubclass(LearnedTools, BaseTools)
+
+
+# ---- how the model is told: prompt versus schemas ---------------------------------------
+
+
+def test_prompting_variant_writes_the_tools_into_the_prompt_and_sends_no_schemas():
+    tools = PromptingTools()
+    tools.add_tool("multiply", multiply, DESCRIPTION)
+    assert "`multiply`" in tools.prompt
+    assert tools.schemas is None
+
+
+def test_learned_variant_has_no_tool_text_in_the_prompt():
+    assert make_native().prompt == ""
+
+
+def test_learned_variant_sends_the_definitions_as_openai_function_schemas():
+    assert make_native().schemas == [
+        {
+            "type": "function",
+            "function": {
+                "name": "multiply",
+                "description": DESCRIPTION,
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "a": {"type": "number", "description": 'The first factor, a number such as 6 (or numeric text such as "6").'},
+                        "b": {"type": "number", "description": 'The second factor, a number such as 7 (or numeric text such as "7").'},
+                    },
+                    "required": ["a", "b"],
+                },
+            },
+        }
+    ]
+
+
+def test_default_native_tools_advertise_number_parameters():
+    properties = default_native_tools().schemas[0]["function"]["parameters"]["properties"]
+    assert {name: p["type"] for name, p in properties.items()} == {"a": "number", "b": "number"}
+
+
+def test_a_parameter_type_comes_from_its_annotation():
+    def tool(count: int, ratio: float, flag: bool, name: str, other, either: float | str):
+        """Args:
+        count: how many
+        """
+
+    tools = LearnedTools()
+    tools.add_tool("tool", tool, "d")
+    properties = tools.schemas[0]["function"]["parameters"]["properties"]
+    assert {n: p["type"] for n, p in properties.items()} == {
+        "count": "integer", "ratio": "number", "flag": "boolean", "name": "string", "other": "string", "either": "number",
+    }  # fmt: skip
+
+
+def test_a_parameter_description_comes_from_the_docstring_args_section():
+    def tool(a: str, b: str):
+        """Does a thing.
+
+        Arguments:
+            a: the first one,
+                continued here.
+            b: the second one.
+
+        Returns:
+            Something: not a parameter.
+        """
+
+    tools = LearnedTools()
+    tools.add_tool("tool", tool, "d")
+    properties = tools.schemas[0]["function"]["parameters"]["properties"]
+    assert properties["a"]["description"] == "the first one,"
+    assert properties["b"]["description"] == "the second one."
+    assert "Something" not in str(properties)
+
+
+def test_a_parameter_without_a_docstring_entry_has_no_description():
+    tools = LearnedTools()
+    tools.add_tool("tool", lambda x: x, "d")
+    assert tools.schemas[0]["function"]["parameters"]["properties"] == {"x": {"type": "string"}}
+
+
+def test_a_number_schema_still_runs_with_numbers_and_with_text():
+    assert multiply(6, 7) == 42.0
+    assert multiply("6", "7") == 42.0
+    assert divide(42, 6) == 7.0
+
+
+def test_a_parameter_with_a_default_is_not_required():
+    tools = LearnedTools()
+    tools.add_tool("greet", lambda name, greeting="Hi": f"{greeting} {name}", "greets")
+    parameters = tools.schemas[0]["function"]["parameters"]
+    assert set(parameters["properties"]) == {"name", "greeting"}
+    assert parameters["required"] == ["name"]
+
+
+def test_schemas_of_an_empty_registry_is_an_empty_list():
+    assert LearnedTools().schemas == []
+
+
+# ---- reading the call ----------------------------------------------------------------------
+
+
+def test_parse_turns_the_structured_call_into_tool_and_kwargs():
+    parsed = make_native().parse(Response(content=None, tool_call=NATIVE_CALL, metadata={"model": "m"}))
+    assert parsed.tool_call == {"tool": "multiply", "kwargs": {"a": "6", "b": "7"}}
+    assert parsed.metadata == {"model": "m"}
+
+
+def test_parse_accepts_arguments_that_are_already_an_object():
+    call = {"function": {"name": "multiply", "arguments": {"a": "2", "b": "3"}}}
+    assert make_native().parse(Response(tool_call=call)).tool_call == {
+        "tool": "multiply",
+        "kwargs": {"a": "2", "b": "3"},
+    }
+
+
+def test_parse_accepts_a_call_without_arguments():
+    call = {"function": {"name": "ping"}}
+    assert make_native().parse(Response(tool_call=call)).tool_call == {"tool": "ping", "kwargs": {}}
+
+
+def test_native_parse_leaves_a_plain_answer_alone():
+    response = Response(content="It is 42.")
+    assert make_native().parse(response) is response
+
+
+def test_parse_ignores_json_written_in_the_text():
+    # The prompting variant reads JSON out of the text; the learned one only trusts the structured call
+    response = Response(content='{"tool": "multiply", "kwargs": {"a": "6", "b": "7"}}')
+    assert make_native().parse(response).tool_call is None
+
+
+def test_is_done_only_without_a_tool_call():
+    tools = make_native()
+    assert tools.is_done(Response(content="42"))
+    assert not tools.is_done(tools.parse(Response(content=None, tool_call=NATIVE_CALL)))
+
+
+def test_observation_is_a_user_message():
+    assert make_native().observation(42.0) == ("user", "OBSERVATION: 42.0")
+
+
+# ---- wired into TinyAgent ------------------------------------------------------------------
+
+
+def test_agent_sends_the_schemas_with_every_call_and_no_tool_text_in_memory():
+    tools, memory = make_native(), Memory()
+    llm = ScriptedLLM(Response(content="Hello!"))
+    TinyAgent(llm, memory, tools).run("Hi")
+    messages, sent_tools = llm.calls[0], llm.tools[0]
+    assert sent_tools == tools.schemas
+    assert messages[0] == {"role": "system", "content": "You are a helpful assistant.\n\n"}
+
+
+def test_prompting_agent_sends_no_schemas():
+    tools = PromptingTools()
+    tools.add_tool("multiply", multiply, DESCRIPTION)
+    llm = ScriptedLLM(Response(content="Hello!"))
+    TinyAgent(llm, Memory(), tools).run("Hi")
+    assert llm.tools[0] is None
+
+
+def test_a_learned_tool_call_runs_the_tool_and_returns_the_observation():
+    memory = Memory()
+    agent = TinyAgent(ScriptedLLM(Response(content=None, tool_call=NATIVE_CALL)), memory, make_native())
+    assert agent.run("What is 6 times 7?") == "OBSERVATION: 42.0"
+    assert memory.get_messages()[-1] == {"role": "user", "content": "OBSERVATION: 42.0"}
+
+
+def test_a_learned_tool_call_is_recorded_in_the_trajectory():
+    agent = TinyAgent(ScriptedLLM(Response(content=None, tool_call=NATIVE_CALL)), Memory(), make_native())
+    agent.run("What is 6 times 7?")
+    (step,) = agent.trajectory.runs[0]["steps"]
+    assert step.action == {"tool": "multiply", "kwargs": {"a": "6", "b": "7"}}
+    assert step.observation == "OBSERVATION: 42.0"
+
+
+def test_a_plain_reply_is_the_answer_with_learned_tools():
+    agent = TinyAgent(ScriptedLLM(Response(content="Hello!")), Memory(), make_native())
+    assert agent.run("Hi") == "Hello!"
+
+
+def test_unknown_learned_tool_is_reported_not_raised():
+    call = {"function": {"name": "divide", "arguments": "{}"}}
+    agent = TinyAgent(ScriptedLLM(Response(content=None, tool_call=call)), Memory(), make_native())
+    assert agent.run("x") == "OBSERVATION: Tool 'divide' not found."
+
+
+def test_learned_tool_needing_approval_is_denied_unless_the_user_says_yes(monkeypatch):
+    tools = make_native(requires_approval=["multiply"])
+    monkeypatch.setattr("builtins.input", lambda prompt: "n")
+    denied = TinyAgent(ScriptedLLM(Response(content=None, tool_call=NATIVE_CALL)), Memory(), tools).run("x")
+    assert denied == "OBSERVATION: Tool 'multiply' was denied by the user."
+    monkeypatch.setattr("builtins.input", lambda prompt: "y")
+    assert TinyAgent(ScriptedLLM(Response(content=None, tool_call=NATIVE_CALL)), Memory(), tools).run("x") == (
+        "OBSERVATION: 42.0"
+    )
+
+
+def test_both_variants_reach_the_same_observation():
+    prompted = PromptingTools()
+    prompted.add_tool("multiply", multiply, DESCRIPTION)
+    text_call = '{"tool": "multiply", "kwargs": {"a": "6", "b": "7"}}'
+    a = TinyAgent(ScriptedLLM(Response(content=text_call)), Memory(), prompted).run("x")
+    b = TinyAgent(ScriptedLLM(Response(content=None, tool_call=NATIVE_CALL)), Memory(), make_native()).run("x")
+    assert a == b == "OBSERVATION: 42.0"
+
+
+def test_malformed_arguments_raise_a_json_error():
+    call = {"function": {"name": "multiply", "arguments": "{not json"}}
+    with pytest.raises(ValueError):
+        make_native().parse(Response(tool_call=call))

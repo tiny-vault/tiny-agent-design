@@ -58,7 +58,7 @@ env.load_env()   # then os.environ["TINYAGENT_LLM_URL"] etc. are available
 ## Tests
 
 ```powershell
-python -m pytest tiny_agent/tests/test_llm.py tiny_agent/tests/test_check.py tiny_agent/tests/test_env.py tiny_agent/tests/test_embedding.py
+python -m pytest tiny_agent/tests/test_client.py
 ```
 
 The tests live with the rest of the package's tests in `tiny_agent/tests/` and use its `conftest.py` (the fake model server).

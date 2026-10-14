@@ -1,4 +1,11 @@
-"""Shared fixtures: a fake OpenAI-compatible model server on an ephemeral port.
+"""Fixture isolation: control the server, environment and logs for each test.
+
+HTTP client behavior needs a network boundary but not always a real model.
+A loopback fake server supplies chosen status lists and replies. Separate
+fixtures also expose real embedding and chat endpoints to integration tests.
+
+What this file demonstrates:
+Shared fixtures: a fake OpenAI-compatible model server on an ephemeral port.
 
 Set ``fake_server.models`` to what ``GET /v1/models`` should return and
 ``fake_server.chat`` to what ``POST /v1/chat/completions`` should return. Every
@@ -8,7 +15,15 @@ Why a fake server: the code under test talks HTTP to a model server. A real mode
 is slow, needs a GPU and answers differently each time, so the tests start a tiny
 server on the local machine that returns exactly what the test sets. The tests then
 check what the code sent and how it handled the reply, deterministically and offline.
-The autouse fixtures also isolate each test from the real ``.env`` file and log folder.
+The autouse fixtures select a nonexistent settings file and a temporary log folder.
+
+Expected observations and limits:
+The fake only implements the tested endpoint behavior and does not validate
+all real chat-template rules. The isolated environment clears six chat-related
+settings; memory and tool flags inherited from the parent environment are not
+all cleared. Temporary log paths avoid changing the normal log folder.
+``embedder`` and ``chat_model`` query real endpoints and skip when unavailable;
+a skip does not verify model behavior.
 """
 
 import json
@@ -191,3 +206,32 @@ def log_folder(tmp_path, monkeypatch):
     folder = tmp_path / "logs"
     monkeypatch.setenv("TINYAGENT_LOG_DIR", str(folder))
     return folder
+
+
+# ---- the real models in Docker (``node execute.mjs up llm-client``): no fakes, a skip when they are down ----
+
+
+@pytest.fixture(scope="module")
+def embedder():
+    """The real EmbeddingGemma client, or a skip when its container is not running."""
+    from tiny_agent.components.client.embedding import EmbeddingModel
+    from tiny_agent.tests.stubs import EMBEDDING_URL
+
+    model = EmbeddingModel("embeddinggemma-300m", base_url=EMBEDDING_URL)
+    try:
+        model.embed("ping")
+    except RuntimeError as error:
+        pytest.skip(f"no embedding model at {EMBEDDING_URL} ({error}); start it with: node execute.mjs up llm-client")
+    return model
+
+
+@pytest.fixture(scope="module")
+def chat_model():
+    """The name of a chat model that is loaded on the real server, or a skip when there is none."""
+    from tiny_agent.components.client import check
+    from tiny_agent.tests.stubs import LLM_URL
+
+    loaded = check.loaded_models(LLM_URL)
+    if not loaded:
+        pytest.skip(f"no chat model loaded at {LLM_URL}; run: node execute.mjs llm-client load qwen3.5-4b")
+    return loaded[0]
