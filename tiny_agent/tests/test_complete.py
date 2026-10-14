@@ -30,6 +30,7 @@ from tiny_agent.complete.happy_path import (
     real_llm,
     run_happy_path,
 )
+from tiny_agent.components.benchmarks import ifeval
 from tiny_agent.components.tools.functions.divide import divide
 
 
@@ -75,6 +76,13 @@ def test_evaluation_scores_every_mmlu_pro_question(llm):
     assert report["name"] == "MMLU Pro" and len(report["results"]) == 3
     assert all(isinstance(result["passed"], bool) for result in report["results"])
     assert report["pass_rate"] == sum(result["passed"] for result in report["results"]) / 3
+
+
+def test_evaluation_checks_every_ifeval_instruction(llm):
+    report = run_evaluation(llm, ifeval)
+    # Whether the model obeys varies, so check that each reply was written and checked
+    assert report["name"] == "IFeval" and len(report["results"]) == 3
+    assert all(result["prediction"] and isinstance(result["passed"], bool) for result in report["results"])
 
 
 @pytest.mark.parametrize("name", list(SCENARIOS))

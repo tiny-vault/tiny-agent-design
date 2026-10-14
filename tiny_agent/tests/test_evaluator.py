@@ -3,13 +3,14 @@
 from typing import Any
 
 from tiny_agent.agent import TinyAgent
-from tiny_agent.components.benchmarks import mmlu_pro
+from tiny_agent.components.benchmarks import ifeval, mmlu_pro
 from tiny_agent.components.client.response import Response
 from tiny_agent.components.evaluator import (
     Benchmark,
     Evaluator,
     Scorer,
     exact_match_scorer,
+    programmatic_scorer,
 )
 from tiny_agent.components.memory.memory import Memory
 from tiny_agent.tests.stubs import ScriptedLLM
@@ -89,3 +90,25 @@ def test_mmlu_pro_has_three_letter_questions_scored_by_exact_match():
     assert (mmlu_pro.name, len(mmlu_pro.examples), mmlu_pro.scorer) == ("MMLU Pro", 3, exact_match_scorer)
     assert [example["expected"] for example in mmlu_pro.examples] == ["J", "E", "I"]
     assert all("Answer with only the letter." in example["task"] for example in mmlu_pro.examples)
+
+
+def test_programmatic_scorer_returns_the_example_check():
+    example = {"check": lambda text: "," not in text}
+    assert programmatic_scorer("no commas here", example) and not programmatic_scorer("one, two", example)
+
+
+def test_ifeval_checks_sentences_words_and_commas():
+    assert (ifeval.name, len(ifeval.examples), ifeval.scorer) == ("IFeval", 3, programmatic_scorer)
+    sentences, words, commas = (example["check"] for example in ifeval.examples)
+    assert sentences("One. Two! Three?") and not sentences("A. " * 10)
+    assert words("word " * 150) and not words("word " * 151)
+    assert commas("Thou shalt see Kyoto") and not commas("Kyoto, then Nara")
+    # The tasks are single strings, the instruction intact at the end
+    assert ifeval.examples[2]["task"].endswith("You are not allowed to use any commas in your response.")
+
+
+def test_evaluator_scores_ifeval_with_each_example_check():
+    llm = ScriptedLLM("Short song.", "word " * 200, "No commas at all")
+    report = Evaluator(lambda: TinyAgent(llm, Memory())).run(ifeval)
+    assert [result["passed"] for result in report["results"]] == [True, False, True]
+    assert report["pass_rate"] == 2 / 3

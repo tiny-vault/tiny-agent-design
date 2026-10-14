@@ -12,6 +12,8 @@ A ``Scorer`` returns ``bool`` (pass or fail, such as an exact match) or
 counts as 1 and ``False`` as 0, so either kind averages into a pass rate.
 ``exact_match_scorer`` is one for multiple-choice benchmarks (options A to J,
 as in MMLU-Pro): it reads the first standalone letter of the prediction.
+``programmatic_scorer`` is one for instruction-following benchmarks (as in
+IFEval): each example carries its own ``check`` function, which it calls.
 
 ``Evaluator`` runs the agent over a benchmark. It is given a function that
 builds a *fresh* agent, and calls it once per example, so no example sees the
@@ -55,6 +57,23 @@ def exact_match_scorer(prediction: str, example: dict[str, Any]) -> bool:
     match = re.search(r"\b([A-J])\b", prediction.upper())
     # No letter at all (an empty or free-text reply) is a wrong answer, not a crash that stops the evaluator
     return match is not None and match.group(1) == example["expected"]
+
+
+def programmatic_scorer(prediction: str, example: dict[str, Any]) -> bool:
+    """Check a prediction against its related check.
+
+    For instruction-following benchmarks (IFEval) there is no single right answer, only a rule the reply must
+    obey ("no commas", "at most 150 words"), so each example carries its own test.
+
+    Args:
+        prediction: The agent's reply.
+        example: The benchmark example; ``example["check"]`` is a function that takes the reply text and
+            returns whether it follows the instruction.
+
+    Returns:
+        What ``example["check"]`` returns for the prediction.
+    """
+    return example["check"](prediction)
 
 
 @dataclass
