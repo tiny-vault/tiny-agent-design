@@ -1121,3 +1121,5 @@ nohup.out
 /.agents/skills/
 notes-site/
 /deploy/llm-client/models/cache/
+# Skills, agents and experimentation skeleton (local, extracted from this repo)
+/skeleton/

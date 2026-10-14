@@ -1,13 +1,15 @@
-"""Tests for ReAct: the prompt, the THOUGHT / ACTION parser and the agent loop it drives."""
+"""Tests for ReAct: the prompt, the THOUGHT / ACTION parser and the agent loop it drives, and NativeReAct."""
 
 from tiny_agent.agent import TinyAgent
 from tiny_agent.components.client.response import Response
 from tiny_agent.components.memory.memory import Memory
 from tiny_agent.components.planning import ReAct
+from tiny_agent.components.planning.native_react import NativeReAct
 from tiny_agent.components.tools.functions.add import add
 from tiny_agent.components.tools.functions.divide import divide
 from tiny_agent.components.tools.functions.multiply import multiply
 from tiny_agent.components.tools.functions.subtract import subtract
+from tiny_agent.components.tools.learned import LearnedTools
 from tiny_agent.components.tools.prompting import PromptingTools
 from tiny_agent.tests.stubs import ScriptedLLM
 
@@ -165,3 +167,39 @@ def test_native_thinking_and_the_thought_are_both_kept():
     # No THOUGHT in the reply: the native thinking stays, and nothing replaces None with ""
     assert ReAct().parse(Response(content='ACTION:\n{"tool": "x"}', reasoning="native")).reasoning == "native"
     assert ReAct().parse(Response(content='ACTION:\n{"tool": "x"}')).reasoning is None
+
+
+# NativeReAct: native thinking and native tool calls, so no format to teach and nothing to parse
+NATIVE_CALL = {"id": "call_1", "type": "function", "function": {"name": "multiply", "arguments": '{"a": 6, "b": 7}'}}
+
+
+def make_native() -> LearnedTools:
+    tools = LearnedTools()
+    tools.add_tool("multiply", multiply, "Multiplies two numbers.")
+    return tools
+
+
+def test_native_react_teaches_no_format_and_parses_nothing():
+    reply = Response(content="Hi", reasoning="thinking", tool_call=NATIVE_CALL)
+    assert NativeReAct().prompt == "" and NativeReAct().parse(reply) is reply
+    assert isinstance(NativeReAct(), ReAct) and NativeReAct(max_steps=3).max_steps == 3
+
+
+def test_native_react_adds_no_text_to_the_system_prompt():
+    memory = Memory()
+    TinyAgent(ScriptedLLM(), memory, make_native(), NativeReAct())
+    assert memory.get_messages()[0]["content"] == "You are a helpful assistant.\n\n"
+
+
+def test_native_react_loops_on_tool_calls_and_ends_on_a_plain_answer():
+    llm = ScriptedLLM(
+        Response(content=None, reasoning="I need the product.", tool_call=NATIVE_CALL),
+        Response(content="The answer is 42.", reasoning="I have it."),
+    )
+    agent = TinyAgent(llm, Memory(), make_native(), NativeReAct())
+    assert agent.run("What is 6 times 7?") == "The answer is 42."
+    # The second call saw the result as a tool message, after the assistant's recorded call
+    assert {"role": "tool", "content": "OBSERVATION: 42.0"} in llm.calls[1]
+    first, second = agent.trajectory.runs[0]["steps"]
+    assert (first.thought, first.observation) == ("I need the product.", "OBSERVATION: 42.0")
+    assert (second.thought, second.answer) == ("I have it.", "The answer is 42.")
