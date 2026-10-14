@@ -42,6 +42,7 @@ Evaluation
    :recursive:
 
    tiny_agent.components.evaluator
+   tiny_agent.components.benchmarks
 
 Memory
 ------

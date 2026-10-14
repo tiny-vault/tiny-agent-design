@@ -3,8 +3,14 @@
 from typing import Any
 
 from tiny_agent.agent import TinyAgent
+from tiny_agent.components.benchmarks import mmlu_pro
 from tiny_agent.components.client.response import Response
-from tiny_agent.components.evaluator import Benchmark, Evaluator, Scorer
+from tiny_agent.components.evaluator import (
+    Benchmark,
+    Evaluator,
+    Scorer,
+    exact_match_scorer,
+)
 from tiny_agent.components.memory.memory import Memory
 from tiny_agent.tests.stubs import ScriptedLLM
 
@@ -66,3 +72,20 @@ def test_evaluator_with_partial_scores_and_no_examples():
     examples = [{"task": "t", "keywords": ["42", "six"]}] * 2
     assert Evaluator(lambda: TinyAgent(llm, Memory())).run(Benchmark("kw", examples, keywords))["pass_rate"] == 0.75
     assert Evaluator(lambda: TinyAgent(llm, Memory())).run(Benchmark("empty", [], exact))["pass_rate"] == 0.0
+
+
+def test_exact_match_scorer_reads_the_first_standalone_letter():
+    example = {"expected": "B"}
+    assert all(exact_match_scorer(p, example) for p in ["B", "b", "B)", "The answer is (B).", "**B**"])
+    assert not exact_match_scorer("C", example)
+    # No letter at all is a wrong answer, not a crash
+    assert not exact_match_scorer("", example) and not exact_match_scorer("Bob knows", example)
+    # Only A to J count as options; a standalone "I" or "A" word is read first (the heuristic's known limit)
+    assert exact_match_scorer("K or B", example)
+    assert not exact_match_scorer("I think it is B", example)
+
+
+def test_mmlu_pro_has_three_letter_questions_scored_by_exact_match():
+    assert (mmlu_pro.name, len(mmlu_pro.examples), mmlu_pro.scorer) == ("MMLU Pro", 3, exact_match_scorer)
+    assert [example["expected"] for example in mmlu_pro.examples] == ["J", "E", "I"]
+    assert all("Answer with only the letter." in example["task"] for example in mmlu_pro.examples)

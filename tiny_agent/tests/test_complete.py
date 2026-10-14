@@ -5,7 +5,7 @@ it correctly. The happy-path stages trace definitions, calls, observations
 and follow-up answers through the deployed server.
 
 What this file demonstrates:
-Tests for ``divide`` and the complete happy path in ``tiny_agent/complete``.
+Tests for ``divide``, the complete happy path and the MMLU-Pro evaluation in ``tiny_agent/complete``.
 
 The happy path runs against the real model in Docker (``node execute.mjs up llm-client``, then
 ``node execute.mjs llm-client load qwen3.5-4b``). There are no fakes: when no chat model is loaded, those tests are
@@ -21,6 +21,7 @@ not robust grading of arbitrary natural-language answers.
 
 import pytest
 
+from tiny_agent.complete.evaluation import run_evaluation
 from tiny_agent.complete.full_run import SCENARIOS
 from tiny_agent.complete.happy_path import (
     StackNotRunning,
@@ -66,6 +67,14 @@ def test_happy_path_runs_prompting_then_learned(llm):
     stages = run_happy_path(llm)
     assert list(stages) == ["prompting", "learned"]
     assert "7" in stages["learned"]["answer"]
+
+
+def test_evaluation_scores_every_mmlu_pro_question(llm):
+    report = run_evaluation(llm)
+    # The model's letters vary, so check the shape and that each reply was scored, not the pass rate itself
+    assert report["name"] == "MMLU Pro" and len(report["results"]) == 3
+    assert all(isinstance(result["passed"], bool) for result in report["results"])
+    assert report["pass_rate"] == sum(result["passed"] for result in report["results"]) / 3
 
 
 @pytest.mark.parametrize("name", list(SCENARIOS))

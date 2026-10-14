@@ -10,6 +10,8 @@ agent's prediction and its example and says how good the prediction is.
 A ``Scorer`` returns ``bool`` (pass or fail, such as an exact match) or
 ``float`` (a partial score, such as 0.5 for half the keywords found); ``True``
 counts as 1 and ``False`` as 0, so either kind averages into a pass rate.
+``exact_match_scorer`` is one for multiple-choice benchmarks (options A to J,
+as in MMLU-Pro): it reads the first standalone letter of the prediction.
 
 ``Evaluator`` runs the agent over a benchmark. It is given a function that
 builds a *fresh* agent, and calls it once per example, so no example sees the
@@ -23,6 +25,7 @@ run. Every example is a full agent run, so a benchmark against a real model is
 slow. Compare ``trajectory.py`` for what one run records.
 """
 
+import re
 from collections.abc import Callable
 from dataclasses import dataclass
 from typing import Any
@@ -32,6 +35,26 @@ from tiny_agent.agent import TinyAgent
 # Type hint for the scorers
 ##  (prediction: str, example: dict) -> bool | float
 Scorer = Callable[[str, dict[str, Any]], bool | float]
+
+
+def exact_match_scorer(prediction: str, example: dict[str, Any]) -> bool:
+    """Return True if the answer matches the prediction, False otherwise.
+
+    The chosen option is the first letter A to J that stands alone in the prediction (case is ignored),
+    so ``"b"``, ``"B)"`` and ``"The answer is (B)"`` all read as ``B``. A heuristic: a standalone ``A``
+    or ``I`` that is a word ("I think it is B") is read first, and the letter is not checked against the
+    options the question offered.
+
+    Args:
+        prediction: The agent's reply.
+        example: The benchmark example; ``example["expected"]`` is the correct letter, in upper case.
+
+    Returns:
+        Whether the first standalone letter equals ``expected``; ``False`` when there is no such letter.
+    """
+    match = re.search(r"\b([A-J])\b", prediction.upper())
+    # No letter at all (an empty or free-text reply) is a wrong answer, not a crash that stops the evaluator
+    return match is not None and match.group(1) == example["expected"]
 
 
 @dataclass
