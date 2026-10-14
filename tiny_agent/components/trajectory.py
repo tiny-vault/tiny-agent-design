@@ -6,7 +6,17 @@ objects is the agent's *trajectory*.
 
 The trajectory is where each ``Step`` is created and filled with information
 related to the TinyAgent. It is tracked because it makes the sequence easy to
-debug: you can see where, and why, an agent failed.
+debug: you can inspect where an agent failed and the recorded evidence.
+
+``initialize`` starts a run with a query and an empty step list. ``add``
+copies reasoning and metadata into a ``Step``, then records either action
+and observation or answer. An empty observation still selects the action
+branch because the check distinguishes it from ``None``.
+
+The current harness records one decision step per run; memory-internal calls
+are not recorded. This logbook is for the developer, not the model, and has
+no persistence or model requests. ``add`` before ``initialize`` raises
+``IndexError``. Compare memory for the messages actually sent to the model.
 """
 
 from typing import Any
@@ -26,6 +36,7 @@ class Trajectory:
             ``{"query": <task text>, "steps": [Step, ...]}``.
     """
     def __init__(self) -> None:
+        """Start an empty developer logbook, separate from model context."""
         self.runs: list[dict[str, Any]] = []
 
     def initialize(self, query: str) -> None:

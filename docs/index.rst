@@ -11,8 +11,12 @@ TinyAgent
      <a class="gb-card" href="getting-started/installation.html"><strong>Install</strong><span>Create the environment and run the demo in a few minutes.</span></a>
      <a class="gb-card" href="getting-started/quickstart.html"><strong>Quickstart</strong><span>Talk to a model, run the harness, open the terminal chat.</span></a>
      <a class="gb-card" href="architecture/overview.html"><strong>How it fits together</strong><span>The harness, its parts and the data flow, with diagrams.</span></a>
+     <a class="gb-card" href="architecture/agent.html"><strong>The agent harness</strong><span>What an agent is, the five slots and what <code>run</code> does today.</span></a>
      <a class="gb-card" href="architecture/memory.html"><strong>Memory</strong><span>Five ways to keep a conversation: all of it, the last turns, a summary, documents, a memory bank.</span></a>
      <a class="gb-card" href="architecture/tools.html"><strong>Tools</strong><span>Prompted versus learned tool calling, and how a call becomes an observation.</span></a>
+     <a class="gb-card" href="architecture/model-client.html"><strong>Model client</strong><span>LLM, Response and the loaded-model check.</span></a>
+     <a class="gb-card" href="architecture/trajectory.html"><strong>Trajectory</strong><span>The logbook of runs and steps, and how it differs from memory.</span></a>
+     <a class="gb-card" href="architecture/configuration.html"><strong>Configuration</strong><span>Settings, the .env file and the log files.</span></a>
      <a class="gb-card" href="api/index.html"><strong>API reference</strong><span>Every module, generated from the docstrings.</span></a>
    </div>
 
@@ -43,8 +47,12 @@ TinyAgent
    :caption: Concepts
 
    architecture/overview
+   architecture/agent
    architecture/memory
    architecture/tools
+   architecture/model-client
+   architecture/trajectory
+   architecture/configuration
 
 .. toctree::
    :hidden:

@@ -9,7 +9,11 @@ what retrieval-augmented memory uses to find the notes that match a question.
 Uses httpx, like the rest of the model client.
 
 Limitations: one text per request, blocking, no retries. The model must be loaded on the server (on the Docker
-stack that means ``LLAMA_MODELS_MAX`` of at least 2 if a chat model is loaded as well).
+stack, two models sharing one router need ``LLAMA_MODELS_MAX`` of at least 2;
+the llm-client deployment can instead serve embeddings separately on
+``llama-embed`` at port 3201). The client converts entries to floats but does
+not verify dimensionality or a nonzero norm. A vector supports ranking, not
+a guarantee of semantic relevance.
 """
 
 from tiny_agent.components.client.http import post_json
@@ -21,7 +25,7 @@ class EmbeddingModel:
     Attributes:
         model: The model name the server knows, for example ``"embeddinggemma-300m"``.
         base_url: The API root, ending in ``/v1``. ``/embeddings`` is added to it.
-        api_key: Sent as a bearer token. Local servers ignore it.
+        api_key: Sent as a bearer token; requirements depend on the endpoint.
     """
 
     def __init__(
@@ -37,7 +41,8 @@ class EmbeddingModel:
         Args:
             model: The model name the server knows.
             base_url: The API root, ending in ``/v1``. Defaults to the Docker gateway.
-            api_key: Bearer token sent with every request. The default is a placeholder that local servers ignore.
+            api_key: Bearer token sent with every request. The placeholder only
+                works when the endpoint does not require a real credential.
         """
         self.model = model
         self.base_url = base_url

@@ -8,6 +8,17 @@ an error that names the setting.
 
 Everything else asks ``Settings.from_env()`` (never ``os.environ``). Pass a ``Settings(...)`` to a function to
 configure it in code instead, for example in a test.
+
+Explicit constructor values win, but ``Settings()`` itself still reads the
+environment. ``from_env`` also chooses the dotenv file; it does not copy its
+values into ``os.environ``. Instances are frozen rather than mutated in place.
+
+``memory`` resolves bank, rag, summary and trim flags in that order.
+``tools_kind`` gives native calling priority over prompt calling. These choose
+components rather than run them. ``resolve_api_key`` prefers the first
+nonblank, non-comment line in a key file to the secret variable. ``SecretStr``
+masks representations but does not make logging the resolved string safe.
+Missing or empty key files raise; this module makes no model requests.
 """
 
 import os
@@ -84,6 +95,7 @@ class Settings(BaseSettings):
     @field_validator("log_level")
     @classmethod
     def _upper(cls, value: str) -> str:
+        """Normalize spelling; the logger handles unknown level names."""
         return value.upper()
 
     @classmethod

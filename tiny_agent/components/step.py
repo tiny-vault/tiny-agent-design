@@ -3,6 +3,17 @@
 An agent may run for several turns and sometimes uses a tool wrongly. To find out
 why, the harness tracks everything the model has done so far, one :class:`Step`
 at a time, including what each tool returned.
+
+``Step`` is a pydantic data container, not the agent's control flow. All fields
+have defaults, so an empty ``Step()`` is valid. ``Trajectory.add`` fills the
+thought and metadata, then either action plus observation or answer.
+The distinction separates a model request from the consequence of running it.
+
+Inspecting a step shows recorded text and tool results; it does not expose
+internal model computation or prove that an answer is correct. ``thought``
+is separately returned reasoning text when available. This file performs no
+network requests, printing or file writes. Compare ``response.py`` for the
+model reply before the harness adds its outcome.
 """
 
 from typing import Any

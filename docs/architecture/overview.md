@@ -2,6 +2,8 @@
 
 ## Components
 
+Each component has its own page: {doc}`agent`, {doc}`memory`, {doc}`tools`, {doc}`model-client`, {doc}`trajectory` and {doc}`configuration`.
+
 | Component | Source | Responsibility |
 |---|---|---|
 | Entry point | `main.py` (`main`) | Creates the agent, runs two tasks on it (the authors' names, then "what are our names?") to show memory, prints the second result. Holds no agent logic. |
@@ -57,16 +59,4 @@ The chat sends the whole conversation on every turn, so the model remembers it. 
 Planning and the multi-step loop (call the model again with the observation until it answers). Neither exists in `TinyAgent` yet.
 ```
 
-Besides the Python package there is a separate Docker chat app, described in {doc}`../guides/chat-app`. The Python code reads its settings from the environment or a `.env` file (see `tiny_agent/.env.example`):
-
-| Setting | What it does |
-|---|---|
-| `TINYAGENT_MODEL`, `TINYAGENT_LLM_URL` | The chat model and the server address (defaults for the chat command and the demo). |
-| `TINYAGENT_API_KEY` or `TINYAGENT_API_KEY_FILE` | The key, for a server that needs one. |
-| `TINYAGENT_THINK`, `TINYAGENT_SYSTEM` | Let the model reason; set a system message. |
-| `TINYAGENT_TRIM_MEMORY`, `TINYAGENT_SUMMARY_MEMORY`, `TINYAGENT_RAG_MEMORY`, `TINYAGENT_BANK_MEMORY` | Which memory the demo uses (the strongest wins). |
-| `TINYAGENT_EMBEDDING_MODEL`, `TINYAGENT_EMBEDDING_URL` | The embedding model for the `rag` and `bank` memories. |
-| `TINYAGENT_TOOLS`, `TINYAGENT_NATIVE_TOOLS` | Give the agent the built-in tools, prompted or learned. |
-| `TINYAGENT_LOG_DIR`, `TINYAGENT_LOG_LEVEL` | Where the log files go and how much they say. |
-
-The `LLM` client itself reads nothing from the environment.
+Besides the Python package there is a separate Docker chat app, described in {doc}`../guides/chat-app`. The Python code reads its settings from the environment or a `.env` file; every setting is listed in {doc}`configuration`.

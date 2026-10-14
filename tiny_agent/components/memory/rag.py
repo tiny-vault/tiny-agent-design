@@ -15,7 +15,9 @@ is resent on every later call (the history grows by the context each turn, and n
 question is embedded as it is, on its own, so a follow-up such as "and her hobby?" retrieves poorly. Every user
 message costs one embedding request; the documents are embedded once, when the memory is created. There are
 fewer than three results only if there are fewer than three documents. A document or question that embeds to
-the zero vector would divide by zero; real embedding models do not produce one.
+the zero vector would divide by zero; this implementation assumes nonzero,
+equal-length embeddings and does not check them. No similarity threshold is
+used, so even weak matches can be returned.
 
 Switch it on in the demo with ``TINYAGENT_RAG_MEMORY=1`` (see ``main.memory_from_env``); the harness itself
 takes whichever memory it is given.

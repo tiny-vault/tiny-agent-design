@@ -26,7 +26,8 @@ How a call works, step by step (all inside :meth:`LLM.generate`):
    and fail early, with the fix, if this model is not.
 2. Build the JSON body: ``model`` and ``messages``, plus ``tools`` if given and
    ``reasoning_effort: "none"`` when ``think`` is off.
-3. POST it and read the reply; turn every failure into one ``RuntimeError``.
+3. POST it and read the reply; wrap transport, HTTP and JSON failures in
+   ``RuntimeError``. Unexpected completion structure is also checked.
 4. Pick out ``choices[0].message`` and return it as a ``Response``.
 
 Limitations: the client is blocking (no streaming), makes no retries, and keeps
@@ -62,8 +63,8 @@ class LLM:
             tag such as ``"gemma4:e4b-it-qat"``.
         base_url: The API root, ending in ``/v1``. ``/chat/completions`` is
             added to it.
-        api_key: Sent as a bearer token. Local servers ignore it, hosted ones
-            require a real key.
+        api_key: Sent as a bearer token. Authenticated endpoints require a real
+            key, including a directly accessed protected local server.
         think: Whether the model may reason before answering. ``False`` asks it
             not to (faster, shorter); ``True`` lets it, and its reasoning is
             returned in ``Response.reasoning``.
@@ -98,7 +99,7 @@ class LLM:
             base_url: The API root, ending in ``/v1``. Defaults to the Docker
                 gateway. Pass ``"http://localhost:11434/v1"`` for Ollama.
             api_key: Bearer token sent with every request. The default is a
-                placeholder that local servers ignore.
+                placeholder for endpoints that do not require a real key.
             think: ``False`` (default) sends ``reasoning_effort: "none"`` so the
                 model answers without a long reasoning phase. ``True`` leaves it
                 free to think; the thinking comes back in ``Response.reasoning``.
@@ -159,7 +160,10 @@ class LLM:
                 * the URL is malformed, or the reply is not JSON;
                 * the reply is JSON but not a chat completion (no ``choices``).
 
-                The original exception is kept as ``__cause__``.
+                Wrapped transport and completion-shape failures retain the
+                original exception as ``__cause__``. Pre-check errors are
+                raised directly; malformed optional fields can still raise
+                other exceptions after the completion-shape check.
 
         Note:
             Each call first makes one extra request to ``/models``. On a router

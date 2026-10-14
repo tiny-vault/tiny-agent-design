@@ -36,7 +36,9 @@ Set ``TINYAGENT_RAG_MEMORY=1`` to give it a ``RAGMemory`` instead: each user mes
 Set ``TINYAGENT_BANK_MEMORY=1`` to give it a ``MemoryBank`` instead: after each reply the model writes an event summary
 and updates a user portrait, and each user message gets the summaries it recalls (and the portrait) put in front of
 it; unused summaries fade over time. It needs the same embedding model as the RAG flag and costs two extra chat
-calls and one embedding request per task. It wins over all the other flags.
+calls and, for a nonempty summary, one embedding request per completed turn.
+Retrieval adds an embedding request when retained summaries exist.
+It wins over all the other flags.
 
 Set ``TINYAGENT_TOOLS=1`` to bind the built-in tools (``multiply``) to the agent, described to the model in its prompt, or
 ``TINYAGENT_NATIVE_TOOLS=1`` to bind them for a model that learned tool calling (the definitions go in the request's
@@ -90,8 +92,12 @@ def memory_from_env(llm: LLM | None = None, settings: Settings | None = None) ->
     document. The bank wins over all the others and uses the same embedding model.
 
     Args:
+        settings: Explicit configuration; ``None`` reads ``Settings.from_env()``.
         llm: The model that writes the summaries, or whose key the embedding model uses. Needed only
             when ``TINYAGENT_SUMMARY_MEMORY`` ``TINYAGENT_RAG_MEMORY`` or ``TINYAGENT_BANK_MEMORY`` is on.
+
+    Returns:
+        The selected memory; retrieval embeds documents at construction.
 
     Raises:
         ValueError: ``TINYAGENT_SUMMARY_MEMORY``, ``TINYAGENT_RAG_MEMORY`` or ``TINYAGENT_BANK_MEMORY`` is on but no ``llm`` was given.
@@ -99,6 +105,7 @@ def memory_from_env(llm: LLM | None = None, settings: Settings | None = None) ->
     settings = settings or Settings.from_env()
 
     def embedding_model_for(llm: LLM) -> EmbeddingModel:
+        """Share connection settings and the chat client's key with retrieval."""
         return EmbeddingModel(
             model=settings.embedding_model,
             base_url=settings.embedding_url,

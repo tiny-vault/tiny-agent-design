@@ -11,7 +11,15 @@ the agent. The key idea for agents is that one reply is either a final answer
 (``content``) or a request to run a tool (``tool_call``); the loop branches on
 which one it got.
 
-This file only defines the data container. It does no parsing and calls nothing.
+This file defines the data container and makes no external calls or
+server-response parsing; pydantic validates field values at construction.
+Text and a tool call can coexist, so a tool-enabled agent branches on the
+requested action rather than treating content as proof of completion.
+
+The initial tool call has the server's nested ``function`` shape. A registry
+can return a new response with ``{"tool": name, "kwargs": arguments}``
+instead. This field accepts either dict shape but does not validate the tool's
+argument schema. Compare ``Step`` for the record that adds the outcome.
 """
 
 from typing import Any

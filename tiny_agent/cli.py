@@ -26,7 +26,10 @@ and then either answers one question or starts the chat.
 
 Limitations: no streaming (a reply appears all at once), no history trimming (a very
 long chat will exceed the model's context window), and this chat does not use
-``TinyAgent``. Replies vary from run to run.
+``TinyAgent``. Replies vary from run to run. Existing logs include user and
+assistant text, system prompts and command arguments; they are conversation
+records, not redacted metadata. Supplying sensitive text can put it in the
+configured log file. This module does not provide a redaction mechanism.
 """
 
 import logging

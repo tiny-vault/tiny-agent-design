@@ -2,7 +2,8 @@
 
 WHAT IS IT? ``Memory`` keeps every message and ``TrimmingMemory`` forgets everything older than two turns.
 ``SummarizationMemory`` sits between them: after each reply it asks the model to fold the new turn into a short
-summary and keeps only that summary, as a single ``system`` message. The history never grows, yet the facts the
+summary and keeps only that summary, as a single ``system`` message. The stored
+message count collapses after each successful summary call, yet the facts the
 summary captured (the user's name, a decision) survive far longer than in a sliding window.
 
 HOW IT WORKS: ``add`` stores the new message with the parent class. When that message is the assistant's reply
@@ -18,7 +19,9 @@ instructions in the summary prompt or in a different slot. The call is not wrapp
 fails, the error reaches the caller and the reply stays in ``messages`` unsummarised.
 
 Switch it on in the demo with ``TINYAGENT_SUMMARY_MEMORY=1`` (see ``main.memory_from_env``); the harness
-itself takes whichever memory it is given.
+itself takes whichever memory it is given. This compresses messages rather
+than enforcing a token budget: a growing summary can still exceed the context
+window. No durable storage or factual verification is added.
 """
 
 from typing import Any, override
