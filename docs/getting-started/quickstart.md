@@ -13,7 +13,7 @@ agent = TinyAgent(LLM(model="gemma4-e4b"), Memory())
 print(agent.run("Hello, agent!"))
 ```
 
-This prints the model's reply, which varies between runs. `run` stores the task in `memory`, and `_step` sends the whole memory to the model and stores the reply, so a second `run` on the same agent sees the first exchange. Tools, planning and the multi-step loop are still placeholders.
+This prints the model's reply, which varies between runs. `run` stores the task in `memory`, and `_step` sends the whole memory to the model and stores the reply, so a second `run` on the same agent sees the first exchange. Tools are optional (see {doc}`../architecture/tools`); planning and the multi-step loop are still placeholders.
 
 See {py:class}`tiny_agent.agent.TinyAgent` for the full API.
 

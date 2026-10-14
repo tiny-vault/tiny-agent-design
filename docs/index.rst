@@ -1,16 +1,27 @@
 TinyAgent
 =========
 
-A minimal, modular, and educational agent framework. ``TinyAgent`` is the
-*harness*: the code around an LLM that turns it into an agent.
+.. raw:: html
+
+   <div class="gb-hero">
+     <p>A minimal, educational agent harness. <code>TinyAgent</code> is the code around a language model that turns it into an agent: memory, tools and a record of what it did.</p>
+   </div>
+
+   <div class="gb-cards">
+     <a class="gb-card" href="getting-started/installation.html"><strong>Install</strong><span>Create the environment and run the demo in a few minutes.</span></a>
+     <a class="gb-card" href="getting-started/quickstart.html"><strong>Quickstart</strong><span>Talk to a model, run the harness, open the terminal chat.</span></a>
+     <a class="gb-card" href="architecture/overview.html"><strong>How it fits together</strong><span>The harness, its parts and the data flow, with diagrams.</span></a>
+     <a class="gb-card" href="architecture/memory.html"><strong>Memory</strong><span>Five ways to keep a conversation: all of it, the last turns, a summary, documents, a memory bank.</span></a>
+     <a class="gb-card" href="architecture/tools.html"><strong>Tools</strong><span>Prompted versus learned tool calling, and how a call becomes an observation.</span></a>
+     <a class="gb-card" href="api/index.html"><strong>API reference</strong><span>Every module, generated from the docstrings.</span></a>
+   </div>
 
 .. note::
 
-   The agent loop (``TinyAgent``) is still a skeleton: memory, tools and the
-   planner are placeholders, and the loop does not call a model yet. Around it
-   there is a working LLM client, a model check, a terminal chat
-   (``tiny-agent``) and a Docker chat app that serves local models. See
-   :doc:`architecture/overview` and :doc:`guides/chat-app`.
+   ``TinyAgent`` makes one model call per task. It remembers the conversation in ``memory``, can parse one tool call
+   from the reply and run it, and records every step in ``trajectory``. The multi-step loop and the planner are
+   not built yet. Around it there is a working model client, a model check, a terminal chat (``tiny-agent``) and a
+   Docker chat app that serves local models. See :doc:`architecture/overview`.
 
 .. note::
 
@@ -21,25 +32,32 @@ A minimal, modular, and educational agent framework. ``TinyAgent`` is the
    learning project, not affiliated with or endorsed by them.
 
 .. toctree::
-   :maxdepth: 2
+   :hidden:
    :caption: Getting started
 
    getting-started/installation
    getting-started/quickstart
 
 .. toctree::
-   :maxdepth: 2
-   :caption: Architecture
+   :hidden:
+   :caption: Concepts
 
    architecture/overview
+   architecture/memory
+   architecture/tools
 
 .. toctree::
-   :maxdepth: 2
+   :hidden:
+   :caption: Guides
+
+   guides/models
+   guides/chat-app
+   guides/development
+
+.. toctree::
+   :hidden:
    :caption: Reference
 
    api/index
    api/illustrated-agents-scripts
    api/chat-app-backend
-   guides/models
-   guides/chat-app
-   guides/development

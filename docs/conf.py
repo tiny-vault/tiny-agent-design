@@ -72,5 +72,37 @@ todo_include_todos = True
 myst_enable_extensions = ["colon_fence"]
 myst_fence_as_directive = ["mermaid"]
 
+# Pydantic's and pydantic-settings' own types appear on the Settings page; their manuals are not in
+# intersphinx_mapping (same reason as above), so those names are shown as plain text.
+nitpick_ignore_regex = [
+    ("py:class", r"pydantic.*"),
+    ("py:exc", r"pydantic.*"),
+    ("py:class", r"(EnvPrefixTarget|DotenvType|CliSettingsSource|PathType|PydanticBaseSettingsSource)"),
+    # napoleon reads the first line of a property docstring in tiny_agent as its type; the text is fine
+    ("py:class", r"(Nothing|Which memory the demo uses.*|Which tools the demo binds)"),
+]
+
+# Look: a GitBook-style book. Furo gives the left sidebar (the toctree captions become its section
+# headings), the search box, the 'On this page' column and the previous/next links; _static/gitbook.css
+# restyles them (colours, type, rounded cards and hints).
+html_title = "TinyAgent"
 html_theme = "furo"
 html_static_path = ["_static"]
+html_css_files = ["gitbook.css"]
+html_show_sphinx = False
+html_show_copyright = False
+html_theme_options = {
+    "source_repository": "https://github.com/tiny-vault/tiny-agent-design/",
+    "source_branch": "main",
+    "source_directory": "docs/",
+    "navigation_with_keys": True,
+    "top_of_page_buttons": ["edit"],
+    "light_css_variables": {
+        "color-brand-primary": "#3b6fd4",
+        "color-brand-content": "#3b6fd4",
+    },
+    "dark_css_variables": {
+        "color-brand-primary": "#7aa2f7",
+        "color-brand-content": "#7aa2f7",
+    },
+}
