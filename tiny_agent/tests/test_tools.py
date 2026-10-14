@@ -8,8 +8,10 @@ from tiny_agent.agent import TinyAgent
 from tiny_agent.components.client.response import Response
 from tiny_agent.components.memory.memory import Memory
 from tiny_agent.components.tools.default import default_native_tools, default_tools
+from tiny_agent.components.tools.functions.add import add
 from tiny_agent.components.tools.functions.divide import divide
 from tiny_agent.components.tools.functions.multiply import multiply
+from tiny_agent.components.tools.functions.subtract import subtract
 from tiny_agent.components.tools.learned import LearnedTools
 from tiny_agent.components.tools.prompting import PromptingTools
 from tiny_agent.components.tools.tools import BaseTools
@@ -64,6 +66,13 @@ def test_multiply_cases(a, b, expected):
 def test_multiply_rejects_text_that_is_not_a_number(a, b):
     with pytest.raises(ValueError):
         multiply(a, b)
+
+
+def test_add_and_subtract_take_text_and_return_a_float():
+    assert add("4.6", "6.5") == pytest.approx(11.1)
+    assert subtract("45", "3") == 42.0
+    with pytest.raises(ValueError):
+        add("abc", "1")
 
 
 def test_new_registry_is_empty():
@@ -198,7 +207,8 @@ def test_tool_needing_approval_is_denied_unless_the_user_says_yes(monkeypatch):
 
 def test_default_tools_registers_multiply():
     tools = default_tools()
-    assert set(tools.registry) == {"multiply"}
+    assert set(tools.registry) == {"multiply", "add", "subtract", "divide"}
+    assert set(default_native_tools().registry) == {"multiply", "add", "subtract", "divide"}
     assert tools.registry["multiply"]["function"] is multiply
     assert tools.registry["multiply"]["description"].startswith("Multiplies")
 

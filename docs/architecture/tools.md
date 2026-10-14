@@ -47,7 +47,7 @@ tools = PromptingTools(requires_approval=["delete_file"])
 tools.add_tool("multiply", lambda a, b: int(a) * int(b), "Multiplies two numbers: multiply(a: str, b: str)")
 ```
 
-With prompting tools the model writes its arguments as text, so the function converts its own arguments. `default_tools()` in `tiny_agent/components/tools/default.py` registers the built-in `multiply`. The tool functions live one per file in `tiny_agent/components/tools/functions/` (`multiply.py`, `divide.py`); add a new tool as a new file there.
+With prompting tools the model writes its arguments as text, so the function converts its own arguments. `default_tools()` in `tiny_agent/components/tools/default.py` registers the built-in `multiply`, `add`, `subtract` and `divide`. The tool functions live one per file in `tiny_agent/components/tools/functions/` (`add.py`, `subtract.py`, `multiply.py`, `divide.py`); add a new tool as a new file there.
 
 With learned tools, `LearnedTools.schemas` builds the definition from the function itself: a parameter annotated `float` is advertised as `number` (`int` as `integer`, `bool` as `boolean`, anything else as `string`), and its description is the matching entry in the docstring's `Args:` section. So `multiply(a: float | str, b: float | str)` with documented `a` and `b` gives two `number` parameters with descriptions, and a model that sends `6` instead of `"6"` still works because the function calls `float()` on both.
 

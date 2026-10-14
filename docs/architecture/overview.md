@@ -18,7 +18,7 @@ Each component has its own page: {doc}`agent`, {doc}`memory`, {doc}`tools`, {doc
 | Settings and logs | `tiny_agent/config/`, `tiny_agent/logging/log.py` | `Settings` reads every `TINYAGENT_*` value (environment, then the `.env` file, then a default). `log.py` writes `cli.log` and `main.log`. |
 | Docker deployment | `deploy/` | Four independent parts, each with its own compose file: the chat app, the llm client with its own model server, the tiny agent, the docs. `execute.mjs` starts and stops them. |
 
-`TinyAgent` has five attributes. `llm`, `memory` and (optionally) `tools` are passed in when it is created, `trajectory` is created inside it, and `planner` is `None` until its phase. `_step` calls the LLM client with the whole memory, so the harness already talks to a model, and when the reply holds a tool call it hands it to `_execute_action`. The terminal chat does not use `TinyAgent`: it keeps its own message list.
+`TinyAgent` has five attributes. `llm`, `memory` and (optionally) `tools` are passed in when it is created, `trajectory` is created inside it, and `planner` is `None` or a `ReAct`, which turns `run` into a loop. `_step` calls the LLM client with the whole memory, so the harness already talks to a model, and when the reply holds a tool call it hands it to `_execute_action`. The terminal chat does not use `TinyAgent`: it keeps its own message list.
 
 ## Data flow of the harness
 
@@ -32,7 +32,7 @@ flowchart LR
     R -->|result| M
 ```
 
-`run` adds the task to memory; `_step` sends the memory to the model, stores the reply and records a step in the trajectory. If the reply holds a tool call, `_execute_action` runs it and stores the observation in memory. `_step` returns that observation; it does not call the model again, because the multi-step loop is not built yet.
+`run` adds the task to memory; `_step` sends the memory to the model, stores the reply and records a step in the trajectory. If the reply holds a tool call, `_execute_action` runs it and stores the observation in memory. `_step` returns that observation; without a `planner` it does not call the model again; with a `ReAct` planner `run` loops until `final_answer` or `max_steps`.
 
 ## Data flow of the terminal chat
 
@@ -56,7 +56,7 @@ The chat sends the whole conversation on every turn, so the model remembers it. 
 ## Not yet implemented
 
 ```{todo}
-Planning and the multi-step loop (call the model again with the observation until it answers). Neither exists in `TinyAgent` yet.
+Planning beyond ReAct (an explicit plan). ReAct gives the multi-step loop; nothing more is planned for the agent yet.
 ```
 
 Besides the Python package there is a separate Docker chat app, described in {doc}`../guides/chat-app`. The Python code reads its settings from the environment or a `.env` file; every setting is listed in {doc}`configuration`.

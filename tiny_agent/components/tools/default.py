@@ -1,8 +1,8 @@
 """Default tool wiring: choose a registry without changing the agent.
 
 A registry must hold actual callables before a model can request them.
-``default_tools`` registers ``multiply`` with ``PromptingTools``;
-``default_native_tools`` registers the same function with ``LearnedTools``.
+``default_tools`` registers ``multiply``, ``add``, ``subtract`` and ``divide`` with ``PromptingTools``;
+``default_native_tools`` registers the same functions with ``LearnedTools``.
 The prompting registry describes it as ``multiply(a: str, b: str)`` in the prompt; the native one gives the
 schema ``number`` parameters taken from the function. Both can receive a list
 of names that need approval. They construct fresh registries and make no
@@ -11,7 +11,7 @@ model calls; execution happens later through the agent.
 ``tools_from_settings`` reads ``Settings.tools_kind``: native tools win when
 both flags are on, prompt tools are selected by ``TINYAGENT_TOOLS`` alone,
 and neither flag returns ``None`` for plain chat. The native flag is
-``TINYAGENT_NATIVE_TOOLS``. Only multiplication is registered by default;
+``TINYAGENT_NATIVE_TOOLS``. Multiplication, addition, subtraction and division are registered by default;
 ``divide`` exists in ``functions/`` but is registered by the happy-path demo.
 
 The returned object controls how definitions reach the model, not whether the
@@ -19,7 +19,10 @@ model will choose a correct call. Compare ``prompting.py`` and ``learned.py``
 for those formats. No tools are executed simply by creating this registry.
 """
 
+from tiny_agent.components.tools.functions.add import add
+from tiny_agent.components.tools.functions.divide import divide
 from tiny_agent.components.tools.functions.multiply import multiply
+from tiny_agent.components.tools.functions.subtract import subtract
 from tiny_agent.components.tools.learned import LearnedTools
 from tiny_agent.components.tools.prompting import PromptingTools
 from tiny_agent.components.tools.tools import BaseTools
@@ -46,6 +49,15 @@ def default_tools(requires_approval: list[str] | None = None) -> PromptingTools:
             "Example: multiply(\"6\", \"7\") returns 42.0."
         ),
     )
+    tools.add_tool("add", add, "Adds two numbers and returns the sum: add(a: str, b: str). Example: add(\"4\", \"3\") returns 7.0.")
+    tools.add_tool(
+        "subtract", subtract,
+        "Subtracts b from a and returns the difference: subtract(a: str, b: str). Example: subtract(\"9\", \"2\") returns 7.0.",
+    )
+    tools.add_tool(
+        "divide", divide,
+        "Divides a by b and returns the quotient; b must not be zero: divide(a: str, b: str). Example: divide(\"42\", \"6\") returns 7.0.",
+    )
     return tools
 
 
@@ -69,6 +81,9 @@ def default_native_tools(requires_approval: list[str] | None = None) -> LearnedT
             "Example: a=6, b=7 returns 42.0."
         ),
     )
+    tools.add_tool("add", add, "Adds two numbers and returns the sum. Example: a=4, b=3 returns 7.0.")
+    tools.add_tool("subtract", subtract, "Subtracts b from a and returns the difference. Example: a=9, b=2 returns 7.0.")
+    tools.add_tool("divide", divide, "Divides a by b and returns the quotient; b must not be zero. Example: a=42, b=6 returns 7.0.")
     return tools
 
 

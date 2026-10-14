@@ -32,8 +32,11 @@ class TrimmingMemory(BaseMemory):
     grow without limit. It has the same methods; only ``add`` differs.
 
     Attributes:
-        messages: The system message(s), then at most the four most recent other messages, oldest first.
+        messages: The system message(s), then at most the four most recent other messages, oldest first,
+            plus the pinned message when there is one.
     """
+
+    _pinned: dict[str, Any] | None = None
 
     @override
     def add(self, role: str, content: str, tool_call: dict[str, Any] | None = None, **kwargs) -> None:
@@ -43,12 +46,18 @@ class TrimmingMemory(BaseMemory):
             role: Who said it: ``system``, ``user``, ``assistant`` or ``tool``.
             content: The message text.
             tool_call: The tool call the model made, if this message records one (stored as in ``Memory``).
-            **kwargs: Accepted and ignored, as in ``Memory``.
+            **kwargs: ``pin=True`` keeps this message outside the window until a later message is
+                pinned (the agent pins the task of a ReAct loop, so a long loop does not forget it).
+                Anything else is ignored, as in ``Memory``.
         """
         # Add the new message first using the parent class's helper (BaseMemory)
         self._append(role, content, tool_call)
+        if kwargs.get("pin"):
+            self._pinned = self.messages[-1]
 
-        # Then keep the system message(s) plus the most recent two turns (4 messages)
-        system = [message for message in self.messages if message["role"] == "system"]
-        turns = [message for message in self.messages if message["role"] != "system"]
-        self.messages = system + turns[-4:]
+        # Then keep the system message(s), the pinned one and the most recent two turns (4 messages)
+        turns = [m for m in self.messages if m["role"] != "system" and m is not self._pinned]
+        recent = turns[-4:]
+        system = [m for m in self.messages if m["role"] == "system"]
+        kept = [m for m in self.messages if m is self._pinned or any(m is r for r in recent)]
+        self.messages = system + kept

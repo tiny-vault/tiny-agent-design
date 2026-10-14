@@ -23,7 +23,7 @@ The model decides; the harness does. Everything in the diagram except the box la
 | `memory` | The context: what the model sees on each call. | a `BaseMemory` | {doc}`memory` |
 | `tools` | The hands: functions the agent may call. | a `BaseTools`, or `None` for a plain chat | {doc}`tools` |
 | `trajectory` | The logbook: what happened, for you. | `Trajectory`, created inside the agent | {doc}`trajectory` |
-| `planner` | The strategy: break a goal into steps. | `None`, a later phase | |
+| `planner` | The strategy: break a goal into steps. | `None`, or a `ReAct` (`components/planning.py`) | |
 
 ## What `run` does today
 
@@ -35,7 +35,7 @@ The model decides; the harness does. Everything in the diagram except the box la
 That is one model call per task. Because the history is resent every time, a second `run` on the same agent can use what the first one said; with a fresh memory it cannot.
 
 ```{note}
-**Not built yet:** the loop. After a tool runs, the observation is in memory but the model is not called again within the same `run`, and nothing decides when to stop or when to give up. Planning comes after that. Each is a phase of the book this project follows.
+**The loop (opt-in):** with `planner=ReAct(max_steps=10)` the system prompt teaches `THOUGHT:` / `ACTION:` and `run` repeats step, act, observe until the model calls `final_answer` (or answers in plain text), giving up with `"Max steps reached without completion."`. `ReAct.parse` puts the thought into `reasoning` (the trajectory's `thought`) and the action into `content` for the tools to read; it needs prompting tools. Without a planner `run` is still one model call.
 ```
 
 ## Memory versus trajectory

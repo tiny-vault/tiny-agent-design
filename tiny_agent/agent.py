@@ -11,7 +11,9 @@ recorded in ``trajectory``. Because the history is resent every time, a second
 ``run`` on the same agent can use what the first one said; with a fresh
 ``Memory`` it cannot. With ``tools``, the reply is parsed and a requested tool
 is executed once; its observation is returned and kept in memory. A plain
-reply is returned as the answer. There is no automatic loop or planning yet.
+reply is returned as the answer. Without a ``planner`` there is no loop. With a
+``ReAct`` planner, ``run`` repeats step, act, observe up to ``max_steps`` times until
+the model calls ``final_answer`` (or answers in plain text).
 
 Prompting tools describe functions in the system message; learned tools send
 schemas with the request and parse structured calls. Both dispatch through
@@ -29,6 +31,7 @@ all rights remain with the authors.
 from tiny_agent.components.client.llm import LLM
 from tiny_agent.components.client.response import Response
 from tiny_agent.components.memory.memory import BaseMemory
+from tiny_agent.components.planning import ReAct
 from tiny_agent.components.tools.tools import BaseTools
 from tiny_agent.components.trajectory import Trajectory
 
@@ -81,7 +84,9 @@ class TinyAgent:
         'Hello! How can I help?'
     """
 
-    def __init__(self, llm: LLM, memory: BaseMemory, tools: BaseTools | None = None):
+    def __init__(
+        self, llm: LLM, memory: BaseMemory, tools: BaseTools | None = None, planner: ReAct | None = None
+    ):
         """Assemble the agent's components.
 
         Role: configuration and dependency wiring. Each attribute is a
@@ -94,13 +99,19 @@ class TinyAgent:
             tools: The tool registry. When given, its prompt is added to memory
                 as a system message so the model knows the tools from the start.
                 ``None`` means a plain chat agent.
+            planner: The :class:`~tiny_agent.components.planning.ReAct` module. When given
+                (with ``tools``), its prompt comes before the tool prompt and ``run`` loops
+                up to ``planner.max_steps`` times. ``None`` keeps one decision per run.
         """
         self.llm = llm
         self.memory = memory
         self.tools = tools
+        self.planner = planner
         if tools is not None:
-            self.memory.add("system", "You are a helpful assistant.\n\n" + tools.prompt)
-        self.planner = None  # Phase 6: Add Planning
+            system_prompt = "You are a helpful assistant.\n\n"
+            if planner is not None:
+                system_prompt += planner.prompt
+            self.memory.add("system", system_prompt + tools.prompt)
 
         self.trajectory = Trajectory()
 
@@ -115,15 +126,32 @@ class TinyAgent:
         Args:
             task: The goal or question for the agent, in natural language.
 
+        With a ``planner`` this is the loop: step, act, observe, repeat until the
+        model answers or ``planner.max_steps`` turns have passed.
+
         Returns:
-            The model's reply, or the observation from one requested tool.
+            The model's reply, or the observation from one requested tool. With a
+            ``planner``, the final answer, or ``"Max steps reached without completion."``.
             Model, parsing, and tool failures propagate to the caller.
         """
-        self.memory.add("user", task)
+        looping = self.planner is not None and self.tools is not None
+        # In a loop the task must outlive many steps: pin it (a trimming memory would otherwise drop it)
+        self.memory.add("user", task, pin=looping)
         self.trajectory.initialize(task)
-        return self._step()
+        if self.planner is None or self.tools is None:
+            return self._step() or ""
 
-    def _step(self) -> str:
+        # Autonomy loop: _step returns None while the model is still acting
+        for _ in range(self.planner.max_steps):
+            result = self._step()
+            if result is not None:
+                return result
+        # Record the give-up as the run's last step, so the trajectory shows how the run ended
+        message = "Max steps reached without completion."
+        self.trajectory.add(Response(content=message))
+        return message
+
+    def _step(self) -> str | None:
         """Perform a single step.
 
         Role: one iteration of the reason-act cycle (the "think" phase).
@@ -160,13 +188,27 @@ class TinyAgent:
             self.trajectory.add(response)
             return text
 
+        # ReAct first splits THOUGHT from ACTION; memory above kept the whole reply
+        if self.planner is not None:
+            response = self.planner.parse(response)
         # Each registry normalizes its own format: JSON text or a structured call.
-        response = self.tools.parse(response)
+        try:
+            response = self.tools.parse(response)
+        except ValueError as error:
+            # In the ReAct loop a badly written action is something the model can fix: tell it, do not crash
+            if self.planner is None:
+                raise
+            role, observation = self.tools.observation(f"Error: could not read your ACTION ({error}). Write valid JSON.")
+            self.memory.add(role, observation)
+            self.trajectory.add(response, observation)
+            return None
         if self.tools.is_done(response):
             self.trajectory.add(response)
             # Not `text`: for a `final_answer` call, is_done put the answer into response.content
             return response.content or ""
-        return self._execute_action(response)
+        observation = self._execute_action(response)
+        # In the loop the observation goes to the model, not to the caller: None means "keep going"
+        return None if self.planner is not None else observation
 
     def _execute_action(self, response: Response) -> str:
         """Execute a tool action.
@@ -185,7 +227,13 @@ class TinyAgent:
         """
         assert self.tools is not None, "_execute_action needs tools"
         # ACTION: run the tool
-        result = self.tools.execute(response)
+        try:
+            result = self.tools.execute(response)
+        except Exception as error:
+            # In the ReAct loop a failing tool is an observation the model can react to (retry, other tool)
+            if self.planner is None:
+                raise
+            result = f"Error: {type(error).__name__}: {error}"
 
         # OBSERVATION: store the result so the model can read it, and record the step
         role, observation = self.tools.observation(result)
